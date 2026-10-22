@@ -30,3 +30,8 @@ Në çdo record dhe query duhet lidhur një `merchant_id` me autorizim rigoroz, 
 7. Krahaso koston reale për 5, 50 dhe 500 biznese, kohën e mirëmbajtjes dhe margjinën SaaS. Vendimi final të mbahet në ADR me test-run/commit dhe review.
 
 **Do not label G3 complete until all relevant negative access tests pass in CI**, and a human performs a permission/security review. Never use real customer information in a public GitHub CI run.
+
+## Verifikim negativ shtesë — akses direkt me ID (2026-10-22)
+
+[Run 39843421693](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39843421693) **PASSED**, commit `7e87bda1cfebe107e4acf78b31f4e98bc7defaa6`. Testi përdori çelësin publik të kanalit bosh për `GET /store/products/{id}` mbi ID-në e një produkti të kanalit kryesor. Serveri ktheu **HTTP 404** (`SHQIPSHOP_CROSS_CHANNEL_DIRECT_PRODUCT_DENIED`). Testet e katalogut, porosisë në PostgreSQL dhe rezervimit të 1 njësie inventari kaluan sërish. Ky është **scope i produkteve sipas sales-channel**, JO izolim i plotë i dy bizneseve ose i porosive/klientëve/adminëve.
+
