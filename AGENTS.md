@@ -48,3 +48,7 @@ Imported native-medusa/ now has React Native verification and a bundled Android 
 ## Current emulator workstream (PR #4)
 
 Android x86_64 APK install/launch test is in `feat/android-emulator-smoke`, [PR #4](https://github.com/titanfit102-bit/ShqipShop/pull/4). Its workflow captures screenshot, checks process and crash logs. Earlier job 39841940988 failed before build due an abbreviated action SHA, now fixed; run 39842340691 must be verified live. An APK build is not proof of Android install. Production signing and native connected checkout remain absent. Do not confuse the PR #3 scoped catalog proof with full tenant isolation.
+
+## Emulator proof (2026-10-22)
+
+[Run 39842340691](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39842340691) passed Android 35 x86_64 APK installation, MainActivity launch, process survival and filtered crash test; screenshot/log artifact 12454487323. Physical Android device, UI checkout and backend connectivity are NOT proven. React Native security advisories remain open. Keep main protected and use test-only data.
