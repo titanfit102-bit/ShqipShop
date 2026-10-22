@@ -57,7 +57,7 @@ jobs:
       - name: Install Android compile SDK, build-tools and NDK
         run: |
           set -euo pipefail
-          sdkmanager --install "platforms;android-37" "build-tools;37.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
 
       - name: Verify demo-only configuration and signing mode
         working-directory: native-medusa
