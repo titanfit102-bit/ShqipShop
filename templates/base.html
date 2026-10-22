@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="sq">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="{{ shop.color if shop is defined else '#155c52' }}">
+  <meta name="description" content="{{ shop.tagline if shop is defined and shop.tagline else 'Dyqane shqiptare online. Porosit lehtë dhe në mënyrë të sigurt.' }}">
+  <title>{% block title %}ShqipShop{% endblock %}</title>
+  {% if shop is defined %}<link rel="manifest" href="/s/{{shop.slug}}/manifest.webmanifest">{% endif %}
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body style="--brand:{{shop.color if shop is defined else '#155c52'}}">
+{% block body %}{% endblock %}
+<footer class="footer"><span>Teknologjia nga <strong>ShqipShop</strong></span><span>© 2026 · Version demonstrues</span></footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>
