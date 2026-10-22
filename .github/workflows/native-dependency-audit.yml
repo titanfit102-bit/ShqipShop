@@ -1,0 +1,70 @@
+name: Audit native dependencies (report only)
+
+on:
+  push:
+    branches: [feat/native-medusa-poc]
+    paths:
+      - 'native-medusa/package.json'
+      - 'native-medusa/package-lock.json'
+      - '.github/workflows/native-dependency-audit.yml'
+  pull_request:
+    paths:
+      - 'native-medusa/package.json'
+      - 'native-medusa/package-lock.json'
+      - '.github/workflows/native-dependency-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Report npm advisories (not a security approval)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: native-medusa
+    steps:
+      - name: Checkout without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: native-medusa/.nvmrc
+      - name: Set up pinned npm
+        run: npm install -g "$(node -p "require('./package.json').packageManager")"
+      - name: Audit all dependencies and runtime-only dependencies
+        run: |
+          set -euo pipefail
+          npm audit --json > audit-all.json || test "$?" -eq 1
+          npm audit --omit=dev --json > audit-runtime.json || test "$?" -eq 1
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          lines=['## Dependency audit (report, not security certification)']
+          for category in ('all', 'runtime'):
+              data=json.loads(Path(f'audit-{category}.json').read_text())
+              vulnerabilities=data.get('metadata',{}).get('vulnerabilities',{})
+              lines.append(f"### {category}")
+              lines.append(", ".join(f"{severity}: {vulnerabilities.get(severity,0)}" for severity in ('critical','high','moderate','low','info')))
+              packages=data.get('vulnerabilities',{})
+              severe=[(name,p.get('severity'),p.get('isDirect',False),str(p.get('fixAvailable'))) for name,p in packages.items() if p.get('severity') in ('critical','high')]
+              for name,severity,direct,fix in sorted(severe,key=lambda a:(a[1]!='critical',not a[2],a[0]))[:30]:
+                  lines.append(f"- {severity} {name} (direct={direct}, fixAvailable={fix})")
+          summary='\n'.join(lines)+'\n'
+          Path('AUDIT_SUMMARY.md').write_text(summary)
+          print(summary)
+          with open(__import__('os').environ['GITHUB_STEP_SUMMARY'],'a') as f: f.write(summary)
+          PY
+      - name: Save advisory evidence (public artifact)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ShqipShop-native-dependency-audit
+          path: |
+            native-medusa/audit-all.json
+            native-medusa/audit-runtime.json
+            native-medusa/AUDIT_SUMMARY.md
+          retention-days: 14
+          if-no-files-found: error
