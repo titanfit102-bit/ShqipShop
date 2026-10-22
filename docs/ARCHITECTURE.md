@@ -1,5 +1,7 @@
 # Architecture decision record — ShqipShop
 
+**Further design decision:** [ADR-003 — original Medusa Mobile vs custom PWA pilot](ADR-003_MEDUSA_NATIVE_VS_CUSTOM_PILOT.md) defines a reversible proof-of-concept for native apps, keeping the PWA for business validation. The production source-of-truth is NOT selected yet.
+
 ## ADR-001: Pilot delivery is PWA first, native apps later
 **Decision:** Use a branded web storefront per merchant, with an installable PWA and a single shared admin codebase.
 
