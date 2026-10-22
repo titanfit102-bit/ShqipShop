@@ -1,30 +1,61 @@
 # ShqipShop
 
-**Status:** Implementation import pending. This repository is not deployed and is not production-ready.
+**White-label ecommerce pilot for Albanian merchants** · **Status: prototype / local pilot only**
 
-ShqipShop is an Albanian white-label commerce platform intended to let each merchant operate an independent branded storefront with separate products, orders, administration and inventory.
+ShqipShop is a multi-merchant, Albanian-language storefront and merchant admin platform. Each merchant has a separate catalog, branding, inventory and order data. The current implementation is a **FastAPI + SQLite PWA pilot**, not a Medusa production backend. No real online payments, merchant subscriptions, native Android/iOS apps or public production deployment exist yet.
 
-## Source package created
+## What's implemented
 
-The initial 30-file prototype is available as `shqipshop-platform-mvp.zip` in the originating ChatGPT conversation. It has **not** yet been committed to this repository. The original ZIP contains:
+- Storefront per merchant under `/s/<merchant-slug>/`, with Albanian UI and ALL (Lekë) pricing
+- Product search, category filters, cart and cash-on-delivery order placement
+- Merchant-only admin for products, stock, order status and store branding
+- Server-calculated prices, order idempotency, tenant-scoped queries, password-backed sessions and CSRF validation
+- PWA manifest, dynamically generated icons, and an intentionally network-only service worker
+- An **optional localization kit** for the separate MIT-licensed Medusa Mobile React Native app in `mobile-medusa/` (translation pack only — **no native build or live Medusa integration**)
+- GitHub Actions regression checks on pull requests and pushes to `main`
 
-- FastAPI backend and SQLite local pilot database
-- Multi-merchant PWA storefronts and tenant-scoped merchant admin
-- Albanian interface, ALL currency, manual cash-on-delivery ordering
-- Inventory, order state transitions, CSRF/session safeguards
-- React Native Medusa Albanian localization kit (not a full native integration)
-- 8 local tests, Dockerfile, CI workflow and setup documentation
+## Local setup
 
-**Do not mistake this branch for a working deployment.** GitHub Actions, live Medusa, real payment integrations, subscriptions, production database hardening and mobile binaries all remain unverified or unimplemented.
+Requires Python 3.13+:
 
-## Next steps
+```bash
+python -m venv .venv
+# Linux/macOS: source .venv/bin/activate
+# Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+python -m app.cli init
+python -m app.cli seed-demo
+uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
 
-1. Import the 30 source files from `shqipshop-platform-mvp.zip` into this branch (omit the outer `shqipshop-platform/` folder), preserving paths including dotfiles.
-2. Review the source and security invariants before accepting it as a baseline.
-3. Run `pip install -r requirements-dev.txt`, `python -m compileall -q app` and `PYTHONPATH=. pytest -q` in GitHub Actions.
-4. Review all changes in a pull request before merging into `main`.
-5. Validate storefront and admin flows in a browser, then plan hardened PostgreSQL multi-tenancy and Medusa integration.
+Open `http://127.0.0.1:8000` for demo storefront links. Demo shops are fictitious; they do not include merchant admin accounts.
 
-## Architectural boundary
+For a merchant you administer locally, use an interactive password prompt:
 
-The current pilot is **FastAPI + SQLite**, not a deployed Medusa backend. The Medusa Mobile React Native repository is MIT-licensed; when importing or modifying its source later, preserve its upstream license and attributions. Keep ShqipShop independent of other repositories and do not use real customer or payment details in local demos.
+```bash
+python -m app.cli create-merchant --slug butik-test --name "Butiku Test" --email admin@example.com
+```
+
+Then open `http://127.0.0.1:8000/admin/butik-test/login`.
+
+## Tests
+
+```bash
+python -m compileall -q app mobile-medusa
+PYTHONPATH=. python -m pytest -q
+```
+
+The PR CI runs the same checks. These are **unit/API checks**, not real merchant onboarding, payment testing, mobile-browser end-to-end testing or a production security audit.
+
+## Documents
+
+- [Setup and known limitations](docs/MVP_SETUP.md)
+- [Architecture, tenancy and production gates](docs/ARCHITECTURE.md)
+- [Medusa translation kit](mobile-medusa/README.md)
+- [Offline UI demonstration](PREVIEW_OFFLINE.html) — visuals only, not real checkout
+
+## Safety and next milestones
+
+**Do not expose this pilot publicly or collect real customer data yet.** SQLite, in-memory throttling, placeholder privacy text and undeployed HTTPS/TLS do not satisfy a production launch. Next: browser/device testing; tenant auth hardening; durable PostgreSQL migrations and backups; validated local payments/courier workflows; onboarding/billing; privacy and operational readiness; native app build tests where needed. Do not merge a draft PR as a production release.
+
+The upstream `bloomsynth/medusa-mobile-react-native` application is MIT-licensed; this repository does **not** include its code. Any future incorporation must preserve its license and attribution.
