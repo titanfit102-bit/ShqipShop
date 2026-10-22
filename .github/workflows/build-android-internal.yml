@@ -1,0 +1,97 @@
+name: Build Android internal-test APK
+
+on:
+  push:
+    branches:
+      - feat/native-medusa-poc
+    paths:
+      - native-medusa/**
+      - .github/workflows/build-android-internal.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-internal-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-android:
+    name: Android arm64 internal-test APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # This is a publicly accessible, disposable proof build; never real merchant settings.
+      CI: "true"
+    steps:
+      - name: Checkout source (no persisted credentials)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: native-medusa/.nvmrc
+          cache: npm
+          cache-dependency-path: native-medusa/package-lock.json
+
+      - name: Set up Java 17
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK tools
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+
+      - name: Install project-pinned npm
+        working-directory: native-medusa
+        run: npm install --global "$(node -p "require('./package.json').packageManager")"
+
+      - name: Install locked JavaScript dependencies
+        working-directory: native-medusa
+        run: npm ci
+
+      - name: Install Android compile SDK, build-tools and NDK
+        run: |
+          set -euo pipefail
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
+
+      - name: Verify demo-only configuration and signing mode
+        working-directory: native-medusa
+        run: |
+          set -euo pipefail
+          test -f .env.template
+          test -f android/app/debug.keystore
+          test ! -f .env
+          grep -Fq "signingConfig signingConfigs.debug" android/app/build.gradle
+          grep -Fq "applicationId \"com.rnstartermedusa\"" android/app/build.gradle
+          grep -Fq "DEFAULT_LOCALE=sq-AL" .env.template
+          cp .env.template .env
+
+      - name: Build bundled Android APK (debug key, NOT a production release)
+        working-directory: native-medusa/android
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a -Dorg.gradle.workers.max=2
+
+      - name: Verify build artifact and checksum
+        working-directory: native-medusa
+        run: |
+          set -euo pipefail
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          test -s "$apk"
+          sha256sum "$apk"
+          du -h "$apk"
+
+      - name: Upload APK for private testing (public repo artifact; no secrets)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ShqipShop-Medusa-Android-arm64-INTERNAL-debug-signed
+          path: native-medusa/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 3
+          if-no-files-found: error
+          compression-level: 0

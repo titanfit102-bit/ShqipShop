@@ -1,3 +1,5 @@
+> **Update 2026-10-22:** the proof-of-concept began in branch feat/native-medusa-poc; native-medusa/ now contains pinned upstream source with an integrated Albanian locale and JS CI passing 17 tests. Android native build and Medusa end-to-end remain incomplete. See NATIVE_MEDUSA_POC.md. The comparison below records the earlier architectural decision.
+
 # ADR-003 — Medusa Mobile origjinal kundrejt pilotit custom ShqipShop
 
 **Datë:** 2026-10-22 · **Status:** propozim arkitekturor për proof-of-concept (jo migrim i aprovuar në prodhim).

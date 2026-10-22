@@ -52,6 +52,8 @@ The PR CI runs the same checks. These are **unit/API checks**, not real merchant
 **Start here when resuming in a new ChatGPT conversation:** [MASTER HANDOFF](docs/MASTER_HANDOFF.md). It links to the complete history, architecture decision, roadmap and next verified steps.
 
 - [Master handoff / new conversation](docs/MASTER_HANDOFF.md)
+- [Native Medusa code import provenance](docs/NATIVE_MEDUSA_POC.md)
+- [Optional Android APK catalog idea](docs/ADR-004_APK_CATALOG_IDEA.md)
 - [Chronological project history](docs/PROJECT_HISTORY.md)
 - [Medusa Mobile original versus custom PWA — ADR-003](docs/ADR-003_MEDUSA_NATIVE_VS_CUSTOM_PILOT.md)
 - [Evidence-based roadmap](docs/ROADMAP.md)
@@ -65,4 +67,4 @@ The PR CI runs the same checks. These are **unit/API checks**, not real merchant
 
 **Do not expose this pilot publicly or collect real customer data yet.** SQLite, in-memory throttling, placeholder privacy text and undeployed HTTPS/TLS do not satisfy a production launch. Next: browser/device testing; tenant auth hardening; durable PostgreSQL migrations and backups; validated local payments/courier workflows; onboarding/billing; privacy and operational readiness; native app build tests where needed. Do not merge a draft PR as a production release.
 
-The upstream `bloomsynth/medusa-mobile-react-native` application is MIT-licensed; this repository does **not** include its code. Any future incorporation must preserve its license and attribution.
+The original MIT-licensed `bloomsynth/medusa-mobile-react-native` source is now imported into `native-medusa/` **on the separate `feat/native-medusa-poc` branch (PR #2)**, with original LICENSE and Albanian locale. This does not replace the FastAPI pilot, and no native APK/iOS build or live Medusa connection has been verified. See [native POC](docs/NATIVE_MEDUSA_POC.md) and [optional APK catalog idea](docs/ADR-004_APK_CATALOG_IDEA.md).

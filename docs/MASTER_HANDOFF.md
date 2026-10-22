@@ -1,4 +1,48 @@
-# SHQIPSHOP — MASTER HANDOFF (v1)
+# SHQIPSHOP — MASTER HANDOFF (v4)
+
+## Status i ri — Përpjekja e parë për APK (2026-10-22)
+
+## 2026-10-22 · Android build në GitHub Actions
+
+- U shtua workflow i veçantë `.github/workflows/build-android-internal.yml`, read-only permissions, immutable action SHAs, Node 24, JDK 17 dhe Android SDK/NDK, që përpiqet të prodhojë një **APK arm64 me JavaScript të përfshirë**.
+- U zgjodh task Gradle `assembleRelease` vetëm për të përfshirë bundle-in JS; **mbetet me debug.keystore publik të upstream** dhe nuk është version prodhimi.
+- Run i parë https://github.com/titanfit102-bit/ShqipShop/actions/runs/39830420989 dështoi në SDK Manager: mungonte `platforms;android-37`. U ndryshua `compileSdkVersion/buildToolsVersion` në **36**, `targetSdkVersion` mbeti **36**.
+- Run i dytë https://github.com/titanfit102-bit/ShqipShop/actions/runs/39830678418 ka kaluar instalimin e SDK 36 dhe po ekzekuton build-in Gradle (kontrolli i fundit gjatë shkrimit); **nuk ekziston ende rezultat i verifikuar/artefakt**.
+- Në `npm ci` u raportuan 64 advisory të varësive (19 moderate, 44 high, 1 critical). Ky është sinjal për auditim/upgrade të sigurt përpara prodhimit; mos supozo që të gjitha janë të shfrytëzueshme në runtime.
+- Shih `docs/BUILD_ANDROID_INTERNAL.md` për konfigurimet, kufizimet, përmbajtjen e artefaktit dhe hapat e verifikimit.
+- Hapi i radhës sipas rezultatit të run-it: verifiko artefaktin dhe instalimin, ose riparo rrënjën e dështimit nga log-et. Pas kësaj lidhja me Medusa v2 backend development (rajon ALL, produkt, shportë, checkout test-only).
+
+
+
+## VENDIM PËRFUNDIMTAR I PËRDORUESIT — 22 tetor 2026
+
+**ShqipShop NUK do të ndërtohet si Play Store alternativ / katalog APK-sh / instalues i aplikacioneve të bizneseve.** Përdoruesi ka zgjedhur të mbajë **idenë origjinale white-label**: çdo biznes shqiptar ka dyqanin e tij të branduar dhe, kur ka kuptim, app-in e vet Android/iOS. Kodi origjinal Medusa Mobile është baza për native, kurse prototipi PWA i ShopifyShop është burim reference, jo motori përfundimtar i porosive.
+
+Ky ADR mbetet vetëm arkiv historik i alternativës së analizuar. Mos planifiko apo ndërto sistem APK distribution/signing/installer pa kërkesë të re të qartë. Shpërndarja e një APK-je demo për testim nuk është dyqan APK-sh.
+
+### Plani i aprovuar i punës
+1. Stabilizo kodin ekzistues në PR #2; kontrollo CI Python dhe React Native.
+2. Ndërto **Android debug APK** nga native-medusa/ në CI dhe ruaj artefaktin pa çelësa production.
+3. Konfiguro Medusa v2 backend development/test (PostgreSQL, rajon ALL, produkte, manual payment/COD) dhe lidh aplikacionin Android.
+4. Testo një porosi të plotë vetëm me të dhëna testimi dhe shiko order/inventory në backend.
+5. Zgjidh **një source of truth** dhe izolimin e bizneseve; adapt PWA vetëm te ky backend, jo dy databaza autoritative.
+6. Ndërto personalizim White-label (emër, logo, ngjyra, ID aplikacioni, konfigurim, build signing i sigurt); panel biznesi + operator, abonime.
+7. Testo 3–5 biznese reale (pa pagesa/PII realë deri në release gates), bëj auditim sigurie, backup/recovery, kontroll rregullash dhe rollout gradual Android/iOS.
+
+
+## Përditësim i verifikuar — Native Medusa POC, 22 tetor 2026
+
+**Ky është statusi më i ri; seksionet historike më poshtë përshkruajnë gjendjen përpara importimit.**
+
+- **PR #1 (Draft)** përmban pilotin PWA FastAPI/SQLite, branch feat/bootstrap-pwa-mvp, 10 teste pytest të kaluara në Actions: https://github.com/titanfit102-bit/ShqipShop/actions/runs/39824460831
+- **PR #2 (Draft)** i ndërtuar mbi branch-in e PR #1 përmban importin e origjinalit Medusa Mobile në native-medusa/ dhe integrimin e përkthimit sq-AL: https://github.com/titanfit102-bit/ShqipShop/pull/2.
+- Upstream MIT i fiksuar në commit **4ad76d0eb5878efdd16ed294f5a655851aa99617**. Nga 170 skedarët origjinalë, dy logje diagnostikuese JVM u përjashtuan, ndërsa .env.template u rikthye në commit-in e lokalizimit. Kodi native nuk është mbishkruar mbi kodin e FastAPI. Shih [NATIVE_MEDUSA_POC](NATIVE_MEDUSA_POC.md).
+- **JavaScript native CI, pas lokalizimit shqip:** run https://github.com/titanfit102-bit/ShqipShop/actions/runs/39826582144 — ESLint, TypeScript dhe Jest kaluan, 5 suites / 17 teste. Ky nuk është Android APK build apo provë me Medusa backend.
+- Ide e re për t'u ruajtur (jo ende për implementim): **ShqipShop si katalog APK Android** ku bizneset kanë APK-të e tyre të veçanta që përdoruesit instalojnë nga katalogu ynë, pa qenë të detyruar të përdorin Play Store. Kjo nuk është e njëjtë me PWA/native white-label dhe ka rreziqe sigurie, sideloading dhe verifikim zhvilluesish. Shih [ADR-004](ADR-004_APK_CATALOG_IDEA.md).
+- **Vendimi:** PWA pilot + Medusa native si kandidat për aplikacione individuale; mos krijo një app store të plotë para provave të kërkesës dhe sigurisë.
+- **Puna e radhës:** Android debug build në runner të përshtatshëm; Medusa v2 backend test, rajon ALL, produkte/porosi; verifikimi i dy bizneseve të izoluara, pastaj billing/onboarding. Kërkohet një burim i vetëm i së vërtetës për stokun/porositë.
+- **Mbrojtjet:** mos prek main, mos bëj merge/deploy, mos paguaj shërbime dhe mos përdor të dhëna reale klientësh pa autorizim. Përpara se të deklarosh gjendjen, krahaso live PR-et dhe CI; commit-et pas dokumentit nuk trashëgojnë automatikisht statusin 'passed'.
+
 
 **Përditësuar:** 22 tetor 2026. **Burimi i së vërtetës:** ky repository, jo pretendimet e bisedave.
 

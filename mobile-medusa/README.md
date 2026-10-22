@@ -2,7 +2,7 @@
 
 Source: https://github.com/bloomsynth/medusa-mobile-react-native (MIT licensed, original authors retain attribution).
 
-**Important:** The source project itself is NOT redistributed in this pilot. This folder provides a new Albanian Fluent catalog (`sq-AL.ts`), generator and guarded patch script. It does not connect the native Medusa storefront to the separate ShqipShop prototype backend. The upstream mobile app requires a running **Medusa v2** backend and a publishable API key.
+**Update (2026-10-22):** The original pilot did not redistribute the source. A separate branch feat/native-medusa-poc now carries the pinned upstream source under native-medusa/ and integrates this locale; this folder remains a reusable patch kit. This folder provides a new Albanian Fluent catalog (`sq-AL.ts`), generator and guarded patch script. It does not connect the native Medusa storefront to the separate ShqipShop prototype backend. The upstream mobile app requires a running **Medusa v2** backend and a publishable API key.
 
 1. Clone upstream into a separate folder and retain its original LICENSE.
 2. From this directory, run `python apply_albanian_locale.py /path/to/medusa-mobile-react-native` (dry run).
