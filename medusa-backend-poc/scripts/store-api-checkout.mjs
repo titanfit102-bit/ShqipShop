@@ -50,6 +50,19 @@ const isolatedResponse = await fetch(base + `/store/products?region_id=${encodeU
 assert.equal(isolatedResponse.status, 200, "Second channel key must be accepted")
 const isolatedProducts = (await isolatedResponse.json()).products ?? []
 assert.equal(isolatedProducts.length, 0, "An empty sales channel must not see demo products")
+// Stronger negative test: listing restrictions must not be bypassable by knowing a product ID.
+const crossProductResponse = await fetch(
+  base + `/store/products/${encodeURIComponent(product.id)}?region_id=${encodeURIComponent(region.id)}`,
+  {
+    headers: { "x-publishable-api-key": emptyChannelKey },
+    signal: AbortSignal.timeout(20000),
+  },
+)
+assert(
+  [403, 404].includes(crossProductResponse.status),
+  `Cross-channel product detail must be denied, got HTTP ${crossProductResponse.status}`,
+)
+console.log("SHQIPSHOP_CROSS_CHANNEL_DIRECT_PRODUCT_DENIED", crossProductResponse.status)
 console.log("SHQIPSHOP_SALES_CHANNEL_CATALOG_SCOPE_PASSED")
 console.log("SHQIPSHOP_STORE_HTTP_CATALOG_PASSED", JSON.stringify({ region:region.name,currency:region.currency_code,products:products.length }))
 
