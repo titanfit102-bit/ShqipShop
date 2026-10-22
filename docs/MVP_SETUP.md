@@ -38,7 +38,7 @@ For an automated secure provisioning environment, set `SHQIPSHOP_NEW_MERCHANT_PA
 PYTHONPATH=. pytest -q
 ```
 
-Automated tests check tenant separation, duplicate order prevention, CSRF, validation, inventory decrement and restoration, access control, PWA routes and XSS escaping. These tests do **not** verify web browser layout or production-hosted behavior. Source includes CI configuration; GitHub Actions cannot run until the project is committed to a repository.
+Automated tests check tenant separation, duplicate order prevention, CSRF, validation, inventory decrement and restoration, access control, PWA routes and XSS escaping. These tests do **not** verify web browser layout or production-hosted behavior. GitHub Actions CI has been configured and its baseline run [39822589301](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39822589301) verified 10/10 pytest passing on commit `2a8b1d1bd3c98a34149d4056097768003c0178cc`. Later commits require separate CI verification; this is not device E2E or production validation.
 
 ## Architecture
 
