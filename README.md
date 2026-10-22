@@ -49,6 +49,13 @@ The PR CI runs the same checks. These are **unit/API checks**, not real merchant
 
 ## Documents
 
+**Start here when resuming in a new ChatGPT conversation:** [MASTER HANDOFF](docs/MASTER_HANDOFF.md). It links to the complete history, architecture decision, roadmap and next verified steps.
+
+- [Master handoff / new conversation](docs/MASTER_HANDOFF.md)
+- [Chronological project history](docs/PROJECT_HISTORY.md)
+- [Medusa Mobile original versus custom PWA — ADR-003](docs/ADR-003_MEDUSA_NATIVE_VS_CUSTOM_PILOT.md)
+- [Evidence-based roadmap](docs/ROADMAP.md)
+- [Repository working instructions](AGENTS.md)
 - [Setup and known limitations](docs/MVP_SETUP.md)
 - [Architecture, tenancy and production gates](docs/ARCHITECTURE.md)
 - [Medusa translation kit](mobile-medusa/README.md)
