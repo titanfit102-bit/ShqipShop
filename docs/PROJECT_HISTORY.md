@@ -126,3 +126,13 @@ Pas çdo sesioni, shto në fund: `data · branch · commit SHA · PR · çfarë 
 - **CI run i nisur:** https://github.com/titanfit102-bit/ShqipShop/actions/runs/39845817408. Gjatë shkrimit të këtij historiku serveri Medusa HTTP ishte ngritur dhe po kompilohej APK x86_64. **Mos deklaro lidhje të suksesshme nga aplikacioni pa `SHQIPSHOP_ANDROID_REAL_MEDUSA_CATALOG_PASSED` dhe run success**.
 - **Next gate:** nëse prova e katalogut kalon, verifiko screenshot, kalimin te product-detail/shporta dhe checkout manual nga Android. Deri tani porositë Medusa 1510 ALL janë testuar vetëm me klient HTTP në GitHub Actions, jo UI Android. Pas kësaj kërkohen izolimi real i klientëve/porosive/adminëve midis bizneseve dhe security review.
 
+
+## Prova e konfirmuar Android ↔ Medusa me UI (2026-10-22)
+
+- **[Run 39845817408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39845817408) PASSED** në commit `7545938fb98da8479796f1db34fc4fbfc1c85b3b` (workflow `.github/workflows/android-medusa-catalog.yml`). Medusa API u ngrit në runner me PostgreSQL/Redis, rajoni Shqipëri/ALL dhe 4 produkte; `SHQIPSHOP_CI_MEDUSA_CATALOG_READY 4` u verifikua.
+- Kodi origjinal React Native u ndërtua si APK x86_64 **me çelës API demonstrues të përkohshëm** (jo në Git), URL Android emulator `http://10.0.2.2:9000`, dhe HTTP cleartext të lejuar vetëm në working copy të CI. Pas instalimit të APK-së në Android 35, UI tregoi produktet demo nga Medusa: `SHQIPSHOP_ANDROID_REAL_MEDUSA_CATALOG_PASSED`. Screenshot u shkarkua dhe u verifikua vizualisht: Medusa T-Shirt, Medusa Shorts, Medusa Sweatshirt, foto, çmime ALL 1500 dhe shqip në navigim.
+- **Artefakti zyrtar GitHub**: [12456126411](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39845817408/artifacts/12456126411), `ShqipShop-Android-Medusa-connected-catalog` (foto `android-catalog.png`, crash-log bosh, rezultat), skadon 26 tetor 2026. **Nuk është screenshot ilustrues.**
+- **Vërejtje vizuale reale:** titulli mbetet `MEDUSA MOBILE`; banneri kryesor shfaqet bosh (burim i jashtëm `dummyjson.com` në upstream), dhe produktet/çmimet kanë ende të dhëna demonstrimi. Këto nuk janë gati për branding të tregtarëve.
+- **E paprovuar ende:** klikim produkti/variant dhe shportë nga Android, adresa, transporti dhe porosia nga UI në Android, pagesa reale, depozitim i sigurt i kredencialeve, iOS, dy biznese me autorizim të izoluar, publikim/abonime.
+- **Next:** testim native Produkt→Variant→Shportë→Checkout kundrejt Medusa test-only, më pas branding i konfiguruar për biznes dhe heqje e burimeve/fakteve të rreme upstream. Mos prek `main` ose production.
+

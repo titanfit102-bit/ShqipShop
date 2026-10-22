@@ -7,6 +7,8 @@
 
 **Test integrimi Android → backend në zhvillim:** [workflow Android + Medusa](https://github.com/titanfit102-bit/ShqipShop/actions/workflows/android-medusa-catalog.yml), run 39845817408. Puna e fundit ishte kompilimi i APK-së; statusi duhet lexuar live. Nuk numërohet si provë derisa produktet të shfaqen realisht në emulator.
 
+**Prova e parë e katalogut native e kaluar:** [Android emulator + backend Medusa live run 39845817408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39845817408) — screenshot i verifikuar vizualisht me produkte demo dhe çmime ALL. Porosi UI Android NUK është provuar.
+
 **Datë bazë:** 2026-10-22. **Kjo është një strategji zhvillimi**, jo pretendim që të gjitha fazat janë realizuar. Në çdo përditësim mbaj metrikat: koduar / testuar / deploy-uar / përdorur nga klientë realë.
 
 ## Përkufizimi i produktit që duhet të kemi në fund
@@ -19,7 +21,7 @@ Një operator ShqipShop mund të krijojë e të menaxhojë shumë biznese shqipt
 |---|---|---|---|
 | G0 · GitHub baseline | Kod, varësi, CI, dokumentacion, PR | `compileall`, `pytest`, CI i gjelbër | Po për pilot; 10/10 testet në run 39822589301 |
 | G1 · Pilot UX/Security | 3 demo shop flows + admin + izolim, përmasa mobile | Browser E2E, auth/CSRF/XSS, review manual | Jo i përfunduar |
-| G2 · Native feasibility | Upstream RN + locale sq-AL + Medusa dev server | `npm ci`, lint/TS/Jest, Android build, mobile checkout | Pjesërisht: RN dhe sq-AL, 17/17 testet, ARM64 APK build PASS, Android API35 x86_64 emulator install/start PASS (run 39842340691); UI checkout Android↔Medusa dhe telefoni fizik mungojnë |
+| G2 · Native feasibility | Upstream RN + locale sq-AL + Medusa dev server | `npm ci`, lint/TS/Jest, Android build, mobile checkout | Pjesërisht: RN dhe sq-AL, 17/17 testet, ARM64 APK build PASS, Android API35 x86_64 emulator install/start PASS (run 39842340691); Android↔Medusa UI katalogu PASS (39845817408); UI checkout dhe telefoni fizik mungojnë |
 | G3 · Unified commerce backend | Një sistem inventory/order, multi-tenant i sigurt | Për 2 merchants teste pozitive/negative, migrations | Medusa dev PostgreSQL, API order 1510 ALL, rezervim 1 stok dhe sales-channel product access 404 me key të huaj kaluan në CI; multi-tenant customer/order/admin isolation NUK është verifikuar |
 | G4 · Managed merchants | Signup/verifikim, branding, domain, panel, plan | Krijimi i 3 tenanteve pa komandë manuale | Jo |
 | G5 · Payments, delivery, privacy | COD operativ; provë PSP sandbox; logjistika dhe GDPR | Test porosi-refund-webhook, privacy/legal review | Jo |

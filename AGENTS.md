@@ -56,3 +56,7 @@ Android x86_64 APK install/launch test is in `feat/android-emulator-smoke`, [PR 
 ## Current native-to-backend integration test
 
 The new `.github/workflows/android-medusa-catalog.yml` is in PR #4. It provisions disposable Medusa/PostgreSQL/Redis, injects a runner-only publishable store key into a test APK, patches cleartext HTTP ONLY inside CI for emulator host mapping 10.0.2.2, then checks actual product titles in Android UI. Check [run 39845817408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39845817408) and the marker `SHQIPSHOP_ANDROID_REAL_MEDUSA_CATALOG_PASSED` before claiming connected Android catalog. Do not conflate with HTTP test-only checkout. Never persist the disposable key or the CI-only insecure Android manifest.
+
+## Verified native Medusa catalog (2026-10-22)
+
+[Run 39845817408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39845817408) passed actual Android API35 x86_64 emulator showing live seeded Medusa products and ALL prices from disposable PostgreSQL/Redis backend. Marker `SHQIPSHOP_ANDROID_REAL_MEDUSA_CATALOG_PASSED`. [Screenshot artifact 12456126411](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39845817408/artifacts/12456126411) visually reviewed (real product cards; upstream 'MEDUSA MOBILE' title and blank remote banner remain). Store API HTTP order passed separately; no UI cart/checkout/merchant isolation has yet been verified. CI temporary cleartext patch + public debug signing is test-only, not production.
