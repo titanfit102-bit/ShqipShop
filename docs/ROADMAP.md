@@ -3,6 +3,8 @@
 **Vendim i konfirmuar, 22 tetor 2026:** ShqipShop mbetet white-label commerce SaaS (dyqan dhe app i personalizuar për çdo biznes); ideja e ShqipShop si APK marketplace është **refuzuar dhe jashtë scope-it**. Shih [ADR-004](ADR-004_APK_CATALOG_IDEA.md). Kodi Medusa Mobile është importuar në PR #2, me `sq-AL` dhe 17 teste Jest; hapi i radhës është Android debug build, pastaj Medusa v2 backend + porosi test end-to-end. Nuk ndërtohet APK store.
 
 
+**Përditësim 22 tetor 2026:** Store API HTTP cart→manual payment→order dhe verifikim i porosisë në PostgreSQL KALUAN në run [39839755263](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39839755263). Nuk ka ende test të aplikacionit Android, inventarit real pas porosisë apo izolim dy biznesesh.
+
 **Datë bazë:** 2026-10-22. **Kjo është një strategji zhvillimi**, jo pretendim që të gjitha fazat janë realizuar. Në çdo përditësim mbaj metrikat: koduar / testuar / deploy-uar / përdorur nga klientë realë.
 
 ## Përkufizimi i produktit që duhet të kemi në fund
@@ -15,8 +17,8 @@ Një operator ShqipShop mund të krijojë e të menaxhojë shumë biznese shqipt
 |---|---|---|---|
 | G0 · GitHub baseline | Kod, varësi, CI, dokumentacion, PR | `compileall`, `pytest`, CI i gjelbër | Po për pilot; 10/10 testet në run 39822589301 |
 | G1 · Pilot UX/Security | 3 demo shop flows + admin + izolim, përmasa mobile | Browser E2E, auth/CSRF/XSS, review manual | Jo i përfunduar |
-| G2 · Native feasibility | Upstream RN + locale sq-AL + Medusa dev server | `npm ci`, lint/TS/Jest, Android build, mobile checkout | Pjesërisht: kodi importuar, sq-AL, 17/17 testet native JS kaluan; build Android/backend mungon |
-| G3 · Unified commerce backend | Një sistem inventory/order, multi-tenant i sigurt | Për 2 merchants teste pozitive/negative, migrations | Jo |
+| G2 · Native feasibility | Upstream RN + locale sq-AL + Medusa dev server | `npm ci`, lint/TS/Jest, Android build, mobile checkout | Pjesërisht: RN dhe sq-AL, 17/17 testet, APK ARM64 build PASS, Medusa 2.22 demo API + ALL seed PASS; instalim në telefon dhe mobile checkout mungojnë |
+| G3 · Unified commerce backend | Një sistem inventory/order, multi-tenant i sigurt | Për 2 merchants teste pozitive/negative, migrations | Medusa dev migrimet/seed kaluan në CI; single-source-of-truth dhe tenant isolation NUK janë verifikuar |
 | G4 · Managed merchants | Signup/verifikim, branding, domain, panel, plan | Krijimi i 3 tenanteve pa komandë manuale | Jo |
 | G5 · Payments, delivery, privacy | COD operativ; provë PSP sandbox; logjistika dhe GDPR | Test porosi-refund-webhook, privacy/legal review | Jo |
 | G6 · Production QA | DB backup/restore, incident handling, metrics, load/security, HTTPS | Auditor + E2E + DR restore + staged rollout | Jo |

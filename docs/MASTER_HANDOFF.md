@@ -1,4 +1,44 @@
-# SHQIPSHOP — MASTER HANDOFF (v4)
+# SHQIPSHOP — MASTER HANDOFF (v7)
+
+## Verifikim negativ shtesë — akses direkt me ID (2026-10-22)
+
+[Run 39843421693](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39843421693) **PASSED**, commit `7e87bda1cfebe107e4acf78b31f4e98bc7defaa6`. Testi përdori çelësin publik të kanalit bosh për `GET /store/products/{id}` mbi ID-në e një produkti të kanalit kryesor. Serveri ktheu **HTTP 404** (`SHQIPSHOP_CROSS_CHANNEL_DIRECT_PRODUCT_DENIED`). Testet e katalogut, porosisë në PostgreSQL dhe rezervimit të 1 njësie inventari kaluan sërish. Ky është **scope i produkteve sipas sales-channel**, JO izolim i plotë i dy bizneseve ose i porosive/klientëve/adminëve.
+
+
+
+## Ecuria e radhës (2026-10-22): Rezervim inventari dhe kufiri i katalogut
+
+- [Run 39841615561](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39841615561) PASSED: 20 inventare fillestare, porosia e testimit rezervoi saktësisht 1 njësi (`reservedDelta:1`), sasia fizike `stocked_quantity` mbeti konstante. Ky është rezervim, **jo** zbritje pas dërgesës.
+- [Run 39842677918](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39842677918) PASSED: çelësi API i lidhur me një kanal të dytë bosh lexon 0 produkte, kur çelësi i kanalit origjinal lexon 4 produktet demo; `SHQIPSHOP_SALES_CHANNEL_CATALOG_SCOPE_PASSED`. Porosia 1510 ALL dhe kontrollet e stokut kaluan përsëri.
+- **Kufizim kritik arkitekturor:** Këto dy prova **NUK** provojnë izolimin e klientëve, porosive, administratorëve, përdoruesve ose skedarëve ndërmjet bizneseve. Sales channels Medusa nuk janë sistem multi-tenancy i gatshëm.
+- Vazhdo me `docs/TENANT_ISOLATION_GATES.md` për portat e detyrueshme dhe përzgjedhjen e modelit tenant. Emulator Android është workstream i veçantë në [PR #4](https://github.com/titanfit102-bit/ShqipShop/pull/4), me rezultat të pavarur që duhet verifikuar live.
+
+
+
+## Prova e përfunduar: Store API → porosi → PostgreSQL (22 tetor 2026)
+
+**Run i suksesshëm:** https://github.com/titanfit102-bit/ShqipShop/actions/runs/39839755263; commit `4ec90316abb2c211470a650599379809466b7e32`.
+
+- U përdor serveri real Medusa v2 në GitHub Actions, PostgreSQL 16 dhe Redis 7 përkohshëm, dhe vetëm të dhëna sintetike.
+- Skripti `medusa-backend-poc/scripts/store-api-checkout.mjs` testoi endpoint-et `/store` nëpërmjet HTTP: mungesa e `x-publishable-api-key` refuzohet me HTTP 400; leximi i 4 produkteve/rajonit Shqipëri/ALL, krijimi i shportës, shtimi i variantit, adresa shqiptare, transporti, payment collection + sesioni `pp_system_default`, completion → order.
+- Përgjigjja e API-së konfirmoi një **order demonstrative me 1 artikull, 1 510 ALL**.
+- Skripti `assert-ci-order.ts` lexoi përsëri porosinë e krijuar nga **databaza PostgreSQL** e Medusa: marker `SHQIPSHOP_ORDER_PERSISTED_IN_POSTGRES_PASSED` dhe total 1510 ALL.
+- Çelësi publik për këtë eksperiment lexohet nga një skedar i përkohshëm në runner; nuk u vendos në repo. Nuk ka kredenciale admin në skriptin e checkout-it, pagesë reale ose server publik.
+- **KUFIZIMET:** testi është HTTP nga runner, **nuk është APK Android i lidhur në pajisje/emulator**. `pp_system_default` është ofrues manual sistemor demo, jo procesor pagese online dhe jo integrim me korrier/fiskalizim. Nuk ka ende teste për uljen/rezervimin real të stokut pas porosisë, izolim të dy bizneseve, abonime SaaS ose fortifikim production.
+- **NEXT:** krijo instalim/nisje Android me API të aksesueshme në ambient testimi, provo sjelljen e inventarit dhe izolimin e dy bizneseve, auditim varësish dhe plan i vetëm për `source-of-truth` të PWA/native.
+
+
+
+## PIKË REFERIMI E VERIFIKUAR (22 tetor 2026) — APK + Backend Medusa i testuar
+
+- **APK native Android ARM64 u ndërtua dhe u ruajt si GitHub Action artifact**, run https://github.com/titanfit102-bit/ShqipShop/actions/runs/39830678418, SHA-256 e APK-së `66f01d24dcc8c8c8729a424f954e61db745b9f61ac990d1e060185bcafa29324`. Artefakti skadon sipas politikës së ruajtjes të run-it. Çelësi i nënshkrimit është debug i publikuar; jo release komercial. Instalimi në telefon nuk është testuar.
+- **PR #3** https://github.com/titanfit102-bit/ShqipShop/pull/3 është branch `feat/medusa-v2-backend-poc` mbi branch e PR #2; përmban Medusa zyrtar DTC starter me licencë MIT në `medusa-backend-poc/` dhe backend CI.
+- **Testi Medusa v2 + PostgreSQL + Redis dhe kontrolli i të dhënave Shqipëria/ALL KALUAN**: https://github.com/titanfit102-bit/ShqipShop/actions/runs/39834267570; seed 4 produkte dhe 2 opsione transporti; health HTTP 200. Serveri u mbyll pas Actions, nuk është i hostuar publikisht. Shih `docs/MEDUSA_BACKEND_POC.md`.
+- **Audit varësish React Native**: https://github.com/titanfit102-bit/ShqipShop/actions/runs/39832976270; 1 critical, 44 high, 19 moderate në graph e përgjithshëm të npm. `shell-quote` është kritike, me version të korrigjuar. Nuk është riparuar ende, kërkon plan upgrade pa breaking changes.
+- **GJENDJA E PUNËS:** React Native + lokalizimi sq-AL kanë kaluar lint/types/Jest, APK ndërtuar, backend Medusa ka kaluar migrime, seed dhe health; **jo** instalim në telefon, backend publik, katalog në telefon, cart/checkout E2E, multi-tenant production, pagesa apo abonime.
+- **NEXT:** kontrata API (publishable key + products), cart/checkout me të dhëna testimi, Android emulator/device smoke, proof tenant isolation dhe audit/correct critical advisory. Mos e ndërto ShqipShop si app store APK (ide e refuzuar nga përdoruesi).
+
+
 
 ## Status i ri — Përpjekja e parë për APK (2026-10-22)
 

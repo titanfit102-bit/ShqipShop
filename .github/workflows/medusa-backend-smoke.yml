@@ -1,0 +1,132 @@
+name: Medusa v2 development backend smoke test
+
+on:
+  push:
+    branches: [feat/medusa-v2-backend-poc]
+    paths:
+      - medusa-backend-poc/**
+      - .github/workflows/medusa-backend-smoke.yml
+  pull_request:
+    paths:
+      - medusa-backend-poc/**
+      - .github/workflows/medusa-backend-smoke.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: medusa-backend-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-smoke:
+    name: Migrate and start Medusa v2 API (CI only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: medusa-backend-poc
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: medusa_ci
+          POSTGRES_PASSWORD: disposable_ci_password
+          POSTGRES_DB: medusa_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U medusa_ci -d medusa_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: "true"
+      NODE_ENV: development
+      DATABASE_URL: postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci
+      REDIS_URL: redis://127.0.0.1:6379
+      STORE_CORS: http://localhost:8000
+      ADMIN_CORS: http://localhost:9000,http://localhost:5173
+      AUTH_CORS: http://localhost:9000,http://localhost:5173
+      # CI services and credentials are ephemeral; do NOT use this file in production.
+    steps:
+      - name: Checkout source without retained credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24"
+      - name: Install pinned pnpm
+        run: npm install -g pnpm@10.11.1
+      - name: Generate per-run development secrets
+        run: |
+          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "COOKIE_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Install locked Medusa backend dependencies
+        run: pnpm install --frozen-lockfile --filter '@dtc/backend...'
+      - name: Run Medusa PostgreSQL migrations
+        run: pnpm --filter @dtc/backend exec medusa db:migrate
+      - name: Assert Albania region, ALL currency, products and shipping
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-albania-seed.ts
+      - name: Export ephemeral publishable key into runner-local file
+        env:
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+          SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE: ${{ runner.temp }}/shqipshop-empty-channel-key.txt
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/export-ci-publishable-key.ts
+      - name: Capture inventory levels before checkout
+        env:
+          SHQIPSHOP_CI_INVENTORY_SNAPSHOT: ${{ runner.temp }}/shqipshop-inventory-before.json
+          SHQIPSHOP_CI_INVENTORY_MODE: before
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-ci-inventory.ts
+      - name: Start local Medusa API and test checkout via Store HTTP API
+        env:
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+          SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE: ${{ runner.temp }}/shqipshop-empty-channel-key.txt
+          SHQIPSHOP_CI_ORDER_ID_FILE: ${{ runner.temp }}/shqipshop-order-id.txt
+        run: |
+          set -euo pipefail
+          pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/medusa-backend.log" 2>&1 &
+          backend_pid=$!
+          trap 'kill "$backend_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 90); do
+            if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:9000/health > "$RUNNER_TEMP/health.json" 2>/dev/null; then
+              echo "Medusa API health endpoint returned HTTP 200"
+              cat "$RUNNER_TEMP/health.json"
+              node scripts/store-api-checkout.mjs
+              exit 0
+            fi
+            if ! kill -0 "$backend_pid" 2>/dev/null; then
+              echo "::error::Medusa backend process exited before health check"
+              tail -100 "$RUNNER_TEMP/medusa-backend.log"
+              exit 1
+            fi
+            sleep 4
+          done
+          echo "::error::Medusa API did not become healthy"
+          tail -120 "$RUNNER_TEMP/medusa-backend.log"
+          exit 1
+      - name: Confirm checkout order persisted in PostgreSQL
+        env:
+          SHQIPSHOP_CI_ORDER_ID_FILE: ${{ runner.temp }}/shqipshop-order-id.txt
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-ci-order.ts
+      - name: Assert inventory reservation and no stock loss
+        env:
+          SHQIPSHOP_CI_INVENTORY_SNAPSHOT: ${{ runner.temp }}/shqipshop-inventory-before.json
+          SHQIPSHOP_CI_INVENTORY_MODE: after
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-ci-inventory.ts
+      - name: CI state
+        if: always()
+        run: |
+          echo "All services were runner-local; no database or API was deployed."
