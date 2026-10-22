@@ -1,4 +1,20 @@
-# SHQIPSHOP — MASTER HANDOFF (v2)
+# SHQIPSHOP — MASTER HANDOFF (v3)
+
+## VENDIM PËRFUNDIMTAR I PËRDORUESIT — 22 tetor 2026
+
+**ShqipShop NUK do të ndërtohet si Play Store alternativ / katalog APK-sh / instalues i aplikacioneve të bizneseve.** Përdoruesi ka zgjedhur të mbajë **idenë origjinale white-label**: çdo biznes shqiptar ka dyqanin e tij të branduar dhe, kur ka kuptim, app-in e vet Android/iOS. Kodi origjinal Medusa Mobile është baza për native, kurse prototipi PWA i ShopifyShop është burim reference, jo motori përfundimtar i porosive.
+
+Ky ADR mbetet vetëm arkiv historik i alternativës së analizuar. Mos planifiko apo ndërto sistem APK distribution/signing/installer pa kërkesë të re të qartë. Shpërndarja e një APK-je demo për testim nuk është dyqan APK-sh.
+
+### Plani i aprovuar i punës
+1. Stabilizo kodin ekzistues në PR #2; kontrollo CI Python dhe React Native.
+2. Ndërto **Android debug APK** nga native-medusa/ në CI dhe ruaj artefaktin pa çelësa production.
+3. Konfiguro Medusa v2 backend development/test (PostgreSQL, rajon ALL, produkte, manual payment/COD) dhe lidh aplikacionin Android.
+4. Testo një porosi të plotë vetëm me të dhëna testimi dhe shiko order/inventory në backend.
+5. Zgjidh **një source of truth** dhe izolimin e bizneseve; adapt PWA vetëm te ky backend, jo dy databaza autoritative.
+6. Ndërto personalizim White-label (emër, logo, ngjyra, ID aplikacioni, konfigurim, build signing i sigurt); panel biznesi + operator, abonime.
+7. Testo 3–5 biznese reale (pa pagesa/PII realë deri në release gates), bëj auditim sigurie, backup/recovery, kontroll rregullash dhe rollout gradual Android/iOS.
+
 
 ## Përditësim i verifikuar — Native Medusa POC, 22 tetor 2026
 

@@ -1,4 +1,11 @@
-# ADR-004 — ShqipShop si katalog aplikacionesh Android për bizneset
+# ADR-004 — ShqipShop si katalog aplikacionesh Android për bizneset (ALTERNATIVË E REFUZUAR)
+
+## VENDIM PËRFUNDIMTAR I PËRDORUESIT — 22 tetor 2026
+
+**ShqipShop NUK do të ndërtohet si Play Store alternativ / katalog APK-sh / instalues i aplikacioneve të bizneseve.** Përdoruesi ka zgjedhur të mbajë **idenë origjinale white-label**: çdo biznes shqiptar ka dyqanin e tij të branduar dhe, kur ka kuptim, app-in e vet Android/iOS. Kodi origjinal Medusa Mobile është baza për native, kurse prototipi PWA i ShopifyShop është burim reference, jo motori përfundimtar i porosive.
+
+Ky ADR mbetet vetëm arkiv historik i alternativës së analizuar. Mos planifiko apo ndërto sistem APK distribution/signing/installer pa kërkesë të re të qartë. Shpërndarja e një APK-je demo për testim nuk është dyqan APK-sh.
+
 
 **Data:** 2026-10-22 · **Gjendja:** ide e re strategjike; jo plan i autorizuar për ndërtimin e një app store prodhimi. Nuk zëvendëson ADR-001/002/003.
 
@@ -28,7 +35,7 @@ APK-të nuk duhen futur fizikisht brenda APK-së qendrore. Secili APK i nënshkr
 
 ## Vendimi i kthyeshëm
 
-**Mos ndërto full alternative app store tani.** Prioritet: pilot PWA i ShqipShop + një native proof-of-concept nga Medusa Mobile origjinal (i ruajtur nën native-medusa/), me një burim të vetëm autoritativ për stokun dhe porositë. Testo 3–5 biznese dhe kërkesën për apps individuale. Më pas, nëse ka provë tregu, shto katalog të lehtë me buton Hap dyqanin dhe eventualisht shkarko APK për aplikacione të verifikuara.
+**Vendimi i ri e mbyll këtë alternativë:** nuk do të ketë katalog/installer APK ShqipShop. Puna fokusohet te provimi i Medusa Mobile origjinal, storefront-i i çdo biznesi, backend-i unik, automatizimi SaaS dhe app-et individuale. Katalogu mund të rikthehet në diskutim vetëm nëse përdoruesi e kërkon shprehimisht.
 
 ## Kushtet e domosdoshme për katalog APK
 

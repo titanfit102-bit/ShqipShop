@@ -1,5 +1,8 @@
 # Working on ShqipShop — repository instructions
 
+**Final product decision (2026-10-22):** Original white-label concept only. Each merchant gets a branded ecommerce storefront and optionally its own Android/iOS app. The user explicitly rejected creating an APK app store / installer / alternative Play Store. Preserve the historical ADR-004, but do not implement it without a new explicit request. Next: native Android debug build, Medusa development backend, order-flow proof and merchant isolation.
+
+
 ## Mandatory orientation in every new session
 
 Read these files **before editing** (they are the durable project memory):
