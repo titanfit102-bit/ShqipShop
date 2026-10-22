@@ -87,6 +87,7 @@ jobs:
       - name: Start local Medusa API and test checkout via Store HTTP API
         env:
           SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+          SHQIPSHOP_CI_ORDER_ID_FILE: ${{ runner.temp }}/shqipshop-order-id.txt
         run: |
           set -euo pipefail
           pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/medusa-backend.log" 2>&1 &
@@ -109,6 +110,10 @@ jobs:
           echo "::error::Medusa API did not become healthy"
           tail -120 "$RUNNER_TEMP/medusa-backend.log"
           exit 1
+      - name: Confirm checkout order persisted in PostgreSQL
+        env:
+          SHQIPSHOP_CI_ORDER_ID_FILE: ${{ runner.temp }}/shqipshop-order-id.txt
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-ci-order.ts
       - name: CI state
         if: always()
         run: |

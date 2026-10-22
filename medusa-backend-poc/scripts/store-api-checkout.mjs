@@ -90,6 +90,10 @@ const completion = await request("POST", `/store/carts/${cartId}/complete`, {})
 assert(completion.type === "order" && completion.order?.id, "Cart did not produce an order")
 assert(completion.order.currency_code === "all", "Order currency not ALL")
 assert(completion.order.items?.length, "Order has no items")
+const orderIdFile = process.env.SHQIPSHOP_CI_ORDER_ID_FILE
+assert(orderIdFile, "Missing CI test order id path")
+const { writeFileSync } = await import("node:fs")
+writeFileSync(orderIdFile, completion.order.id, {encoding:"utf8",mode:0o600,flag:"wx"})
 console.log("SHQIPSHOP_STORE_HTTP_ORDER_PASSED", JSON.stringify({
   currency: completion.order.currency_code,
   items: completion.order.items.length,
