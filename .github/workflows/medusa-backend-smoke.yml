@@ -80,7 +80,13 @@ jobs:
         run: pnpm --filter @dtc/backend exec medusa db:migrate
       - name: Assert Albania region, ALL currency, products and shipping
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-albania-seed.ts
-      - name: Start local Medusa API and smoke test
+      - name: Export ephemeral publishable key into runner-local file
+        env:
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/export-ci-publishable-key.ts
+      - name: Start local Medusa API and test checkout via Store HTTP API
+        env:
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
         run: |
           set -euo pipefail
           pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/medusa-backend.log" 2>&1 &
@@ -90,6 +96,7 @@ jobs:
             if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:9000/health > "$RUNNER_TEMP/health.json" 2>/dev/null; then
               echo "Medusa API health endpoint returned HTTP 200"
               cat "$RUNNER_TEMP/health.json"
+              node scripts/store-api-checkout.mjs
               exit 0
             fi
             if ! kill -0 "$backend_pid" 2>/dev/null; then
