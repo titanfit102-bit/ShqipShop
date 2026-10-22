@@ -1,0 +1,88 @@
+name: Android emulator install and launch smoke
+
+on:
+  push:
+    branches: [feat/android-emulator-smoke]
+    paths:
+      - native-medusa/**
+      - .github/workflows/android-emulator-smoke.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-emulator-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  emulator-smoke:
+    name: Install and launch bundled Android x86_64 on emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      CI: "true"
+    steps:
+      - name: Checkout without stored credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node.js from upstream
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: native-medusa/.nvmrc
+          cache: npm
+          cache-dependency-path: native-medusa/package-lock.json
+      - name: Java 17
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Android SDK tools
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - name: Install project npm and dependencies
+        working-directory: native-medusa
+        run: |
+          npm install -g "$(node -p "require('./package.json').packageManager")"
+          npm ci
+      - name: Android SDK and NDK for build
+        run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
+      - name: Configure development-only client
+        working-directory: native-medusa
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test -f android/app/debug.keystore
+          test -f .env.template
+          grep -Fq 'DEFAULT_LOCALE=sq-AL' .env.template
+          cp .env.template .env
+      - name: Build bundled APK for x86_64 emulator
+        working-directory: native-medusa/android
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=x86_64 -Dorg.gradle.workers.max=2
+          test -s app/build/outputs/apk/release/app-release.apk
+          sha256sum app/build/outputs/apk/release/app-release.apk
+      - name: Enable KVM for emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Boot Android emulator and assert APK can launch
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7_pro
+          emulator-boot-timeout: 420
+          ram-size: 3072M
+          script: bash native-medusa/scripts/android-emulator-smoke.sh
+      - name: Upload screenshot and filtered launch log (test-only)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ShqipShop-Android-emulator-launch-report
+          path: native-medusa/android/build/reports/shqipshop-emulator/
+          if-no-files-found: warn
+          retention-days: 5

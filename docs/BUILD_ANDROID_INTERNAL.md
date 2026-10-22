@@ -39,3 +39,12 @@ We are verifying that a real native Android application can be produced from the
 - Initial build workflow attempt: https://github.com/titanfit102-bit/ShqipShop/actions/runs/39830420989 **failed while installing missing `platforms;android-37`**, before compiling Java/Kotlin or the application.
 - SDK compatibility fix: `native-medusa/android/build.gradle` compile/build-tools changed to 36, and workflow installs `platforms;android-36`, `build-tools;36.0.0`.
 - Follow-up build workflow: https://github.com/titanfit102-bit/ShqipShop/actions/runs/39830678418. **Verify result live** before claiming a usable artifact.
+
+## Android emulator realisht i verifikuar — 2026-10-22
+
+- **Github Actions run [39842340691](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39842340691): PASSED.** `ubuntu-latest`, Android emulator API 35 / **x86_64**, build-i native React Native me JS të përfshirë, `adb install` dhe nisja e `com.rnstartermedusa/.MainActivity` funksionuan. Kontrolli verifikoi procesin pas 15 sekondash dhe mungesën e `FATAL EXCEPTION` në log-et e filtruara.
+- Artefakti `ShqipShop-Android-emulator-launch-report` ruan screenshot dhe crash-log të filtruar: https://github.com/titanfit102-bit/ShqipShop/actions/runs/39842340691/artifacts/12454487323 (retention deri më 27 tetor 2026). Screenshot ekziston, **por nuk është audituar manualisht për UI/UX**.
+- Ndërtimi arm64 për telefon vazhdon i veçantë: run https://github.com/titanfit102-bit/ShqipShop/actions/runs/39830678418. Të dyja APK-të janë **test-only, të nënshkruara me debug keystore të upstream**, pa kredenciale prodhimi.
+- **Nuk ka ende**: lidhje APK→backend Medusa të aksesueshëm, çelës publishable të konfiguruar te APK, checkout në emulator nga UI, instalim në telefon fizik, white-label per tenant, privatësi/siguri production ose pagesa reale.
+- **Hapi i radhës:** ngri server Medusa testimi të aksesueshëm nga emulatori, konfiguro çelësin demo pa e vendosur në repository, bëj UI→cart→order real në Android. Gjithashtu provo izolimin e klientëve/porosive/adminëve, release signing dhe remediimin e auditimit të varësive.
+
