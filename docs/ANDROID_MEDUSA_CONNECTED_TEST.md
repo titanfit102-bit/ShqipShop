@@ -25,3 +25,9 @@ Native product-detail→variant→cart, address form, shipping choice, manual pa
 - Workflow: https://github.com/titanfit102-bit/ShqipShop/actions/workflows/android-medusa-catalog.yml
 - Initial run: https://github.com/titanfit102-bit/ShqipShop/actions/runs/39845817408.
 - Last observed before this document: backend's HTTP catalog was ready, APK was compiling. **Outcome is not asserted by this document; verify live.**
+
+## Real prior emulator UI inspected (2026-10-22)
+
+Downloaded [artifact 12454487323](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39842340691/artifacts/12454487323) from the earlier **disconnected** Android launch run and visually inspected `emulator-launch.png`. The APK launches to a stable home screen with Albanian navigation labels (Kryefaqja, Kategoritë, Koleksionet, Profili) but the catalog displays **"Something went wrong, Please try again later"** and header still says **"MEDUSA MOBILE"**. This **is not** a successful catalog test: the backend/key was missing in that run. Do not present the earlier emulator's green launch test as proof of working store data, and do not publish unchanged upstream branding.
+
+The new integration workflow must replace this error state with actual demo product titles, verified through Android UI hierarchy and screenshot. A green build without catalog validation is insufficient.
