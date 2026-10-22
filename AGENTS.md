@@ -39,4 +39,4 @@ Do not confuse ShqipShop with Illyrian, Protesto, Builder System, My-phone/Expo,
 
 ### Immediate priority
 
-Prototype the **real original Medusa Mobile RN** in an isolated workstream, preserving upstream MIT license and without replacing FastAPI `app/`, and audit the PWA pilot. Choose the production commerce source of truth only after an actual Medusa checkout and two-merchant isolation proof.
+Upstream Medusa Mobile RN has now been imported to native-medusa/ in feat/native-medusa-poc and localized to sq-AL; JS CI passed (see docs/NATIVE_MEDUSA_POC.md). The next missing proof is an **Android debug build plus a Medusa v2 development backend with real test-only checkout**, and 2-merchant isolation. The optional APK catalog is an unimplemented hypothesis (docs/ADR-004_APK_CATALOG_IDEA.md); keep it separate from core white-label SaaS. Choose the production commerce source of truth only after an actual Medusa checkout and two-merchant isolation proof.

@@ -84,7 +84,7 @@ All tenant reads/writes are scoped by merchant ID. Session hashes, inventory tra
 
 ## Upstream reuse and licensing
 
-https://github.com/bloomsynth/medusa-mobile-react-native is MIT-licensed. If combining its code with this project, retain the upstream LICENSE and authorship notices. This repository intentionally does not copy its source code, because only inspected source files were available; it adds an original service-side PWA prototype and a separately applied Albanian localization pack. This distinction is critical to architecture and license compliance.
+https://github.com/bloomsynth/medusa-mobile-react-native is MIT-licensed. If combining its code with this project, retain the upstream LICENSE and authorship notices. Historical note: the original pilot did not copy the upstream application. The separate native POC branch now includes the pinned original source under native-medusa/ with upstream LICENSE and an integrated Albanian localization. See NATIVE_MEDUSA_POC.md; this pilot FastAPI backend is still separate from Medusa. This distinction is critical to architecture and license compliance.
 
 ## Platform release rules
 

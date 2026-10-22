@@ -1,4 +1,18 @@
-# SHQIPSHOP — MASTER HANDOFF (v1)
+# SHQIPSHOP — MASTER HANDOFF (v2)
+
+## Përditësim i verifikuar — Native Medusa POC, 22 tetor 2026
+
+**Ky është statusi më i ri; seksionet historike më poshtë përshkruajnë gjendjen përpara importimit.**
+
+- **PR #1 (Draft)** përmban pilotin PWA FastAPI/SQLite, branch feat/bootstrap-pwa-mvp, 10 teste pytest të kaluara në Actions: https://github.com/titanfit102-bit/ShqipShop/actions/runs/39824460831
+- **PR #2 (Draft)** i ndërtuar mbi branch-in e PR #1 përmban importin e origjinalit Medusa Mobile në native-medusa/ dhe integrimin e përkthimit sq-AL: https://github.com/titanfit102-bit/ShqipShop/pull/2.
+- Upstream MIT i fiksuar në commit **4ad76d0eb5878efdd16ed294f5a655851aa99617**. Nga 170 skedarët origjinalë, dy logje diagnostikuese JVM u përjashtuan, ndërsa .env.template u rikthye në commit-in e lokalizimit. Kodi native nuk është mbishkruar mbi kodin e FastAPI. Shih [NATIVE_MEDUSA_POC](NATIVE_MEDUSA_POC.md).
+- **JavaScript native CI, pas lokalizimit shqip:** run https://github.com/titanfit102-bit/ShqipShop/actions/runs/39826582144 — ESLint, TypeScript dhe Jest kaluan, 5 suites / 17 teste. Ky nuk është Android APK build apo provë me Medusa backend.
+- Ide e re për t'u ruajtur (jo ende për implementim): **ShqipShop si katalog APK Android** ku bizneset kanë APK-të e tyre të veçanta që përdoruesit instalojnë nga katalogu ynë, pa qenë të detyruar të përdorin Play Store. Kjo nuk është e njëjtë me PWA/native white-label dhe ka rreziqe sigurie, sideloading dhe verifikim zhvilluesish. Shih [ADR-004](ADR-004_APK_CATALOG_IDEA.md).
+- **Vendimi:** PWA pilot + Medusa native si kandidat për aplikacione individuale; mos krijo një app store të plotë para provave të kërkesës dhe sigurisë.
+- **Puna e radhës:** Android debug build në runner të përshtatshëm; Medusa v2 backend test, rajon ALL, produkte/porosi; verifikimi i dy bizneseve të izoluara, pastaj billing/onboarding. Kërkohet një burim i vetëm i së vërtetës për stokun/porositë.
+- **Mbrojtjet:** mos prek main, mos bëj merge/deploy, mos paguaj shërbime dhe mos përdor të dhëna reale klientësh pa autorizim. Përpara se të deklarosh gjendjen, krahaso live PR-et dhe CI; commit-et pas dokumentit nuk trashëgojnë automatikisht statusin 'passed'.
+
 
 **Përditësuar:** 22 tetor 2026. **Burimi i së vërtetës:** ky repository, jo pretendimet e bisedave.
 
