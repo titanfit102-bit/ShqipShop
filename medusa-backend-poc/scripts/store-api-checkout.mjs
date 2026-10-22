@@ -39,6 +39,18 @@ const productResponse = await request("GET", `/store/products?region_id=${encode
 const products = productResponse.products ?? []
 const product = products.find((p) => p.variants?.length)
 assert(product?.id && product.variants[0]?.id, "No priced available product variant via Store API")
+const emptyChannelKeyFile = process.env.SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE
+assert(emptyChannelKeyFile, "Missing alternate CI sales-channel key path")
+const emptyChannelKey = readFileSync(emptyChannelKeyFile, "utf8").trim()
+assert(emptyChannelKey.length > 10 && emptyChannelKey !== publishableKey, "Invalid alternate channel key")
+const isolatedResponse = await fetch(base + `/store/products?region_id=${encodeURIComponent(region.id)}`, {
+  headers: { "x-publishable-api-key": emptyChannelKey },
+  signal: AbortSignal.timeout(20000),
+})
+assert.equal(isolatedResponse.status, 200, "Second channel key must be accepted")
+const isolatedProducts = (await isolatedResponse.json()).products ?? []
+assert.equal(isolatedProducts.length, 0, "An empty sales channel must not see demo products")
+console.log("SHQIPSHOP_SALES_CHANNEL_CATALOG_SCOPE_PASSED")
 console.log("SHQIPSHOP_STORE_HTTP_CATALOG_PASSED", JSON.stringify({ region:region.name,currency:region.currency_code,products:products.length }))
 
 const created = await request("POST", "/store/carts", { region_id: region.id })

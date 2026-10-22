@@ -83,6 +83,7 @@ jobs:
       - name: Export ephemeral publishable key into runner-local file
         env:
           SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+          SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE: ${{ runner.temp }}/shqipshop-empty-channel-key.txt
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/export-ci-publishable-key.ts
       - name: Capture inventory levels before checkout
         env:
@@ -92,6 +93,7 @@ jobs:
       - name: Start local Medusa API and test checkout via Store HTTP API
         env:
           SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+          SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE: ${{ runner.temp }}/shqipshop-empty-channel-key.txt
           SHQIPSHOP_CI_ORDER_ID_FILE: ${{ runner.temp }}/shqipshop-order-id.txt
         run: |
           set -euo pipefail
