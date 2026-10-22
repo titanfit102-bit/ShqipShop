@@ -1,0 +1,174 @@
+name: Android + Medusa live catalog integration
+
+on:
+  push:
+    branches: [feat/android-emulator-smoke]
+    paths:
+      - .github/workflows/android-medusa-catalog.yml
+      - native-medusa/scripts/android-medusa-catalog.sh
+      - native-medusa/app/**
+      - native-medusa/android/**
+      - medusa-backend-poc/apps/backend/src/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-medusa-catalog-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-medusa-catalog:
+    name: Native Android reads live Medusa products
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    env:
+      CI: "true"
+      NODE_ENV: development
+      DATABASE_URL: postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci
+      REDIS_URL: redis://127.0.0.1:6379
+      STORE_CORS: http://localhost:8000
+      ADMIN_CORS: http://localhost:9000,http://localhost:5173
+      AUTH_CORS: http://localhost:9000,http://localhost:5173
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: medusa_ci
+          POSTGRES_PASSWORD: disposable_ci_password
+          POSTGRES_DB: medusa_ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U medusa_ci -d medusa_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: [6379:6379]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout (no persistent credentials)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Use Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24"
+      - name: Use Java 17
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - name: Pin package managers
+        run: |
+          npm install -g pnpm@10.11.1
+          npm install -g "$(node -p "require('./native-medusa/package.json').packageManager")"
+      - name: Create disposable CI authentication secrets
+        run: |
+          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "COOKIE_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Install backend and native locked dependencies
+        run: |
+          (cd medusa-backend-poc && pnpm install --frozen-lockfile --filter '@dtc/backend...')
+          (cd native-medusa && npm ci)
+      - name: Migrate and provision Albanian demo commerce
+        working-directory: medusa-backend-poc
+        run: |
+          pnpm --filter @dtc/backend exec medusa db:migrate
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-albania-seed.ts
+      - name: Create scoped publishable demo key without logging it
+        working-directory: medusa-backend-poc
+        env:
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-app-key.txt
+          SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE: ${{ runner.temp }}/shqipshop-empty-channel-key.txt
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/export-ci-publishable-key.ts
+      - name: Start ephemeral backend and validate products over HTTP
+        working-directory: medusa-backend-poc
+        env:
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-app-key.txt
+        run: |
+          set -euo pipefail
+          nohup pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/medusa-live.log" 2>&1 < /dev/null &
+          for i in $(seq 1 90); do
+            if curl -fsS --max-time 3 http://127.0.0.1:9000/health > /dev/null; then
+              key="$(cat "$SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE")"
+              curl -fsS --max-time 15 -H "x-publishable-api-key: $key" "http://127.0.0.1:9000/store/products" > "$RUNNER_TEMP/catalog.json"
+              node -e "const v = require(process.env.RUNNER_TEMP + '/catalog.json'); if (!v.products?.some(p=>p.title==='Medusa T-Shirt')) process.exit(1); console.log('SHQIPSHOP_CI_MEDUSA_CATALOG_READY',v.products.length)"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::Medusa server was not reachable"
+          tail -80 "$RUNNER_TEMP/medusa-live.log"
+          exit 1
+      - name: Install Android platform and toolchain
+        run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
+      - name: Embed ephemeral store key in test APK, never Git
+        env:
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-app-key.txt
+        run: |
+          set -euo pipefail
+          test ! -e native-medusa/.env
+          test -s "$SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE"
+          umask 077
+          {
+            printf 'MEDUSA_BACKEND_URL=http://10.0.2.2:9000\n'
+            printf 'PUBLISHABLE_API_KEY=%s\n' "$(cat "$SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE")"
+            printf 'DEFAULT_LOCALE=sq-AL\n'
+          } > native-medusa/.env
+          # HTTP loopback is permitted ONLY in this disposable CI checkout.
+          # NEVER commit cleartext network permissions to the production manifest.
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('native-medusa/android/app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          before='android:allowBackup="false"'
+          assert s.count(before)==1
+          p.write_text(s.replace(before, before+'\n      android:usesCleartextTraffic="true"'))
+          PY
+          test -f native-medusa/android/app/debug.keystore
+          grep -Fq 'signingConfig signingConfigs.debug' native-medusa/android/app/build.gradle
+          echo "Ephemeral Android test config prepared; key is not printed."
+      - name: Compile bundled x86_64 APK
+        working-directory: native-medusa/android
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=x86_64 -Dorg.gradle.workers.max=2
+          test -s app/build/outputs/apk/release/app-release.apk
+          sha256sum app/build/outputs/apk/release/app-release.apk
+      - name: Enable Linux KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install test APK and verify storefront UI against real backend
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7_pro
+          ram-size: 3072M
+          emulator-boot-timeout: 420
+          script: bash native-medusa/scripts/android-medusa-catalog.sh
+      - name: Upload sanitized UI screenshot and status only
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ShqipShop-Android-Medusa-connected-catalog
+          path: native-medusa/android/build/reports/shqipshop-connected/
+          if-no-files-found: warn
+          retention-days: 4
+      - name: Remove temporary credentials in working tree
+        if: always()
+        run: rm -f native-medusa/.env
