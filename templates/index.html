@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}ShqipShop · Platforma për bizneset shqiptare{% endblock %}
+{% block body %}
+<div class="home-glow"></div>
+<header class="topbar wrap"><a class="wordmark" href="/">SHQIP<span>SHOP</span><span class="wordmark-dot"></span></a><a class="button secondary small" href="#dyqanet">Shiko dyqanet ↗</a></header>
+<main class="wrap">
+<section class="landing-hero">
+  <div class="eyebrow">PLATFORMA PËR TREGTINË SHQIPTARE</div>
+  <h1>Dyqani yt.<br><em>Marka jote.</em><br>Klientët e tu.</h1>
+  <p>Një dyqan online profesional, në shqip, me produktet, çmimet dhe identitetin e biznesit tënd. Pa programim dhe pa platforma të ndërlikuara.</p>
+  <a class="button primary" href="#dyqanet">Eksploro demonstrimet <span>↗</span></a>
+  <div class="hero-stats"><div><b>100%</b><span>Në shqip</span></div><div><b>24/7</b><span>Porosi online</span></div><div><b>1 panel</b><span>Për çdo biznes</span></div></div>
+</section>
+<section id="dyqanet" class="section"><div class="section-heading"><div><div class="eyebrow">DYQANET DEMONSTRUESE</div><h2>Zbulo një dyqan</h2></div><span class="quiet">Çdo dyqan ka katalogun e vet</span></div>
+<div class="stores-grid">{% for shop in shops %}<a href="/s/{{shop.slug}}" class="store-preview" style="--card-color: {{shop.color}}"><div class="store-preview-header"><span class="store-avatar">{{shop.name[:1]|upper}}</span><span class="pill">Shiko dyqanin ↗</span></div><h3>{{shop.name}}</h3><p>{{shop.tagline or 'Dyqan shqiptar online'}}</p><div class="store-preview-bottom"><span>⌁ {{shop.city}}</span><span>Hap katalogun →</span></div></a>{% else %}<div class="empty">Nuk ka ende dyqane. Krijo të parin me komandën CLI.</div>{% endfor %}</div>
+</section>
+<section class="value-band"><div><span class="eyebrow">PËR BIZNESET</span><h2>Gjithçka për porositë,<br>në një vend.</h2></div><div class="value-list"><p>✦ Produkte, çmime dhe inventar</p><p>✦ Porosi dhe statuset e tyre</p><p>✦ Identitet vizual për secilin biznes</p><p>✦ Dyqan i instalueshëm në telefon</p></div></section>
+</main>
+{% endblock %}

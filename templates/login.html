@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block title %}Hyr në panel · {{shop.name}}{% endblock %}
+{% block body %}
+<header class="topbar wrap"><a class="wordmark" href="/">SHQIP<span>SHOP</span></a><a class="muted-link" href="/s/{{shop.slug}}">← Shiko dyqanin</a></header>
+<main class="login-outer"><div class="login-card"><div class="eyebrow">PANELI I BIZNESIT</div><div class="login-brand">{{shop.name[:1]|upper}}</div><h1>Mirë se u ktheve.</h1><p>Hyr për të menaxhuar dyqanin <strong>{{shop.name}}</strong>.</p>{% if error %}<div class="error">{{error}}</div>{% endif %}<form method="post" action="/admin/{{shop.slug}}/login" class="stacked-form"><label>Email<input type="email" name="email" required autocomplete="username"></label><label>Fjalëkalimi<input type="password" name="password" required autocomplete="current-password"></label><button class="button primary full" type="submit">Hyr në panel ↗</button></form></div></main>
+{% endblock %}
