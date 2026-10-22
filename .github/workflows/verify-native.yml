@@ -1,0 +1,45 @@
+name: Verify native Medusa source
+on:
+  pull_request:
+    paths:
+      - 'native-medusa/**'
+      - '.github/workflows/verify-native.yml'
+  push:
+    branches:
+      - feat/native-medusa-poc
+    paths:
+      - 'native-medusa/**'
+      - '.github/workflows/verify-native.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-js:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: native-medusa
+    steps:
+      - name: Checkout repo without persisting credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: native-medusa/.nvmrc
+          cache: npm
+          cache-dependency-path: native-medusa/package-lock.json
+      - name: Pin project npm
+        run: npm install --global "$(node --print "require('./package.json').packageManager")"
+      - name: Install locked dependencies
+        run: npm ci
+      - name: ESLint, TypeScript and unit tests
+        run: npm run verify
