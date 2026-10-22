@@ -78,6 +78,8 @@ jobs:
         run: pnpm install --frozen-lockfile --filter '@dtc/backend...'
       - name: Run Medusa PostgreSQL migrations
         run: pnpm --filter @dtc/backend exec medusa db:migrate
+      - name: Assert Albania region, ALL currency, products and shipping
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-albania-seed.ts
       - name: Start local Medusa API and smoke test
         run: |
           set -euo pipefail
