@@ -64,3 +64,7 @@ The new `.github/workflows/android-medusa-catalog.yml` is in PR #4. It provision
 ## Current UI→cart gate (2026-10-23)
 
 [PR #5](https://github.com/titanfit102-bit/ShqipShop/pull/5) adds native Android UIAutomation on a disposable Medusa backend, then server-side PostgreSQL cart assertion. Target: Medusa Shorts size S, Add to cart, View cart; markers `SHQIPSHOP_ANDROID_UI_CART_PASSED` and `SHQIPSHOP_ANDROID_CART_PERSISTED_IN_POSTGRES_PASSED`. Initial run [39867727695](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39867727695) was still building when documented; check conclusion and logs. Full native checkout/order has NOT yet been proved. Do not merge main.
+
+## Verified UI cart (2026-10-23)
+
+[Run 39867727695](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39867727695) passed Android API35 UI automation product Medusa Shorts → select size S → add one → view cart, plus Medusa PostgreSQL cart query (ALL, one item). UI screenshot artifact 12465970419 visually verified (1500 ALL pre-shipping). Next: UI-driven Android checkout with synthetic address/shipping/manual payment, server-side order proof and security checks. No checkout success claim yet.

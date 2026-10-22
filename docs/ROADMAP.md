@@ -11,6 +11,8 @@
 
 **PR #5 i aktivizuar:** Test real UI Android → Medusa cart dhe kontrolli i shportës në PostgreSQL; [run 39867727695](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39867727695) duhet verifikuar live para se të shënohet sukses. Checkout Android mbetet i paprovuar.
 
+**Prova shporta Android → Medusa → PostgreSQL PASSED:** [run 39867727695](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39867727695). 1 Medusa Shorts variant S, monedha ALL, screenshot real. Checkout nga Android ende mungon.
+
 **Datë bazë:** 2026-10-22. **Kjo është një strategji zhvillimi**, jo pretendim që të gjitha fazat janë realizuar. Në çdo përditësim mbaj metrikat: koduar / testuar / deploy-uar / përdorur nga klientë realë.
 
 ## Përkufizimi i produktit që duhet të kemi në fund
