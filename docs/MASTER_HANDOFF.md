@@ -1,4 +1,15 @@
-# SHQIPSHOP — MASTER HANDOFF (v4)
+# SHQIPSHOP — MASTER HANDOFF (v5)
+
+## PIKË REFERIMI E VERIFIKUAR (22 tetor 2026) — APK + Backend Medusa i testuar
+
+- **APK native Android ARM64 u ndërtua dhe u ruajt si GitHub Action artifact**, run https://github.com/titanfit102-bit/ShqipShop/actions/runs/39830678418, SHA-256 e APK-së `66f01d24dcc8c8c8729a424f954e61db745b9f61ac990d1e060185bcafa29324`. Artefakti skadon sipas politikës së ruajtjes të run-it. Çelësi i nënshkrimit është debug i publikuar; jo release komercial. Instalimi në telefon nuk është testuar.
+- **PR #3** https://github.com/titanfit102-bit/ShqipShop/pull/3 është branch `feat/medusa-v2-backend-poc` mbi branch e PR #2; përmban Medusa zyrtar DTC starter me licencë MIT në `medusa-backend-poc/` dhe backend CI.
+- **Testi Medusa v2 + PostgreSQL + Redis dhe kontrolli i të dhënave Shqipëria/ALL KALUAN**: https://github.com/titanfit102-bit/ShqipShop/actions/runs/39834267570; seed 4 produkte dhe 2 opsione transporti; health HTTP 200. Serveri u mbyll pas Actions, nuk është i hostuar publikisht. Shih `docs/MEDUSA_BACKEND_POC.md`.
+- **Audit varësish React Native**: https://github.com/titanfit102-bit/ShqipShop/actions/runs/39832976270; 1 critical, 44 high, 19 moderate në graph e përgjithshëm të npm. `shell-quote` është kritike, me version të korrigjuar. Nuk është riparuar ende, kërkon plan upgrade pa breaking changes.
+- **GJENDJA E PUNËS:** React Native + lokalizimi sq-AL kanë kaluar lint/types/Jest, APK ndërtuar, backend Medusa ka kaluar migrime, seed dhe health; **jo** instalim në telefon, backend publik, katalog në telefon, cart/checkout E2E, multi-tenant production, pagesa apo abonime.
+- **NEXT:** kontrata API (publishable key + products), cart/checkout me të dhëna testimi, Android emulator/device smoke, proof tenant isolation dhe audit/correct critical advisory. Mos e ndërto ShqipShop si app store APK (ide e refuzuar nga përdoruesi).
+
+
 
 ## Status i ri — Përpjekja e parë për APK (2026-10-22)
 

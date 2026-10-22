@@ -64,3 +64,12 @@ Pas çdo sesioni, shto në fund: `data · branch · commit SHA · PR · çfarë 
 - Në `npm ci` u raportuan 64 advisory të varësive (19 moderate, 44 high, 1 critical). Ky është sinjal për auditim/upgrade të sigurt përpara prodhimit; mos supozo që të gjitha janë të shfrytëzueshme në runtime.
 - Shih `docs/BUILD_ANDROID_INTERNAL.md` për konfigurimet, kufizimet, përmbajtjen e artefaktit dhe hapat e verifikimit.
 - Hapi i radhës sipas rezultatit të run-it: verifiko artefaktin dhe instalimin, ose riparo rrënjën e dështimit nga log-et. Pas kësaj lidhja me Medusa v2 backend development (rajon ALL, produkt, shportë, checkout test-only).
+
+## 2026-10-22 · APK funksionale në nivel build-i dhe prova backend Medusa
+
+- Android CI run 39830678418 kaloi pas rregullimit të SDK 37→36; u krijua APK ARM64 33 MB me bundle JavaScript të përfshirë dhe SHA-256 të regjistruar në MASTER_HANDOFF. Nënshkrimi përdor upstream debug keystore dhe nuk është release komercial. Instalimi në pajisje nuk është konfirmuar.
+- U krijua security audit workflow read-only për dependencies; run 39832976270 raportoi 1 critical, 44 high, 19 moderate (nga audit graph), dhe veçmas riskun e `shell-quote`. Remediimi nuk është kryer.
+- U importua zyrtarisht DTC starter Medusa v2 në degën feat/medusa-v2-backend-poc (PR #3 Draft), commit i origjinës `204130a3`; ruhet licenca MIT, përfshin backend + storefront upstream reference.
+- U shtua workflow me PostgreSQL 16 + Redis 7 dhe Medusa 2.22.0; migrimet dhe health endpoint 200 u verifikuan në Actions run 39833563861.
+- Seed i backend-it u përshtat për Shqipërinë: ALL, vend al, magazinë Tiranë, transport standard/ekspres dhe 4 produkte demo; kontrolli i DB u verifikua në run https://github.com/titanfit102-bit/ShqipShop/actions/runs/39834267570 me marker `SHQIPSHOP_ALBANIA_ASSERTIONS_PASSED`.
+- Nuk ka ende sistem prodhimi white-label me abonime, checkout Android↔Medusa, tenant provisioning apo server publik. Hapi pasues: Store API dhe checkout E2E me backend ephemeral, test instalimi Android, izolim i dy bizneseve.
