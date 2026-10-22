@@ -84,6 +84,11 @@ jobs:
         env:
           SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/export-ci-publishable-key.ts
+      - name: Capture inventory levels before checkout
+        env:
+          SHQIPSHOP_CI_INVENTORY_SNAPSHOT: ${{ runner.temp }}/shqipshop-inventory-before.json
+          SHQIPSHOP_CI_INVENTORY_MODE: before
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-ci-inventory.ts
       - name: Start local Medusa API and test checkout via Store HTTP API
         env:
           SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
@@ -114,6 +119,11 @@ jobs:
         env:
           SHQIPSHOP_CI_ORDER_ID_FILE: ${{ runner.temp }}/shqipshop-order-id.txt
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-ci-order.ts
+      - name: Assert inventory reservation and no stock loss
+        env:
+          SHQIPSHOP_CI_INVENTORY_SNAPSHOT: ${{ runner.temp }}/shqipshop-inventory-before.json
+          SHQIPSHOP_CI_INVENTORY_MODE: after
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-ci-inventory.ts
       - name: CI state
         if: always()
         run: |
