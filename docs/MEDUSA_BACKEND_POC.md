@@ -53,11 +53,19 @@ Kontrolli në `medusa-backend-poc/apps/backend/src/scripts/assert-albania-seed.t
 
 **Shënim:** Këto janë faza të përcaktuara, jo të gjitha të përfunduara. Kontrollo commit-in/Actions në çdo sesion.
 
-## Update i verifikuar — Rezervimi i stokut dhe prova e emulatorit (2026-10-22)
+## Ecuria e radhës (2026-10-22): Rezervim inventari dhe kufiri i katalogut
 
-- **Provë e rezervimit të stokut për Medusa:** [GitHub Actions run 39841615561](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39841615561) KALOI; `SHQIPSHOP_INVENTORY_BASELINE_PASSED` raportoi 20 nivele inventari pa rezervime fillestare; pas checkout-it me 1 produkt, `SHQIPSHOP_INVENTORY_RESERVATION_PASSED` verifikoi `reservedDelta: 1` dhe `stockPreserved: true`. Pra në momentin e porosisë njësia **rezervohet**, ndërsa sasia fizike nuk ulet ende. Kjo NUK është provë e fulfillment, anullimit, return apo izolimit mes bizneseve.
-- **Kodi për testin e inventarit:** `medusa-backend-poc/apps/backend/src/scripts/assert-ci-inventory.ts`, duke ekzekutuar snapshot përpara dhe pas porosisë me databazë Medusa PostgreSQL ephemeral, pa pagesa reale.
-- **PR #4 (Draft)** [Android emulator launch smoke](https://github.com/titanfit102-bit/ShqipShop/pull/4) u hap nga branch `feat/android-emulator-smoke` mbi PR #3. Workflow `.github/workflows/android-emulator-smoke.yml` ndërton APK **x86_64** (i veçantë nga ARM64 për telefona), instalon me adb në Android emulator API 35 dhe verifikon MainActivity/process/crash, me screenshot dhe crash-log filtruar. Nuk është provë e checkout Android: backend dhe publishable key mbeten të palidhura.
-- Ekzekutimi i parë emulator [39841940988](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39841940988) dështoi në **Set up job**, për shkak të një SHA të shkurtuar të `android-actions/setup-android`. SHA u korrigjua në full commit; ekzekutimi pasues është [39842068391](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39842068391). **Verifiko statusin përfundimtar live**; gjatë shkrimit të këtij dokumenti build ende po ekzekutohej.
-- **NEXT:** verifiko rezultatin dhe screenshot-in e emulatorit, riparo dështimet nëse ka; pastaj ndërlidh API-në Medusa me app native dhe testoni rrjedhën me emulator, plus dy biznese plotësisht të izoluara, siguri dependency dhe deploy preview.
+- [Run 39841615561](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39841615561) PASSED: 20 inventare fillestare, porosia e testimit rezervoi saktësisht 1 njësi (`reservedDelta:1`), sasia fizike `stocked_quantity` mbeti konstante. Ky është rezervim, **jo** zbritje pas dërgesës.
+- [Run 39842677918](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39842677918) PASSED: çelësi API i lidhur me një kanal të dytë bosh lexon 0 produkte, kur çelësi i kanalit origjinal lexon 4 produktet demo; `SHQIPSHOP_SALES_CHANNEL_CATALOG_SCOPE_PASSED`. Porosia 1510 ALL dhe kontrollet e stokut kaluan përsëri.
+- **Kufizim kritik arkitekturor:** Këto dy prova **NUK** provojnë izolimin e klientëve, porosive, administratorëve, përdoruesve ose skedarëve ndërmjet bizneseve. Sales channels Medusa nuk janë sistem multi-tenancy i gatshëm.
+- Vazhdo me `docs/TENANT_ISOLATION_GATES.md` për portat e detyrueshme dhe përzgjedhjen e modelit tenant. Emulator Android është workstream i veçantë në [PR #4](https://github.com/titanfit102-bit/ShqipShop/pull/4), me rezultat të pavarur që duhet verifikuar live.
+
+
+## PR #4 — Android emulator x86_64 (veçmas nga APK-ja ARM64 e telefonit)
+
+- Branch `feat/android-emulator-smoke`, PR https://github.com/titanfit102-bit/ShqipShop/pull/4, krijuar mbi Medusa backend POC.
+- Workflow `.github/workflows/android-emulator-smoke.yml` me `ubuntu-latest`, Android emulator API 35 / x86_64, Gradle APK bundled, `adb install`, `MainActivity`, kontroll procesi 15 sekonda, crash log të filtruar dhe screenshot artifact.
+- Prova fillestare https://github.com/titanfit102-bit/ShqipShop/actions/runs/39841940988 dështoi në konfigurimin e action-it (SHA e shkurtuar, e rregulluar). Run pasues https://github.com/titanfit102-bit/ShqipShop/actions/runs/39842340691 ishte në proces gjatë dokumentimit. **Verifiko statusin aktual dhe raportin e emulatorit; mos pretendo instalim të suksesshëm vetëm nga ky dokument.**
+- APK është nënshkruar me debug keystore të upstream, jo me një çelës biznesi. Nuk ka ende backend të lidhur nga emulatori dhe as checkout Android end-to-end.
+- Nuk ndërtohet ShqipShop si Play Store alternativ (vendim përfundimtar i përdoruesit).
 
