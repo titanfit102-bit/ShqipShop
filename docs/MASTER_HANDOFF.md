@@ -1,4 +1,16 @@
-# SHQIPSHOP — MASTER HANDOFF (v10)
+# SHQIPSHOP — MASTER HANDOFF (v11)
+
+## PR #5 — Verifikimi real i shportës Android (23 tetor 2026)
+
+- Branch `feat/android-ui-cart-poc` mbi PR #4, [PR #5 Draft](https://github.com/titanfit102-bit/ShqipShop/pull/5).
+- U ndërtua workflow `.github/workflows/android-medusa-ui-cart.yml`, duke ripërdorur backend-in ephemeral PostgreSQL 16 / Redis 7 / Medusa, vend/monedhë Shqipëri/ALL dhe APK React Native të nënshkruar me debug-key. Çelësi publishable dhe HTTP localhost shtohen **vetëm në runner** dhe nuk futen në Git.
+- Automatizim Android UI (`native-medusa/scripts/shqipshop-ui-automation.py` + `android-ui-cart.sh`) synon Medusa Shorts → madhësia S → Shto në shportë → Shiko shportën. Nuk përdor kërkesë HTTP direkte për të krijuar shportën.
+- Verifikim i pavarur nga Medusa `assert-android-ui-cart.ts`: kërkon një shportë ALL në PostgreSQL me 1 Medusa Shorts. Marker-at për t'u verifikuar: `SHQIPSHOP_ANDROID_UI_CART_PASSED` dhe `SHQIPSHOP_ANDROID_CART_PERSISTED_IN_POSTGRES_PASSED`.
+- [Run i parë](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39867727695) ishte **në kompilim** gjatë dokumentimit. Mos numëro përfundim pa kontrolluar rezultatin e CI dhe log-et.
+- **Jo e përfunduar:** porosia nga UI Android, checkout me adresë/transport/pagesë manuale, izolimi dy bizneseve, varësitë me advisory të sigurisë dhe gjeneratori white-label.
+- Hapi pasues: nëse testi i shportës dështon, lexo log + screenshot, riparo shkakun, testo sërish. Nëse kalon, shto testim të checkout UI dhe të porosisë në databazë. Kurrë mos bëj merge në main pa autorizim të veçantë.
+
+
 
 ## Prova e konfirmuar Android ↔ Medusa me UI (2026-10-22)
 

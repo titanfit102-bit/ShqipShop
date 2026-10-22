@@ -60,3 +60,7 @@ The new `.github/workflows/android-medusa-catalog.yml` is in PR #4. It provision
 ## Verified native Medusa catalog (2026-10-22)
 
 [Run 39845817408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39845817408) passed actual Android API35 x86_64 emulator showing live seeded Medusa products and ALL prices from disposable PostgreSQL/Redis backend. Marker `SHQIPSHOP_ANDROID_REAL_MEDUSA_CATALOG_PASSED`. [Screenshot artifact 12456126411](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39845817408/artifacts/12456126411) visually reviewed (real product cards; upstream 'MEDUSA MOBILE' title and blank remote banner remain). Store API HTTP order passed separately; no UI cart/checkout/merchant isolation has yet been verified. CI temporary cleartext patch + public debug signing is test-only, not production.
+
+## Current UI→cart gate (2026-10-23)
+
+[PR #5](https://github.com/titanfit102-bit/ShqipShop/pull/5) adds native Android UIAutomation on a disposable Medusa backend, then server-side PostgreSQL cart assertion. Target: Medusa Shorts size S, Add to cart, View cart; markers `SHQIPSHOP_ANDROID_UI_CART_PASSED` and `SHQIPSHOP_ANDROID_CART_PERSISTED_IN_POSTGRES_PASSED`. Initial run [39867727695](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39867727695) was still building when documented; check conclusion and logs. Full native checkout/order has NOT yet been proved. Do not merge main.
