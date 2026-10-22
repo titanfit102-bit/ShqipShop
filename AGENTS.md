@@ -52,3 +52,7 @@ Android x86_64 APK install/launch test is in `feat/android-emulator-smoke`, [PR 
 ## Emulator proof (2026-10-22)
 
 [Run 39842340691](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39842340691) passed Android 35 x86_64 APK installation, MainActivity launch, process survival and filtered crash test; screenshot/log artifact 12454487323. Physical Android device, UI checkout and backend connectivity are NOT proven. React Native security advisories remain open. Keep main protected and use test-only data.
+
+## Current native-to-backend integration test
+
+The new `.github/workflows/android-medusa-catalog.yml` is in PR #4. It provisions disposable Medusa/PostgreSQL/Redis, injects a runner-only publishable store key into a test APK, patches cleartext HTTP ONLY inside CI for emulator host mapping 10.0.2.2, then checks actual product titles in Android UI. Check [run 39845817408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39845817408) and the marker `SHQIPSHOP_ANDROID_REAL_MEDUSA_CATALOG_PASSED` before claiming connected Android catalog. Do not conflate with HTTP test-only checkout. Never persist the disposable key or the CI-only insecure Android manifest.
