@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 const settingSchema = z.object({
-  language: z.enum(['en-US', 'id-ID'], { error: 'language-is-required' }),
+  language: z.enum(['en-US', 'id-ID', 'sq-AL'], { error: 'language-is-required' }),
 });
 
 type ProfileFormData = z.infer<typeof settingSchema>;
@@ -30,6 +30,7 @@ const dropdownData: DropdownData[] = [
     label: 'Bahasa',
     value: 'id-ID',
   },
+  { label: 'Shqip', value: 'sq-AL' },
 ];
 
 const Settings = () => {

@@ -8,9 +8,9 @@ import { LocalizationProvider, ReactLocalization } from '@fluent/react';
 
 import dayjs from 'dayjs';
 
-import { en_US, id_ID } from '@constants/fluent-templates';
+import { en_US, id_ID, sq_AL } from '@constants/fluent-templates';
 
-export type Locale = 'en-US' | 'id-ID';
+export type Locale = 'en-US' | 'id-ID' | 'sq-AL';
 
 type LocaleContextType = {
   locale: Locale;
@@ -21,7 +21,7 @@ type LocaleProviderProps = {
   children: React.ReactNode;
 };
 
-export const DEFAULT_LOCALE: Locale = ENV_DEFAULT_LOCALE || 'en-US';
+export const DEFAULT_LOCALE: Locale = ENV_DEFAULT_LOCALE || 'sq-AL';
 const LOCALE_STORAGE_KEY = 'locale';
 
 function* lazilyParsedBundles(fetchedMessages: Array<[Locale, string]>) {
@@ -41,15 +41,17 @@ export const LocaleProvider = ({ children }: LocaleProviderProps) => {
 
   const changeLocales = React.useCallback(
     async (locales: Array<Locale>) => {
-      const currentLocales = negotiateLanguages(locales, ['en-US', 'id-ID'], {
+      const currentLocales = negotiateLanguages(locales, ['en-US', 'id-ID', 'sq-AL'], {
         defaultLocale: DEFAULT_LOCALE,
       }) as Locale[];
 
       const localeAssets = currentLocales.map<[Locale, string]>(_locale => {
         if (_locale === 'en-US') {
           return [_locale, en_US];
-        } else {
+        } else if (_locale === 'id-ID') {
           return [_locale, id_ID];
+        } else {
+          return [_locale, sq_AL];
         }
       });
 
@@ -68,6 +70,8 @@ export const LocaleProvider = ({ children }: LocaleProviderProps) => {
         dayjs.locale('en');
       } else if (locale === 'id-ID') {
         dayjs.locale('id');
+      } else if (locale === 'sq-AL') {
+        dayjs.locale('sq');
       }
 
       return;
