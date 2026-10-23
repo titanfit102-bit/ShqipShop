@@ -29,6 +29,7 @@ jobs:
         working-directory: medusa-backend-poc
     env:
       CI: "true"
+      SHQIPSHOP_REQUIRE_REDIS: "true"
       NODE_ENV: development
       STORE_CORS: http://localhost:8000
       ADMIN_CORS: http://localhost:9000,http://localhost:5173
@@ -194,10 +195,12 @@ jobs:
           node scripts/parallel-merchant-boundary.mjs
           node scripts/parallel-auth-boundary.mjs
           kill -0 "$pid_a" && kill -0 "$pid_b"
+          # Require actual BullMQ queues on both tenant Redis endpoints.
+          python3 scripts/verify-redis-runtime.py
           echo 'SHQIPSHOP_PARALLEL_MERCHANT_ORDER_ISOLATION_PASSED'
       - name: Statement of limits
         if: always()
         run: |
           echo "Demo databases and merchant keys are ephemeral."
           echo "Auth/session/mutation assertions are meaningful only if their test step passed."
-          echo "JWT revocation, browser HTTPS/CSRF/domain cookie isolation, admin RBAC, Medusa Redis provider binding, load, storage, billing and prod signing are NOT certified."
+          echo "Redis event runtime proof requires a passing test step; worker restart, workflow/session durability, caching, HA, JWT revocation, browser HTTPS/CSRF, admin RBAC, billing and production remain uncertified."
