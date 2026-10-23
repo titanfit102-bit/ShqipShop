@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F07c verified increment — Redis dedicated worker (2026-10-23)
+
+**DONE as CI-scoped proof:** `WORKER_MODE=server|worker|shared` Medusa config; synthetic-only event with separate HTTP server and Medusa worker; controlled failure recovered by event retry; worker process stop/restart and new process delivery. [Verified code 02fa531d](https://github.com/titanfit102-bit/ShqipShop/commit/02fa531de23e03c2aad36d0cd053c4a9dfbb74e2), **6/6 PR Actions SUCCESS**, F07c [40027474910](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40027474910) and [push 40027467532](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40027467532). Tests use CI-only synthetic payloads and disposable services. Docs commit requires CI recheck.
+
+**OPEN (F07c-outage):** Redis restart/failover and persistence with queued-job replay; work interrupted mid-handler, duplicate/idempotence controls and locking contention. **OPEN (F07d):** caching Redis provider installation/lockfile, cache isolation and invalidation proofs. **OPEN production gates:** automatic fail-closed deployment policy; TLS/ACL, backup/restore, HA, worker metrics; user/device flows. Do not promote F07/G3/G5 to complete. Maintain PR #12 Draft, no merge or deploy.
+
+
 ## F07b — session sharing cross-process (CI VERIFIED; 2026-10-23)
 
 - **Code [5cf17af](https://github.com/titanfit102-bit/ShqipShop/commit/5cf17af77d807ce57a7054358d447704ec12a307) + [parallel session handoff 40021889093](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021889093) SUCCESS**: sesionet customer/admin nga A:9000 pranohen në A:9002 pa JWT, cookie B refuzohet. Redis event keyspaces A/B provohen, 5/5 distinct CI workflows green në code SHA.

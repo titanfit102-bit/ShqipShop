@@ -1,5 +1,13 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-10-23 · F07c dedicated Redis worker increment
+
+- User continued the explicitly proposed F07c scope («vazhdojm»); modified only Medusa worker-mode config, test-only subscriber/producer, and a dedicated synthetic GitHub Actions workflow in `feat/merchant-auth-boundary-ci` / PR #12 Draft. No main/merge/deploy.
+- Code commit `e0a8008`; its first new workflow [40027394332](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40027394332) reported failure without jobs due runner.temp expression in job env. Follow-up `02fa531d` fixed the workflow context, preserving the actual assertions.
+- **CI verified at `02fa531d`: 6/6 PR workflows SUCCESS**, [F07c PR 40027474910](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40027474910) dhe [F07c push 40027467532](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40027467532); other checks: [native 40027474587](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40027474587), [pilot 40027474687](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40027474687), [backend smoke 40027474759](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40027474759), [two isolated 40027474793](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40027474793), [parallel A/B 40027474601](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40027474601). F07c push run also SUCCESS. Test job markers support actual server-only queue, retry after synthetic transient failure and processing by a restarted worker with different PID. Does not prove Redis daemon recovery, Redis cache, locking contention, production TLS/HA/backup or exactly-once commerce effects.
+- F07 PARTIAL, G3/G5 incomplete. Remaining scoped F07c outage/failure injection and F07d caching require specific authorization. Documentation checkpoint commit CI to be checked separately.
+
+
 ## 2026-10-23 · F07b GitHub HEAD verification (read-only audit + continuity update)
 
 - Branch `feat/merchant-auth-boundary-ci`, PR #12 Draft mbi PR #11 Draft; code `5cf17af`; docs baseline `94da03cb`.
