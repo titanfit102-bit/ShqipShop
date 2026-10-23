@@ -1,4 +1,13 @@
-# SHQIPSHOP — MASTER HANDOFF (v20)
+# SHQIPSHOP — MASTER HANDOFF (v21)
+
+## 23 tetor 2026 — PR #11 dhe PR #12: dy biznese aktive, porosi dhe JWT të izoluara (GREEN)
+
+- **PR #11** https://github.com/titanfit102-bit/ShqipShop/pull/11 (Draft, i bazuar në PR #10). **Run 39979050578** https://github.com/titanfit102-bit/ShqipShop/actions/runs/39979050578, commit `dafb668`: **PASSED**. Dy procese Medusa aktive njëkohësisht (:9000/:9001), PostgreSQL A/B me role të ndara, dy checkout sintetikë nga **1.510 ALL** secili; secili lexon porosinë e vet (HTTP 200), por kërkimi i porosisë së tjetrit jep HTTP 404, key i tjetrit refuzohet HTTP 400. Redis A/B janë dy shërbime të arritshme, por integrimi Medusa Redis provider dhe izolimi real i queues **nuk janë provuar**.
+- **PR #12** https://github.com/titanfit102-bit/ShqipShop/pull/12 (Draft, mbi PR #11), commit kodi `c2c4f89`: **runs 39980691897 dhe 39980753775 PASSED**; gjithashtu Medusa smoke `39980753771` dhe pilot verify `39980753785` **PASSED**. Dy admin-e sintetike të krijuara në DB të ndryshme, dy customer accounts nëpërmjet Medusa /auth/customer/emailpass/register + /store/customers. Dy serverët përdorin JWT_SECRET dhe COOKIE_SECRET të ndryshëm. Token-i i klientit A nuk hyn si klient në B; token-i i adminit A nuk hyn si admin në B (dhe anasjelltas); asnjë token klienti nuk mund të përdoret si admin në serverin e vet. Markers: `SHQIPSHOP_MERCHANT_A_OWN_AUTH_PASSED`, `SHQIPSHOP_MERCHANT_B_OWN_AUTH_PASSED`, `SHQIPSHOP_MERCHANT_A_FOREIGN_AUTH_DENIED`, `SHQIPSHOP_MERCHANT_B_FOREIGN_AUTH_DENIED`, `SHQIPSHOP_TWO_MERCHANT_ADMIN_CUSTOMER_JWT_ISOLATION_PASSED`.
+- **Kufijtë**: login me JWT është provuar, **jo cookie/session e vërtetë**, role/RBAC të ndryshme brenda administratorëve, GET/POST/PUT/DELETE të porosive me auth kundërshtare, refund/cancel, cross-tenant media/storage, Redis provider/worker/event hooks, race/load, backup/restore, provisioning, billing, real FX/PSP/COD ose production. **G3 ende i papërfunduar**; main ende baseline i paprekur, **asnjë merge/deploy**. Dokumentet më poshtë mund të përmbajnë snapshot-e të vjetra, prandaj përdor këtë hyrje të datës si progresin më të fundit të verifikuar.
+- **Hapi i radhës**: negative tests për cookie/session dhe admin/customer mutation authorization; pastaj validimi i Redis queues dhe backup/restore, onboarding/provisioner idempotent, unifikimi PWA/native mbi një backend per tenant.
+
+
 
 ## 23 tetor 2026 — Screenshot-i i ri Android i faturës është verifikuar
 
