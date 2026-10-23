@@ -1,5 +1,13 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-10-23 · F07b GitHub HEAD verification (read-only audit + continuity update)
+
+- Branch `feat/merchant-auth-boundary-ci`, PR #12 Draft mbi PR #11 Draft; code `5cf17af`; docs baseline `94da03cb`.
+- Docs-baseline CI = 5/5 SUCCESS: [pilot 40022501896](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40022501896), [native 40022501924](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40022501924), [two independent 40022501895](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40022501895), [parallel Redis/sessions 40022501996](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40022501996), [Medusa smoke 40022501911](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40022501911). Jo rezultat i konfirmuar ende për commit-in e ri të këtij shënimi.
+- Verifikuar në code/workflow: cookie share 9000→9002 me Redis, Redis A/B event keys dhe providers; mungon caching-redis; nuk ka outage/worker retry/restart/idempotency/load/production provë. `SHQIPSHOP_REQUIRE_REDIS` lidhet me flag të veçantë në CI, jo me production automatik.
+- Nuk ndryshoi kodi, varësitë, workflow, main apo Production. Hapi pasues i propozuar F07c server/worker retry/failure-injection me autorizim specifik; F07 mbetet PARTIAL dhe G3/G5 OPEN.
+
+
 ## Checkpoint P0 i verifikuar — 2026-10-23
 
 **Kodi:** [`06ea54a`](https://github.com/titanfit102-bit/ShqipShop/commit/06ea54a5f252ae367e3281c470cdc139729459bc). **PR #12 OPEN Draft**, mbi PR #11; main i pandryshuar `329e0381b0bc4ce39cf554a2b2888a047e1dd29e`. Nuk u bë merge/deploy ose pagesë reale.

@@ -1,5 +1,14 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## Checkpoint i ri F07b — CI HEAD verifikuar dhe hapi F07c (2026-10-23)
+
+**Source of truth:** `feat/merchant-auth-boundary-ci` / [PR #12 Draft](https://github.com/titanfit102-bit/ShqipShop/pull/12) mbi [PR #11 Draft](https://github.com/titanfit102-bit/ShqipShop/pull/11). Code SHA F07b `5cf17af`, docs HEAD para këtij shënimi `94da03cb`. Në atë dokumentacion HEAD, **5/5 GitHub Actions SUCCESS**: [pilot 40022501896](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40022501896), [native 40022501924](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40022501924), [two independent 40022501895](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40022501895), [parallel Redis/sessions 40022501996](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40022501996), [Medusa smoke 40022501911](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40022501911). Commit-i i ri i këtij checkpoint-i do të kërkojë verifikim të vetin. `main` nuk u prek; as merge ose deploy.
+
+**Audit source read-only:** [medusa-config.ts](../medusa-backend-poc/apps/backend/medusa-config.ts), [parallel CI](../.github/workflows/parallel-medusa-isolation-ci.yml), [cookie handoff](../medusa-backend-poc/scripts/verify-redis-session-handoff.mjs), [Redis runtime](../medusa-backend-poc/scripts/verify-redis-runtime.py), [backend package](../medusa-backend-poc/apps/backend/package.json). Redis sessions dhe event/workflow/locking provider wiring ekzistojnë; kloni 9002 vërteton identitetin cross-process pa JWT, jo persistencën pas Redis outage/HA. `@medusajs/caching-redis` mungon; `@medusajs/caching` ekziston. `SHQIPSHOP_REQUIRE_REDIS` është një flag eksplicit i CI, jo fail-closed automatik për `NODE_ENV=production`. Testet nuk provojnë përpunim/retry të një worker-i, idempotencë, locking contention apo cache cross-instance.
+
+**Radhë ekzekutimi e PROPOZUAR, jo leje kodi:** (1) F07c server/worker split + retry/failure-injection dhe testin e Redis fail-closed në konfigurime jashtë development; (2) F07d caching-redis me kompatibilitet/version/pnpm lockfile + prova cache; (3) TLS/ACL, backup/restore, HA, observability për prodhim. Pastaj F08 JWT server-side policy dhe F09 unifikim PWA/Medusa sipas prioriteteve aktuale. G3/G5 mbeten IN PROGRESS. Përdoruesi autorizoi vetëm dokumentacionin e vazhdimësisë si leje të përhershme; scope i ri F07c/F07d i kodit kërkon autorizim më vete. Nuk u modifikua kod/CI gjatë këtij kontrolli.
+
+
 ## Checkpoint P0 i verifikuar — 2026-10-23
 
 **Kodi:** [`06ea54a`](https://github.com/titanfit102-bit/ShqipShop/commit/06ea54a5f252ae367e3281c470cdc139729459bc). **PR #12 OPEN Draft**, mbi PR #11; main i pandryshuar `329e0381b0bc4ce39cf554a2b2888a047e1dd29e`. Nuk u bë merge/deploy ose pagesë reale.
