@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ScrollView, TouchableOpacity } from 'react-native';
+import { Alert, View, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalization } from '@fluent/react';
 import Text from '@components/common/text';
 import MaterialIcon from '@react-native-vector-icons/material-design-icons';
@@ -49,12 +49,16 @@ const Profile = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      // Do not leave customer-private screens in the back stack after logout.
+    } catch (error) {
+      // Local credentials remain blocked, but persistent deletion was not
+      // verified. Report the incomplete logout instead of silent success.
+      console.warn('Local JWT logout could not be verified', error);
+      Alert.alert(l10n.getString('error'), l10n.getString('an-error-occurred'));
+    } finally {
+      // Discard the private back stack even when token storage is faulty.
       navigation.dispatch(
         CommonActions.reset({ index: 0, routes: [{ name: 'Main' }] }),
       );
-    } catch (error) {
-      console.log('Logout error:', error);
     }
   };
 
