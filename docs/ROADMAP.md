@@ -15,6 +15,8 @@
 
 **Shfaqja dymonedhëshe ALL/EUR në PR #6:** Implementim për çmim kryesor në monedhën reale dhe ekuivalent orientues në tekst të vogël gri, vetëm me kurs backend të validuar. Testet JS dhe Medusa kaluan në runs 39931374229 dhe 39931072361. Pagesa reale në dy monedha është fazë më vete; emulimi vizual është ende për t'u konfirmuar.
 
+**Progres 23 tetor:** Dual-currency Android UI PASSED (run 39931562458; kurs vetëm sintetik). Checkout Android PR #7 me adresë/transport/pagesë manuale dhe order PostgreSQL është në testim (run 39934984130), **jo i konfirmuar** deri te marker-at e UI dhe DB.
+
 **Datë bazë:** 2026-10-22. **Kjo është një strategji zhvillimi**, jo pretendim që të gjitha fazat janë realizuar. Në çdo përditësim mbaj metrikat: koduar / testuar / deploy-uar / përdorur nga klientë realë.
 
 ## Përkufizimi i produktit që duhet të kemi në fund

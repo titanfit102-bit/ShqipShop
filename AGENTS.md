@@ -72,3 +72,7 @@ The new `.github/workflows/android-medusa-catalog.yml` is in PR #4. It provision
 ## Multi-currency price presentation (PR #6; 2026-10-23)
 
 User approved **display** of primary transaction price ALL or EUR and a small grey indicative reciprocal price for guidance. Only valid operator-provided dated ALL/EUR quote from Medusa `/store/shqipshop/indicative-fx` may be used. Never hardcode a market rate, never change actual cart/order totals with the indicative rate, never claim EUR payment is ready. Synthetic CI rate 100 is only an illustration. See `docs/DUAL_CURRENCY_POLICY.md`; preserve 7-day freshness guard, rate source, missing-rate fallback and full native/Jest/Medusa checks. Follow Android emulator visual result on PR #6; then resume Android UI checkout + two merchant isolation.
+
+## Current Android checkout (PR #7, 2026-10-23)
+
+PR #6 Android FX grey hint passed in run 39931562458 using a **synthetic only** ALL/EUR rate; don't assert actual exchange/payment availability. [PR #7](https://github.com/titanfit102-bit/ShqipShop/pull/7) tests *actual native UI* address (one-country default), delivery, system manual payment, place-order and persisted Medusa DB order via [run 39934984130](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39934984130). TypeScript/Jest and backend smoke pass (39935031421, 39935031422), but do not claim Android checkout completion without BOTH UI and Postgres markers. Full merchant isolation, real dual-currency settlement and release-grade signing remain unimplemented. 

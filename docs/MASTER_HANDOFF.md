@@ -1,4 +1,15 @@
-# SHQIPSHOP — MASTER HANDOFF (v13)
+# SHQIPSHOP — MASTER HANDOFF (v14)
+
+## 23 tetor 2026 — PR #6 i provuar vizualisht; PR #7 checkout native në testim
+
+- **Çmimet ALL/EUR / PR #6**: [Android emulator run 39931562458](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39931562458) PASSED, marker `SHQIPSHOP_ANDROID_DUAL_CURRENCY_UI_PASSED`: shporta e Medusa Shorts në ALL shfaqi `≈ €15,00` sipas **kursit SINTETIK** 100 ALL/EUR. PostgreSQL verifikoi artikullin në shportë. [Screenshot zyrtar](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39931562458/artifacts/12493325005). Nuk është lidhur ende kurs i vërtetë i Bankës së Shqipërisë/ndonjë burimi tjetër me freski të auditueshme; nuk ekziston ende pagesë reale në EUR.
+- **PR #7 Draft:** [Android checkout UI](https://github.com/titanfit102-bit/ShqipShop/pull/7), branch `feat/android-native-checkout-e2e` mbi PR #6; workflows `.github/workflows/android-native-checkout-e2e.yml` dhe `native-medusa/scripts/android-native-checkout-e2e.sh`.
+- Testi përdor një server dhe databazë **ephemeral PostgreSQL/Redis/Medusa**, APK Android 35 x86_64 me debug-keystore publik dhe publishable key vetëm në CI. Nga UI zgjedh Medusa Shorts S → shportë → plotëson adresë fiktive në Tiranë → Transport standard → Manual (`pp_system_default`) → Dërgo porosinë. Query server-side kërkon 1 porosi `ALL 1510`, vend `al`, email `buyer-ci@example.invalid`, 1 Medusa Shorts.
+- U shtuan accessibility labels për inpute React Native dhe zgjedhje e paracaktuar e vendit vetëm kur rajoni ka një shtet. Këto ndryshime kaluan lint/typecheck/Jest në [run 39935031421](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39935031421); backend HTTP PostgreSQL checks në [run 39935031422](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39935031422); pilot Python në [run 39935031407](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39935031407).
+- **Rezultati final i UI checkout-it:** [run 39934984130](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39934984130). Në momentin e këtij dokumentimi ishte në ndërtimin Gradle; KËRKO `SHQIPSHOP_ANDROID_NATIVE_ORDER_UI_PASSED` dhe `SHQIPSHOP_ANDROID_NATIVE_ORDER_POSTGRES_PASSED` në të njëjtin run **me conclusion=success**. Nëse nuk kalon, dokumento error-in/screenshot-in dhe riparo. Mos raporto sukses vetëm prej kalimit të TypeScript/API.
+- **Faza pasuese:** siguro 2 biznese me identitet, porosi, klientë, media dhe admin të izoluar, teste negative me ID cross-tenant; furnizues kursi real ALL/EUR dhe pagesa dymonedhëshe vetëm pasi bëhen kontrata server-side për çmimet, transportin, taksat, provider sandbox, order/refund/accounting. Branding white-label dhe release signing më vonë. `main` nuk ndryshohet pa autorizim.
+
+
 
 ## 23 tetor 2026 — Dual Currency, çmim kryesor + orientues (PR #6)
 
