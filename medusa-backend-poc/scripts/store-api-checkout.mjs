@@ -122,6 +122,27 @@ const orderIdFile = process.env.SHQIPSHOP_CI_ORDER_ID_FILE
 assert(orderIdFile, "Missing CI test order id path")
 const { writeFileSync } = await import("node:fs")
 writeFileSync(orderIdFile, completion.order.id, {encoding:"utf8",mode:0o600,flag:"wx"})
+const cartIdFile = process.env.SHQIPSHOP_CI_CART_ID_FILE
+assert(cartIdFile, "Missing CI test cart proof output path")
+writeFileSync(cartIdFile, cartId, { encoding: "utf8", mode: 0o600, flag: "wx" })
+
+const receiptPath = "/store/orders/" + encodeURIComponent(completion.order.id)
+const header = { "x-publishable-api-key": publishableKey }
+const noProof = await fetch(base + receiptPath, { headers: header, signal: AbortSignal.timeout(20000) })
+assert([401,403,404].includes(noProof.status), "Order ID alone exposed a private receipt")
+const wrongProof = await fetch(base + receiptPath, {
+  headers: { ...header, "x-shqipshop-cart-proof": "cart_wrong_credential" },
+  signal: AbortSignal.timeout(20000),
+})
+assert([401,403,404].includes(wrongProof.status), "Invalid guest cart proof exposed receipt")
+const ownReceipt = await fetch(base + receiptPath, {
+  headers: { ...header, "x-shqipshop-cart-proof": cartId },
+  signal: AbortSignal.timeout(20000),
+})
+assert.equal(ownReceipt.status, 200, "Genuine guest checkout cannot retrieve receipt")
+const ownData = await ownReceipt.json()
+assert.equal(ownData.order?.id, completion.order.id, "Guest receipt returned wrong order")
+console.log("SHQIPSHOP_GUEST_RECEIPT_CART_PROOF_PASSED")
 console.log("SHQIPSHOP_STORE_HTTP_ORDER_PASSED", JSON.stringify({
   currency: completion.order.currency_code,
   items: completion.order.items.length,
