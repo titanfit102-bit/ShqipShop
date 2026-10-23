@@ -40,6 +40,7 @@ const Input = React.forwardRef<TextInputInstance, InputProps>(
           </Text>
         )}
         <TextInput
+          accessibilityLabel={label}
           ref={ref}
           className={`border rounded-lg p-4 text-base text-content ${
             error
