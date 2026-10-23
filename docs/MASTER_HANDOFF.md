@@ -1,4 +1,24 @@
-# SHQIPSHOP — MASTER HANDOFF (v16)
+# SHQIPSHOP — MASTER HANDOFF (v20)
+
+## 23 tetor 2026 — Screenshot-i i ri Android i faturës është verifikuar
+
+- **[GitHub Actions run 39946022933](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39946022933): PASSED**, me `SHQIPSHOP_ANDROID_RECEIPT_ALL_ROWS_PASSED` dy herë, `SHQIPSHOP_ANDROID_RECEIPT_UI_PASSED` dhe `SHQIPSHOP_ANDROID_NATIVE_ORDER_POSTGRES_PASSED`. Testi verifikoi në **të njëjtin rresht të UI**: `Nëntotali → 1.500 lekë`, `Transporti → 10 lekë`, `Gjithsej → 1.510 lekë`; kursi sintetik 100 ALL për 1 EUR shfaqi `≈ €15,10 · orientuese`. Porosia u krijua nga Android dhe u verifikua në PostgreSQL.
+- **[Screenshot artifact 12499331067](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39946022933/artifacts/12499331067)** është shkarkuar dhe kontrolluar vizualisht: Medusa Shorts varianti S, adresa fiktive Tiranë, `Transport standard (10 lekë)`, nën-totali dhe shuma përfundimtare të sakta, tekst i vogël gri EUR. `android-crashes.log` ishte bosh. Artifact ka retention deri më 27 tetor 2026.
+- **Defekt i vogël i mbetur në UI:** titulli `Detajet e porosisë` tani nuk pritet, por del shumë **i vogël** në telefon. Nevojitet rregullim i tipografisë së Navbar pa `adjustsFontSizeToFit` të pakontrolluar dhe një screenshot i ri.
+- **Ende të paprovuara për prodhim:** real ALL/EUR checkout & FX data provider, real payment provider, tenant admin/customer auth, dy instanca aktive njëkohësisht, Redis/workers, storage/backup, siguri dependency, deploy me TLS dhe release signing. G3 tenant-isolation ende INCOMPLETE.
+
+
+## 23 tetor 2026 — Izolimi ndërmjet dy Medusa backend-eve: prova e parë GREEN
+
+- **Gjetja që e nisi këtë:** [PR #9 / run 39946398016](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39946398016) FAILED AS INTENDED: në një backend të përbashkët Medusa me 2 sales channels, të dy publishable keys A/B morën **HTTP 200** ndaj `GET /store/orders/{id_A}`. Kjo vërtetoi që sales channels nuk janë kufi privatësie mes tregtarëve. PR #9 duhet të mbetet diagnostik i kuq dhe mos u fshi testimi.
+- **Vendimi i pilotit [ADR-006](ADR-006_TENANT_BACKEND_ISOLATION.md):** çdo tregtar pilot ka një instancë Medusa/DB PostgreSQL/user role të izoluar, dhe control plane ShqipShop jashtë rrjedhës së klientëve/porosive. Ky është dizajn i rekomanduar, jo ende SaaS i përfunduar.
+- **[PR #10](https://github.com/titanfit102-bit/ShqipShop/pull/10), [run 39947677104](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39947677104): PASSED.** CI krijoi dy database PostgreSQL të veçanta `shqipshop_ci_a`, `shqipshop_ci_b` dhe përdorues të pavarur me `REVOKE CONNECT FROM PUBLIC`. Prova negative DB A↔B kaloi: `SHQIPSHOP_TWO_DATABASE_ROLE_DENIAL_PASSED`.
+- Në instancën A Medusa, u krijua porosi sintetike 1510 ALL; instanca B u ngrit **pas mbylljes së A** me të dhënat e B, port 9001, key publik të B dhe database të B. Serveri B ktheu **HTTP 200** për katalogun me B key, **HTTP 400** për A key dhe **HTTP 404** për porosinë A të kërkuar me B key. `SHQIPSHOP_SEPARATE_MEDUSA_ORDER_BOUNDARY_PASSED`.
+- **Kufiri i provës:** dy instancat u testuan **sekuencialisht** (jo dy procese paralele). Kjo NUK provon admin/customer/session security, izolim të queues/Redis në të gjithë provider-at, media, webhook, refund, billing, backup ose real-world deployment. `G3 tenant isolation` mbetet **NË PROGRES, jo PASS**.
+- **Android receipt visual:** [run 39946022933](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39946022933) për 1500 ALL produkte + 10 ALL transport = 1510 ALL dhe FX hint 15.10 EUR sintetik duhet kontrolluar live përpara deklarimit vizual.
+- **Next:** test dy backend-e aktive njëkohësisht me kontroll databazash/Redis dhe role admin/client për dy tregtarë, regjistro provision/deprovision + backup/restore, limite të burimeve, analizë reale kosto 5/50/500, pastaj branding i dyqanit dhe përditësimi i Android/PWA per merchant. Mos prek main/production.
+
+
 
 ## PR #8 — Korrigjimi i nëntotalit të porosisë (23 tetor 2026)
 

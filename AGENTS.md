@@ -84,3 +84,11 @@ Android CI [run 39934984130](https://github.com/titanfit102-bit/ShqipShop/action
 ## Order receipt accuracy gate (PR #8, 2026-10-23)
 
 Screenshot artifact [12493738613](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39934984130/artifacts/12493738613) exposed UI bug: subtotal incorrectly 1510 ALL though item 1500, shipping 10 and payable 1510. PR #8 changes receipt to Medusa item_subtotal/fallback line subtotal, dynamic shipping name and ShopPrice on total; fixes truncated navbar title. Native Jest/TypeScript/lint [run 39937851854](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39937851854) PASSED. **A new real Android screenshot of the fix has NOT passed**, so don't claim visually verified until it does. Keep main unmodified; no real dual-currency payment or multi-tenant isolation.
+
+## Verified separate-Medusa two-merchant baseline, NOT full tenant isolation
+
+[CI run 39947677104](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39947677104) passed isolated Postgres DB roles A/B, real Medusa order A, separate Medusa B on port 9001 (SEQUENTIAL process); A key on B HTTP 400, A order on B HTTP 404, B catalog own key 200. Contrast [red diagnostic run 39946398016](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39946398016): shared Medusa sales channels exposed synthetic order A via key B HTTP 200. ADR-006 recommends independent backends/databases for first pilots. **Admin/user auth, storage, Redis/workers, production deployment and parallel service isolation NOT proved; G3 remains incomplete.** Keep main unchanged, PRs Draft.
+
+## Verified corrected Android receipt (2026-10-23)
+
+[CI run 39946022933](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39946022933) SUCCESS. Actual Android UI aligned label/value rows: product subtotal 1,500 ALL, shipping 10 ALL, total 1,510 ALL, grey synthetic EUR 15.10. Postgres order assertion passed. [Real screenshot artifact 12499331067](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39946022933/artifacts/12499331067) was manually reviewed. **Remaining UI flaw:** 'Detajet e porosisë' title appears far too small after using adjustsFontSizeToFit; do not call typography production grade. No real FX/settlement or tenant-wide security yet.
