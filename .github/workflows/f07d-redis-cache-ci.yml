@@ -10,6 +10,7 @@ on:
       - medusa-backend-poc/pnpm-lock.yaml
       - medusa-backend-poc/apps/backend/src/scripts/f07d-cache-proof.ts
       - medusa-backend-poc/apps/backend/src/scripts/f07d-catalog-invalidation-ci.ts
+      - medusa-backend-poc/apps/backend/src/scripts/f07e-commerce-invalidation-ci.ts
   pull_request:
     paths:
       - .github/workflows/f07d-redis-cache-ci.yml
@@ -18,6 +19,7 @@ on:
       - medusa-backend-poc/pnpm-lock.yaml
       - medusa-backend-poc/apps/backend/src/scripts/f07d-cache-proof.ts
       - medusa-backend-poc/apps/backend/src/scripts/f07d-catalog-invalidation-ci.ts
+      - medusa-backend-poc/apps/backend/src/scripts/f07e-commerce-invalidation-ci.ts
   workflow_dispatch:
 
 permissions:
@@ -226,8 +228,25 @@ jobs:
             done
           done
           echo SHQIPSHOP_F07D_REAL_PRODUCT_QUERY_AUTO_INVALIDATION_BOTH_TENANTS_PASSED
+          # F07e reuses the same dedicated A/B workers from this step.
+          for tenant in A B; do
+            if [ "$tenant" = A ]; then
+              export DATABASE_URL=postgres://f07d_a:F07d_A_disposable@127.0.0.1:5432/f07d_a
+              export REDIS_URL=redis://127.0.0.1:6379 CACHE_REDIS_URL=redis://127.0.0.1:6379
+            else
+              export DATABASE_URL=postgres://f07d_b:F07d_B_disposable@127.0.0.1:5432/f07d_b
+              export REDIS_URL=redis://127.0.0.1:6381 CACHE_REDIS_URL=redis://127.0.0.1:6381
+            fi
+            export SHQIPSHOP_F07D_TENANT="$tenant"
+            for entity in price cart; do
+              for action in prime update verify; do
+                pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07e-commerce-invalidation-ci.ts "$entity" "$action"
+              done
+            done
+          done
+          echo SHQIPSHOP_F07E_VARIANT_PRICE_AND_CART_INVALIDATION_BOTH_TENANTS_PASSED
       - name: Explicit limits
         if: always()
         run: |
           echo "F07d only certifies synthetic cache set/get/clear in CI with two disposable physical Redis."
-          echo "Product-title workflow auto-invalidation is tested separately; real variant prices, cart mutations, Next.js/browser cache, Redis failover and production readiness remain unverified."
+          echo "F07e checks linked variant-price amount and cart email via official workflows; Store API calculated totals, line-item quantities, storefront cache, Redis failover and production readiness remain unverified."
