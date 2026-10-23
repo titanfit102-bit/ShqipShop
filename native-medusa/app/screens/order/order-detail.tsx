@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, ScrollView, Image } from 'react-native';
 import { useLocalization } from '@fluent/react';
 import Text from '@components/common/text';
@@ -32,6 +32,10 @@ const OrderDetail = ({ route }: OrderDetailProps) => {
   const { l10n } = useLocalization();
   const { orderId } = route.params;
   const { customer } = useCustomer();
+  // An order page opened under A must never be reused under B or signed-out.
+  // Guest receipts opened as guest retain their own route identity.
+  const openedFor = useRef(customer?.id ?? 'guest');
+  const samePrincipal = openedFor.current === (customer?.id ?? 'guest');
   const navigation = useNavigation();
 
   const {
@@ -40,6 +44,7 @@ const OrderDetail = ({ route }: OrderDetailProps) => {
     error,
   } = useQuery({
     queryKey: privateCustomerQueryKey(customer?.id, 'order-detail', orderId),
+    enabled: samePrincipal,
     queryFn: async () => {
       const { order: orderData } = await apiClient.store.order.retrieve(
         orderId,
@@ -49,6 +54,11 @@ const OrderDetail = ({ route }: OrderDetailProps) => {
   });
 
   const countries = useCountries();
+
+  if (!samePrincipal) {
+    // Do not refetch an old receipt through Medusa's guest-accessible order API.
+    return <ErrorUI />;
+  }
 
   if (isPending) {
     return <Loader />;
