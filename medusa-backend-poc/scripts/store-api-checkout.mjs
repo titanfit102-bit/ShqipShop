@@ -2,7 +2,10 @@
 import { readFileSync } from "node:fs"
 import assert from "node:assert/strict"
 
-const base = "http://127.0.0.1:9000"
+// Explicit local-only override enables checkout on two simultaneous CI merchants.
+const selectedPort = process.env.SHQIPSHOP_CI_MEDUSA_PORT || "9000"
+assert(["9000", "9001"].includes(selectedPort), "Only disposable CI ports are permitted")
+const base = "http://127.0.0.1:" + selectedPort
 const keyPath = process.env.SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE
 assert(keyPath, "Missing ephemeral publishable-key path")
 const publishableKey = readFileSync(keyPath, "utf8").trim()

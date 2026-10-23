@@ -1,0 +1,176 @@
+name: Parallel Medusa merchant order isolation (CI POC)
+
+on:
+  push:
+    branches: [feat/parallel-merchant-isolation-ci]
+    paths:
+      - .github/workflows/parallel-medusa-isolation-ci.yml
+      - medusa-backend-poc/**
+  pull_request:
+    paths:
+      - .github/workflows/parallel-medusa-isolation-ci.yml
+      - medusa-backend-poc/scripts/two-merchant-boundary.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: medusa-parallel-merchants-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-merchants:
+    name: Two concurrent Medusa servers and independent merchant order scopes
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: medusa-backend-poc
+    env:
+      CI: "true"
+      NODE_ENV: development
+      STORE_CORS: http://localhost:8000
+      ADMIN_CORS: http://localhost:9000,http://localhost:5173
+      AUTH_CORS: http://localhost:9000,http://localhost:5173
+      REDIS_URL: redis://127.0.0.1:6379
+      DATABASE_URL: postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: medusa_ci
+          POSTGRES_PASSWORD: disposable_ci_password
+          POSTGRES_DB: medusa_ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U medusa_ci -d medusa_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: [6379:6379]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis_b:
+        image: redis:7-alpine
+        ports: [6381:6379]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout read-only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: "24"
+      - name: Install pinned dependencies
+        run: |
+          npm install -g pnpm@10.11.1
+          pnpm install --frozen-lockfile --filter '@dtc/backend...'
+      - name: Create isolated tenant databases and database users
+        run: |
+          set -euo pipefail
+          command -v psql || { sudo apt-get update -qq; sudo apt-get install -y postgresql-client; }
+          export PGPASSWORD=disposable_ci_password
+          conn="psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U medusa_ci -d postgres"
+          $conn -c "CREATE ROLE shqipshop_ci_a LOGIN PASSWORD 'merchantA_disposable';"
+          $conn -c "CREATE ROLE shqipshop_ci_b LOGIN PASSWORD 'merchantB_disposable';"
+          $conn -c "CREATE DATABASE shqipshop_ci_a OWNER shqipshop_ci_a;"
+          $conn -c "CREATE DATABASE shqipshop_ci_b OWNER shqipshop_ci_b;"
+          $conn -c "REVOKE CONNECT ON DATABASE shqipshop_ci_a FROM PUBLIC;"
+          $conn -c "REVOKE CONNECT ON DATABASE shqipshop_ci_b FROM PUBLIC;"
+          if PGPASSWORD=merchantB_disposable psql -h 127.0.0.1 -U shqipshop_ci_b -d shqipshop_ci_a -c 'SELECT 1' >/dev/null 2>&1; then
+            echo "::error::Merchant B DB role crossed into merchant A DB"
+            exit 1
+          fi
+          if PGPASSWORD=merchantA_disposable psql -h 127.0.0.1 -U shqipshop_ci_a -d shqipshop_ci_b -c 'SELECT 1' >/dev/null 2>&1; then
+            echo "::error::Merchant A DB role crossed into merchant B DB"
+            exit 1
+          fi
+          echo "SHQIPSHOP_TWO_DATABASE_ROLE_DENIAL_PASSED"
+      - name: Migrate and seed merchant A database
+        env:
+          DATABASE_URL: postgres://shqipshop_ci_a:merchantA_disposable@127.0.0.1:5432/shqipshop_ci_a
+          REDIS_URL: redis://127.0.0.1:6379
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/merchant-a-key.txt
+          SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE: ${{ runner.temp }}/merchant-a-second-channel.txt
+        run: |
+          set -euo pipefail
+          export JWT_SECRET="$(openssl rand -hex 32)" COOKIE_SECRET="$(openssl rand -hex 32)"
+          pnpm --filter @dtc/backend exec medusa db:migrate
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-albania-seed.ts
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/export-ci-publishable-key.ts
+      - name: Migrate and seed independent merchant B database
+        env:
+          DATABASE_URL: postgres://shqipshop_ci_b:merchantB_disposable@127.0.0.1:5432/shqipshop_ci_b
+          REDIS_URL: redis://127.0.0.1:6381
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/merchant-b-key.txt
+          SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE: ${{ runner.temp }}/merchant-b-second-channel.txt
+        run: |
+          set -euo pipefail
+          export JWT_SECRET="$(openssl rand -hex 32)" COOKIE_SECRET="$(openssl rand -hex 32)"
+          pnpm --filter @dtc/backend exec medusa db:migrate
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-albania-seed.ts
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/export-ci-publishable-key.ts
+      - name: Prove both disposable Redis service endpoints are reachable
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import socket
+          for port in (6379, 6381):
+              with socket.create_connection(('127.0.0.1', port), timeout=5) as sock:
+                  sock.sendall(b'*1\r\n$4\r\nPING\r\n')
+                  assert sock.recv(1024) == b'+PONG\r\n'
+          print('SHQIPSHOP_PARALLEL_REDIS_SERVICES_REACHABLE')
+          PY
+      - name: Both Medusa servers run simultaneously while orders and boundaries are tested
+        env:
+          SHQIPSHOP_A_KEY_FILE: ${{ runner.temp }}/merchant-a-key.txt
+          SHQIPSHOP_B_KEY_FILE: ${{ runner.temp }}/merchant-b-key.txt
+          SHQIPSHOP_A_ORDER_FILE: ${{ runner.temp }}/merchant-a-order.txt
+          SHQIPSHOP_B_ORDER_FILE: ${{ runner.temp }}/merchant-b-order.txt
+          SHQIPSHOP_CHANNEL_A_FILE: ${{ runner.temp }}/merchant-a-second-channel.txt
+          SHQIPSHOP_CHANNEL_B_FILE: ${{ runner.temp }}/merchant-b-second-channel.txt
+        run: |
+          set -euo pipefail
+          export JWT_SECRET="$(openssl rand -hex 32)" COOKIE_SECRET="$(openssl rand -hex 32)"
+          DATABASE_URL='postgres://shqipshop_ci_a:merchantA_disposable@127.0.0.1:5432/shqipshop_ci_a' REDIS_URL='redis://127.0.0.1:6379' pnpm --filter @dtc/backend exec medusa develop --port 9000 > "$RUNNER_TEMP/merchant-a.log" 2>&1 &
+          pid_a=$!
+          DATABASE_URL='postgres://shqipshop_ci_b:merchantB_disposable@127.0.0.1:5432/shqipshop_ci_b' REDIS_URL='redis://127.0.0.1:6381' pnpm --filter @dtc/backend exec medusa develop --port 9001 > "$RUNNER_TEMP/merchant-b.log" 2>&1 &
+          pid_b=$!
+          cleanup() { kill "$pid_a" "$pid_b" 2>/dev/null || true; }
+          trap cleanup EXIT
+          ready=0
+          for i in $(seq 1 100); do
+            if curl -fsS --max-time 3 http://127.0.0.1:9000/health >/dev/null 2>&1 && curl -fsS --max-time 3 http://127.0.0.1:9001/health >/dev/null 2>&1; then
+              ready=1; break
+            fi
+            if ! kill -0 "$pid_a" 2>/dev/null || ! kill -0 "$pid_b" 2>/dev/null; then break; fi
+            sleep 3
+          done
+          if [ "$ready" != 1 ]; then
+            tail -80 "$RUNNER_TEMP/merchant-a.log" || true
+            tail -80 "$RUNNER_TEMP/merchant-b.log" || true
+            echo '::error::Two simultaneous Medusa servers failed readiness'; exit 1
+          fi
+          echo 'SHQIPSHOP_PARALLEL_TWO_SERVERS_READY'
+          SHQIPSHOP_CI_MEDUSA_PORT=9000 SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE="$SHQIPSHOP_A_KEY_FILE" SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE="$SHQIPSHOP_CHANNEL_A_FILE" SHQIPSHOP_CI_ORDER_ID_FILE="$SHQIPSHOP_A_ORDER_FILE" node scripts/store-api-checkout.mjs
+          SHQIPSHOP_CI_MEDUSA_PORT=9001 SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE="$SHQIPSHOP_B_KEY_FILE" SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE="$SHQIPSHOP_CHANNEL_B_FILE" SHQIPSHOP_CI_ORDER_ID_FILE="$SHQIPSHOP_B_ORDER_FILE" node scripts/store-api-checkout.mjs
+          node scripts/parallel-merchant-boundary.mjs
+          kill -0 "$pid_a" && kill -0 "$pid_b"
+          echo 'SHQIPSHOP_PARALLEL_MERCHANT_ORDER_ISOLATION_PASSED'
+      - name: Statement of limits
+        if: always()
+        run: |
+          echo "Demo databases and merchant keys are ephemeral."
+          echo "Simultaneous Medusa processes and independent database roles are tested; customer/admin auth, Medusa Redis provider binding, concurrency load, storage, billing, prod signing are NOT certified."
