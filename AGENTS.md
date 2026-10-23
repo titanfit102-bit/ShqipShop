@@ -1,5 +1,14 @@
 # Working on ShqipShop — repository instructions
 
+## F03–F05 verified checkout reliability — current checkpoint (2026-10-23)
+
+**Newest code checkpoint [7ea5153](https://github.com/titanfit102-bit/ShqipShop/commit/7ea515388d70ce45517ed667ab0275ff86cc9040):** authorized F03–F05 scope on `feat/merchant-auth-boundary-ci`, no main/merge/deploy. Native 13/13 Jest suites, 56/56 tests + lint/TS [40012363697](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40012363697) SUCCESS; Medusa HTTP real pending/authorized session probe `SHQIPSHOP_F05_CART_PAYMENT_SESSION_VERIFIED` in [40012363691](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40012363691) SUCCESS; pilot [40012363683](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40012363683) and parallel [40012363695](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40012363695) SUCCESS; two-isolated job SUCCESS, check workflow aggregate.
+
+**Changes:** F03 missing carts recreated on 404/410 only; offline/5xx preserved with retry. F04 cart mutation rejects surface in UI, no stuck loading. F05 Review requires actual pending/authorized session, not cart amount; Store cart reread after payment init. F01/F02/F06 CI proof preserved. Remaining P0/P1 gate: region restore/rapid switch, checkout idempotency, device QA, Redis F07, source-of-truth F09, real payments, production security. None are declared complete.
+
+**Recovery:** read [CURRENT_STATE](docs/CURRENT_STATE.md), [MASTER_HANDOFF §16](docs/MASTER_HANDOFF.md), then verify HEAD/PR #12/Actions. Document maintenance permitted only on this branch; new feature code requires separate scope. No merge/deploy/main/Production.
+
+
 ## F06 checkout receipt privacy — latest checkpoint (2026-10-23)
 
 **Latest verified code SHA: [9a6a4e1](https://github.com/titanfit102-bit/ShqipShop/commit/9a6a4e199fa4b72935fa44b356776bd9843bb408)**, **5/5 distinct CI workflows GREEN**: [Medusa](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599530), [Parallel merchants](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599479), [Native](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599449), [pilot](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599424), [two DBs](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599412). Customer-owned receipts require owner authentication; guest receipts require originating cart proof header, not order ID alone. Passed same-store customer-stranger denials in two merchant instances. **F06 passed scoped HTTP/CI proof, NOT production**; guest proof survives only route navigation (no post-restart guest recovery), other order-ID routes and device/infra security remain untested.
