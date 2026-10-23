@@ -1,5 +1,12 @@
 # Working on ShqipShop — repository instructions
 
+## F02 native JWT signout — latest verified checkpoint 2026-10-23
+
+**Pas F01**, përdoruesi tha «vazhdo» për F02 (JWT custom storage logout race). Vetëm kodi/testet e F02 në `feat/merchant-auth-boundary-ci` u ndryshuan; nuk është leje për F06/Redis/merge/main/deploy. Code SHA [b3097a3](https://github.com/titanfit102-bit/ShqipShop/commit/b3097a3d9f8b78a7d60a5418ca565e82b66a1905): **4/4 CI GREEN**, përfshirë native lint/TS + 36/36 Jest. Custom token storage bllokon token-in e vjetër gjatë logout-it; `await client.clearToken()` dhe fshirje e verifikuar; marker lokal për rastin e gabimit në deletion, login i ri i verifikuar. Nuk është revokim JWT në server. F06 ownership dhe F03–F16 OPEN.
+
+**Rikupero**: [CURRENT_STATE](docs/CURRENT_STATE.md), [MASTER_HANDOFF §14](docs/MASTER_HANDOFF.md), PR #12 Draft; verifiko live HEAD/CI para punës. Kontrollet e dokumentacionit pas këtij SHA mund të kenë runs të tjera; mos i quaj GREEN nëse janë pending. Autorizimi përditësues i këtyre pesë dokumenteve mbetet vetëm në këtë degë. Nuk u prek main/production.
+
+
 ## Authorized F01 native increment — checkpoint 2026-10-23
 
 **Kontekst më i ri se auditimi i mëposhtëm:** përdoruesi tha «okej vazhdo» pas kërkesës specifike për korrigjimin F01. U autorizua dhe u implementua vetëm F01 native privacy cache në degën ekzistuese `feat/merchant-auth-boundary-ci` (PR #12 Draft), pa ndryshuar main/production. Code checkpoint [2219e65](https://github.com/titanfit102-bit/ShqipShop/commit/2219e65e5dff987ad5046bcf34f03fc253d9e714), [native test run 40001961028](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40001961028) SUCCESS (32/32 tests, lint/typecheck). Ky autorizim nuk shtrihet te F02–F16. Hapi teknik i radhës kërkon leje të re për kod.
