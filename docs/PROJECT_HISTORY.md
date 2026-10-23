@@ -277,3 +277,9 @@ Pas çdo sesioni, shto në fund: `data · branch · commit SHA · PR · çfarë 
 - **Gjendja:** G3 IN_PROGRESS. Analiza dhe kriteret më poshtë janë përgatitur; **testet e reja nuk janë implementuar/ekzekutuar**. Autorizimi i konfirmuar mbulon vetëm pesë dokumentet në këtë degë. Hapi teknik pret leje të shprehur për scripts/workflow; nuk është dështim i testit.
 
 **Përgatitje P0:** source Medusa v2.22.0 për auth/session dhe POST customer/order/inventory u inspektua. Kriteret dhe skedarët e propozuar u ruajtën në MASTER_HANDOFF §10. Dallohet logout cookie nga JWT revocation; testet negative kërkojnë payload valid dhe snapshot para/pas. Asnjë kod ose workflow nuk u ndryshua; implementimi pret autorizim specifik. Nuk u krye merge/deploy.
+
+## 2026-10-23 — Audit read-only Redis/JWT
+
+HEAD e5657c6ddfa79d5cba004868b8ac6ba800263cd1, PR #12 OPEN Draft; CI 39990409987/39990410102/39990410033 **3/3 SUCCESS**. Kodi dhe burimi upstream Medusa v2.22.0 (205aff40bacfa0049e0b9d3a7913a674738bff31) u krahasuan me log-un e job 120540397758: fallback lokal/fake redis, event bus lokal dhe locking in-memory; vetëm REDIS_URL në env nuk aktivizon modulet Redis në këtë rrugë self-hosted. Sessions janë default memory sipas konfigurimit dhe loader-it; restart persistence ende pa provë. JWT default pritet 1d nga source, jo matje runtime exp; cookie logout nuk revokon JWT, refresh-after-logout kërkon test. Workflow-inmemory ka edhe DB persistence dhe nuk u quajt «pa asnjë persistencë».
+
+Analiza, linket immutable të source, kufijtë dhe plani konkret P1a (binding/cache/event/workflow/restart/locking/regressions) u ruajtën te MASTER_HANDOFF §11. Asnjë kod/config/workflow/dependency nuk u ndryshua. Implementimi P1a kërkon scope kodi për konfigurimin dhe fixtures; mirëmbajtja e dokumenteve mbetet e autorizuar. JWT policy/revocation është fazë e veçantë.

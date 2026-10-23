@@ -1,5 +1,13 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## Përditësim analize P1 — 2026-10-23
+
+CI i HEAD-it dokumentar `e5657c6`: [pilot 39990409987](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39990409987), [parallel 39990410102](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39990410102), [smoke 39990410033](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39990410033): **3/3 SUCCESS**. Kodi i testuar mbetet `06ea54a`.
+
+**Audit read-only i përfunduar:** REDIS_URL në env nuk aktivizon modulet Redis në konfigurimin aktual self-hosted; source v2.22.0 dhe log-u real konfirmojnë fallback lokal/fake redis, event bus lokal dhe locking in-memory. Cookie sessions përdorin default memory sipas loader-it/config-it; restart persistence nuk është provuar. JWT default pritet 1d nga source, ende pa matje runtime exp. TTL i shkurtër nuk është revokim pas logout-it.
+
+**Next:** implementim i propozuar **P1a — Redis provider wiring dhe provat reale cache/event/workflow/session-restart/locking**, i përshkruar te [MASTER_HANDOFF §11](MASTER_HANDOFF.md). Kërkon autorizim kodi për këtë scope të ri; deri tani u ndryshua vetëm dokumentacioni. JWT TTL/revocation mbetet fazë e ndarë P1b; G3 ende IN_PROGRESS.
+
 > Lexo së pari këtë dokument, pastaj [MASTER_HANDOFF.md](MASTER_HANDOFF.md) v22, [AGENTS.md](../AGENTS.md), ROADMAP dhe ADR-të. Verifiko live SHA/PR/Actions; checkpoint-i nuk zëvendëson kontrollin real.
 >
 > **Repository:** [titanfit102-bit/ShqipShop](https://github.com/titanfit102-bit/ShqipShop). **Dega e autorizuar:** [feat/merchant-auth-boundary-ci](https://github.com/titanfit102-bit/ShqipShop/tree/feat/merchant-auth-boundary-ci), [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12). **Këto dokumente nuk gjenden në main.**
@@ -27,7 +35,7 @@
 
 **G3 = IN_PROGRESS.** Prova është e kufizuar te endpoints/payloads e mësipërme, jo të gjitha mutations/refund/cancel/stock-level endpoints ose RBAC mes adminëve. Browser HTTPS/CSRF/domain cookie scope, JWT revocation, Redis provider/jobs, media, backup/restore, provisioning dhe production mbeten të hapura.
 
-**Next i saktë:** analizë read-only e konfigurimit real Medusa Redis/cache/event-bus/workflow engine dhe kontratës JWT TTL/revocation. Implementimi i provider-ëve, ndryshimi i politikës së autentikimit apo veçori të tjera nuk janë të autorizuara automatikisht nga ky increment. Dokumentacioni vazhdon të mirëmbahet në këtë degë.
+**Next i saktë (pas analizës së përfunduar):** shih P1a më sipër dhe MASTER_HANDOFF §11 për konfigurimin/testet Redis të propozuara. Implementimi i provider-ëve, ndryshimi i politikës së autentikimit apo veçori të tjera nuk janë të autorizuara automatikisht nga ky increment. Dokumentacioni vazhdon të mirëmbahet në këtë degë.
 
 ## Autorizimet aktive dhe kufijtë
 
@@ -38,7 +46,7 @@
 
 ## Punët e hapura pas këtij increment-i
 
-1. Redis/cache/event-bus/workflow engine: dy Redis endpoints janë të arritshme, **binding real i provider-ëve dhe izolimi i jobs nuk janë provuar**.
+1. Redis/cache/event-bus/workflow engine: dy Redis endpoints janë të arritshme, por **konfigurimi aktual zgjedh provider-ët lokalë**; binding Redis/job isolation dhe session persistence duhen implementuar/provuar.
 2. Politika JWT TTL/revocation/logout global; browser session cookie attributes, HTTPS, CSRF/CORS dhe domain separation; RBAC i kufizuar mes administratorëve dhe mutation endpoints të mbetura.
 3. Media/storage, backup/restore dhe rotacioni i kredencialeve; race/load tests, provisioning idempotent dhe kostot 5/50/500 biznese.
 4. Commerce source-of-truth i vetëm për PWA/native, onboarding/branding/domain/control plane/billing sandbox.
@@ -47,6 +55,6 @@
 
 ## Rikuperimi në bisedën tjetër
 
-Verifiko branch HEAD dhe PR #12/base #11, krahaso ndryshimet pas code SHA 06ea54a5f252ae367e3281c470cdc139729459bc, lexo testet/Actions dhe dokumentet. Mos përsërit increment-in cookie/session/mutations të kaluar. Fillimisht analizo read-only hapin pasues më sipër; mos konverto këtë rezultat në pretendim production-ready.
+Verifiko branch HEAD dhe PR #12/base #11, krahaso ndryshimet pas code SHA 06ea54a5f252ae367e3281c470cdc139729459bc, lexo testet/Actions dhe dokumentet. Mos përsërit increment-in cookie/session/mutations të kaluar. Analiza read-only është ruajtur te MASTER_HANDOFF §11; implemento P1a vetëm me scope të autorizuar; mos konverto këtë rezultat në pretendim production-ready.
 
 Dokumentacioni mbetet në këtë degë edhe nëse zhvillimi kalon diku tjetër; mos e kopjo ose krijo degë tjetër pa autorizim. Nëse dega s'është e aksesueshme, rikupero nga PR #12/git history dhe raporto bllokimin. GitHub nuk përditësohet vetvetiu kur biseda është e mbyllur. Transkriptet e plota të bisedave të mëparshme nuk garantohen.
