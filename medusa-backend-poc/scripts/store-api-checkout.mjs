@@ -112,6 +112,20 @@ assert(paymentCollectionId, "Payment collection was not created")
 await request("POST", `/store/payment-collections/${paymentCollectionId}/payment-sessions`, {
   provider_id: "pp_system_default",
 })
+// F05: the mobile checkout only enters Review after this cart representation
+// shows an active Medusa payment session, not merely because total > 0.
+const preparedCart = await request(
+  "GET",
+  "/store/carts/" + encodeURIComponent(cartId) +
+    "?fields=" + encodeURIComponent("+payment_collection.payment_sessions,+shipping_methods.name"),
+)
+const verifiedSessions = preparedCart.cart?.payment_collection?.payment_sessions ?? []
+assert(
+  verifiedSessions.some(s => s.provider_id === "pp_system_default" &&
+    ["pending", "authorized"].includes(s.status)),
+  "Cart retrieve lacks the pending/authorized payment session needed by native checkout",
+)
+console.log("SHQIPSHOP_F05_CART_PAYMENT_SESSION_VERIFIED")
 console.log("SHQIPSHOP_STORE_HTTP_MANUAL_PAYMENT_PASSED")
 
 const completion = await request("POST", `/store/carts/${cartId}/complete`, {})
