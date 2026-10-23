@@ -13,6 +13,8 @@
 
 **Prova shporta Android → Medusa → PostgreSQL PASSED:** [run 39867727695](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39867727695). 1 Medusa Shorts variant S, monedha ALL, screenshot real. Checkout nga Android ende mungon.
 
+**Shfaqja dymonedhëshe ALL/EUR në PR #6:** Implementim për çmim kryesor në monedhën reale dhe ekuivalent orientues në tekst të vogël gri, vetëm me kurs backend të validuar. Testet JS dhe Medusa kaluan në runs 39931374229 dhe 39931072361. Pagesa reale në dy monedha është fazë më vete; emulimi vizual është ende për t'u konfirmuar.
+
 **Datë bazë:** 2026-10-22. **Kjo është një strategji zhvillimi**, jo pretendim që të gjitha fazat janë realizuar. Në çdo përditësim mbaj metrikat: koduar / testuar / deploy-uar / përdorur nga klientë realë.
 
 ## Përkufizimi i produktit që duhet të kemi në fund

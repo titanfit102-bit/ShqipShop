@@ -156,3 +156,15 @@ Pas çdo sesioni, shto në fund: `data · branch · commit SHA · PR · çfarë 
 - **Kufizime:** porosia nuk është përfunduar nga UI Android, transporti nuk është zgjedhur, nuk është dhënë adresë, as pagesë reale. Backendi është ephemeral test-only, çelësi API demo dhe debug signing nuk përdoren për prodhim. Izolimi i të dhënave të dy bizneseve ende mungon.
 - **Next:** test Android UI checkout nga ky ekran deri te order në PostgreSQL, me të dhëna krejt sintetike; më pas testi negativ i qasjes së porosive/klientëve/adminëve midis bizneseve dhe personalizimi white-label.
 
+
+## 23 tetor 2026 — Dual Currency, çmim kryesor + orientues (PR #6)
+
+- **Kërkesë e konfirmuar:** kur biznesi shet në ALL, produkti, varianti, shporta dhe përmbledhja tregojnë çmimin **1.500 lekë** si çmim real dhe në rresht të vogël gri **(≈ €15,00 · orientuese)** vetëm kur ekziston një kurs i vlefshëm; për shitje në EUR, çmimi kryesor mbetet në euro, ndërsa ALL mund të jepet orientues. Në shportë shënohet **ALL = lekë të reja**, për të shmangur keqkuptimin me lekë të vjetra.
+- **PR #6 (Draft):** https://github.com/titanfit102-bit/ShqipShop/pull/6 , branch `feat/dual-currency-price-ui` mbi PR #5. U shtua `ShopPrice` dhe helper, React Query shared, të integruar në kartat e produkteve, detaje, çmimin e rreshtit të shportës dhe totalet, pa ndryshuar Medusa cart/order amount ose `currency_code`.
+- **Backend:** `GET /store/shqipshop/indicative-fx` në Medusa, me kursin **ALL për 1 EUR** të vendosur nga operatori; kërkon `SHQIPSHOP_FX_ALL_PER_EUR`, `SHQIPSHOP_FX_AS_OF=YYYY-MM-DD`, `SHQIPSHOP_FX_SOURCE`. Nuk shfaqet asgjë në euro kur kursi është i munguar, i pavlefshëm ose mbi 7 ditë i vjetër. Nuk ka ende furnizues live për kurset ose kurs specifik për tenant; pa këto nuk mund të deklarohet gati për prodhim.
+- **Kursi 100 ALL/EUR në GitHub CI është TËRËSISHT SINTETIK**, vetëm për regresione dhe screenshot, **jo kurs aktual**. Testet e serverit `SHQIPSHOP_INDICATIVE_FX_HTTP_PASSED` dhe të porosisë 1510 ALL kaluan në https://github.com/titanfit102-bit/ShqipShop/actions/runs/39931072361 .
+- **React Native:** testet e konvertimit (Jest) kaluan; një ekzekutim fillestar zbuloi mock `apiUrl` të papërcaktuar te `App.test.tsx`, i korrigjuar. Native lint/typecheck/Jest kaluan në https://github.com/titanfit102-bit/ShqipShop/actions/runs/39931374229 .
+- **Pamja realisht në Android:** u shtua workflow `android-dual-currency-ui.yml` që vendos kurs sintetik në backend dhe kërkon tekstin orientues `≈ €15,00` në emulator. [Workflow / runs](https://github.com/titanfit102-bit/ShqipShop/actions/workflows/android-dual-currency-ui.yml) — statusin dhe screenshot-in kontrolloji live përpara se ta deklarosh vizualisht të verifikuar.
+- **Pagesa e vërtetë në EUR/ALL NUK është implementuar.** Për këtë duhen monedha/çmimet server-side në Medusa, transport/taksa, checkout/order në monedhën e zgjedhur, PSP/COD kompatibël, refund dhe kontroll kontabël. Nuk përdoret kursi orientues për pagesën.
+- Pas verifikimit vizual vazhdo planin kryesor: checkout Android nga UI deri te porosia në PostgreSQL, pastaj izolimi i plotë i bizneseve dhe white-label generator.
+
