@@ -68,3 +68,13 @@ Nuk ka përqindje 'totale' të besueshme deri sa të jenë vlerësuar gate-t dhe
 - **Android receipt visual:** [run 39946022933](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39946022933) për 1500 ALL produkte + 10 ALL transport = 1510 ALL dhe FX hint 15.10 EUR sintetik duhet kontrolluar live përpara deklarimit vizual.
 - **Next:** test dy backend-e aktive njëkohësisht me kontroll databazash/Redis dhe role admin/client për dy tregtarë, regjistro provision/deprovision + backup/restore, limite të burimeve, analizë reale kosto 5/50/500, pastaj branding i dyqanit dhe përditësimi i Android/PWA per merchant. Mos prek main/production.
 
+## 23 tetor 2026 — PR #11/#12: provat e njëkohshme dhe JWT (përditësim G3)
+
+**Evidenca verifikuese:**
+- [PR #11](https://github.com/titanfit102-bit/ShqipShop/pull/11) / [run 39979050578](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39979050578): dy Medusa aktive *njëkohësisht*, 2 DB/role, checkout 1510 ALL në A dhe B, order A↔B nuk shihet (404), key i huaj refuzohet (400) — **GREEN**.
+- [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12) / [run 39980753775](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39980753775): sekrete të veçanta JWT/cookie për secilin backend, administratorë e klientë të veçantë; JWT-të e klientëve dhe adminëve refuzohen nga serveri tjetër; aktori customer nuk pranohet në Admin API — **GREEN**.
+- [Backend smoke 39980753771](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39980753771) dhe [pilot verify 39980753785](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39980753785): **GREEN**.
+
+**G3 = NË PROGRES, JO PËRFUNDUAR.** Nuk janë verifikuar cookie/session reale të klientit/adminit, akseset e modifikimit të porosive/inventarit, RBAC, Redis/queues/workers, media, backup/restore, secret rotation, provisioning, real payment, load ose production. Dy checkout-et kryhen njëri pas tjetrit *ndërkohë që dy serverët janë aktivë*, jo stress test race-condition. Duhet test izolimi operacional (provider-et vërtet të lidhur), negative mutation auth, pastaj automatisim provisioning dhe analiza e kostos për 5/50/500 biznese.
+
+Shënimet historike më sipër pasqyrojnë gjendjen kur u shkruan; kjo hyrje dhe `MASTER_HANDOFF.md` v21 janë snapshot-i më i ri. Asnjë merge në `main`.
