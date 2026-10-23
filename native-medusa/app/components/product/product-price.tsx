@@ -3,6 +3,8 @@ import { View } from 'react-native';
 import { getProductPrice } from '@utils/product-price';
 import { HttpTypes } from '@medusajs/types';
 import Text from '@components/common/text';
+import ShopPrice from '@components/common/shop-price';
+import { formatShopPrice } from '@utils/dual-currency';
 
 export default function ProductPrice({
   product,
@@ -24,9 +26,12 @@ export default function ProductPrice({
 
   return (
     <View className="flex flex-col">
-      <Text className="font-content-bold text-lg">
-        {selectedPrice.calculated_price}
-      </Text>
+      <ShopPrice
+        amount={selectedPrice.calculated_price_number}
+        currencyCode={selectedPrice.currency_code}
+        primaryClassName="font-content-bold text-lg"
+        testID="product-shop-price"
+      />
 
       {selectedPrice.price_type === 'sale' && (
         <>
@@ -39,7 +44,7 @@ export default function ProductPrice({
                 text: selectedPrice.original_price_number.toString(),
               }}
             >
-              {selectedPrice.original_price}
+              {formatShopPrice(selectedPrice.original_price_number, selectedPrice.currency_code)}
             </Text>
           </Text>
           <Text className="text-primary">

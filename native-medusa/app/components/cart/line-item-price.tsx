@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { convertToLocale } from '@utils/product-price';
+import ShopPrice from '@components/common/shop-price';
+import { formatShopPrice } from '@utils/dual-currency';
 import { HttpTypes } from '@medusajs/types';
 
 type LineItemUnitPriceProps = {
@@ -36,10 +37,7 @@ const LineItemUnitPrice = ({
               className="line-through text-content"
               testID="product-unit-original-price"
             >
-              {convertToLocale({
-                amount: original_total / item.quantity,
-                currency_code: currencyCode,
-              })}
+              {formatShopPrice(original_total / item.quantity, currencyCode)}
             </Text>
           </Text>
           {style === 'default' && (
@@ -47,16 +45,12 @@ const LineItemUnitPrice = ({
           )}
         </>
       )}
-      <Text
-        className={`text-base ${
-          hasReducedPrice ? 'text-primary' : 'text-content'
-        }`}
-      >
-        {convertToLocale({
-          amount: unit_price * item.quantity,
-          currency_code: currencyCode,
-        })}
-      </Text>
+      <ShopPrice
+        amount={unit_price * item.quantity}
+        currencyCode={currencyCode}
+        primaryClassName={`text-base ${hasReducedPrice ? 'text-primary' : 'text-content'}`}
+        testID="cart-line-shop-price"
+      />
     </View>
   );
 };
