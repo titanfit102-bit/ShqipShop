@@ -31,7 +31,7 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
   const queryClient = useQueryClient();
   // Ignore responses from a previous login/logout generation.
   const identityEpoch = useRef(0);
-  const currentPrincipalId = useRef<string>();
+  const currentPrincipalId = useRef<string | undefined>(undefined);
 
   const applyCustomer = async (
     nextCustomer: HttpTypes.StoreCustomer | undefined,
