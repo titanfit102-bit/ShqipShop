@@ -1,5 +1,18 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## Review i auditimit të pavarur — 2026-10-23
+
+**Audit i marrë:** SHQIPSHOP_INDEPENDENT_DEEP_AUDIT_2026-10-23.md, 16 gjetje F01–F16. Audituesi raporton eksperimente lokale sintetike; kjo seancë kontrolloi të njëjtin GitHub HEAD, kodin relevant, Medusa SDK/Store Order upstream dhe Actions, por NUK e riekzekutoi në mënyrë të pavarur të gjithë reproduksionin React Native/npm audit. **Baseline i verifikuar:** code HEAD e22bb13cd364e785c324e9daabd3af5f3ee2b34d, [parallel/auth 39991716155](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991716155), [Medusa 39991715755](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991715755), [pilot 39991715961](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991715961) — 3/3 SUCCESS. Nuk ka merge/deploy.
+
+**Të konfirmuara në source/CI:** F01 shared customer-address/order cache keys pa reset; F02 SDK logout pa await clearToken (source v2.21.2); F03 stale cart restore pa catch; F04 cart mutations swallow errors; F05 resume kthen review pa payment session; F06 order-by-ID pa auth të llogarisë është MEDUSA upstream capability e qëllimshme, PII në fields; F07 Redis fallback lokal i verifikuar në log; F08 native JWT/AsyncStorage dhe JWT post-cookie-logout i vlefshëm; F09 dy commerce DB/backend POC; F10 native regressions mungojnë në PR CI; F12 debug signing i release/starter ID; F13 price=0 refuzohet; F14 empty/error/a11y të kufizuara; F15 inline brand style kundrejt CSP; F16 udhëzime historike që duken operative. **F11:** audit-i i Work raporton 14 advisory package records; workflow report-only verifikohet, por numri dhe reachability APK nuk u riekzekutuan këtë seancë.
+
+**Scope dhe rëndësia:** F01 = P0 vetëm për native me llogari reale, F12 = P0 vetëm për native STORE release; jo P0 për PWA-only. F06 është privatësi/kontratë aksesi që duhet projektuar, jo provë enumerimi/komprometimi. F07 është gap operacional, jo provë cross-tenant leak. Nuk ka provë production compromise.
+
+**Hapi teknik i propozuar, jo i autorizuar për kod:** (A) native real accounts: F01 → F02 → F03–F05 + F13, dhe regressions F10; (B) PWA-first: F06 guest/account receipt ownership + F09 Medusa source-of-truth vertical + F15 CSP (vetëm nëse FastAPI pilot mbahet); (C) para live merchant: F07 Redis/session/jobs sipas target-it, restore/TLS/privacy, F08 JWT policy dhe F11 dependency triage. F12 vetëm nëse publikohet native. Detajet/acceptance gates në MASTER_HANDOFF §12. G3 mbetet IN_PROGRESS; asnjë kod i ndryshuar nga ky review.
+
+**Autorizimi aktual:** mirëmbajtje dokumentacioni vetëm në këtë degë është e lejuar. Autorizimi i mëparshëm për scripts/workflows cookie/mutation është i përfunduar dhe nuk shtrihet automatikisht te native/PWA/backend Redis. Ndryshime kodi për F01–F15 dhe degë të tjera kërkojnë scope të ri të shprehur. Nëse bëhet zhvillim në degë tjetër, vazhdo ruajtjen e statusit këtu deri në miratim të ri për migrimin e handoff-it.
+
+
 ## Përditësim analize P1 — 2026-10-23
 
 CI i HEAD-it dokumentar `e5657c6`: [pilot 39990409987](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39990409987), [parallel 39990410102](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39990410102), [smoke 39990410033](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39990410033): **3/3 SUCCESS**. Kodi i testuar mbetet `06ea54a`.
