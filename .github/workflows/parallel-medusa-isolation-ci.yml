@@ -2,7 +2,7 @@ name: Parallel Medusa merchant order isolation (CI POC)
 
 on:
   push:
-    branches: [feat/parallel-merchant-isolation-ci]
+    branches: [feat/parallel-merchant-isolation-ci, feat/merchant-auth-boundary-ci]
     paths:
       - .github/workflows/parallel-medusa-isolation-ci.yml
       - medusa-backend-poc/**
@@ -122,6 +122,13 @@ jobs:
           pnpm --filter @dtc/backend exec medusa db:migrate
           pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-albania-seed.ts
           pnpm --filter @dtc/backend exec medusa exec ./src/scripts/export-ci-publishable-key.ts
+      - name: Seed independent disposable admin identities
+        run: |
+          set -euo pipefail
+          export JWT_SECRET="$(openssl rand -hex 32)" COOKIE_SECRET="$(openssl rand -hex 32)"
+          DATABASE_URL='postgres://shqipshop_ci_a:merchantA_disposable@127.0.0.1:5432/shqipshop_ci_a' REDIS_URL='redis://127.0.0.1:6379' pnpm --filter @dtc/backend exec medusa user -e admin-a@shqipshop.example.invalid -p 'CI-Admin-A_disposable2026'
+          DATABASE_URL='postgres://shqipshop_ci_b:merchantB_disposable@127.0.0.1:5432/shqipshop_ci_b' REDIS_URL='redis://127.0.0.1:6381' pnpm --filter @dtc/backend exec medusa user -e admin-b@shqipshop.example.invalid -p 'CI-Admin-B_disposable2026'
+          echo "SHQIPSHOP_TWO_DISPOSABLE_ADMINS_SEEDED"
       - name: Prove both disposable Redis service endpoints are reachable
         run: |
           set -euo pipefail
@@ -141,12 +148,20 @@ jobs:
           SHQIPSHOP_B_ORDER_FILE: ${{ runner.temp }}/merchant-b-order.txt
           SHQIPSHOP_CHANNEL_A_FILE: ${{ runner.temp }}/merchant-a-second-channel.txt
           SHQIPSHOP_CHANNEL_B_FILE: ${{ runner.temp }}/merchant-b-second-channel.txt
+          SHQIPSHOP_A_ADMIN_PASSWORD: CI-Admin-A_disposable2026
+          SHQIPSHOP_B_ADMIN_PASSWORD: CI-Admin-B_disposable2026
+          SHQIPSHOP_A_CUSTOMER_PASSWORD: CI-Customer-A_disposable2026
+          SHQIPSHOP_B_CUSTOMER_PASSWORD: CI-Customer-B_disposable2026
         run: |
           set -euo pipefail
-          export JWT_SECRET="$(openssl rand -hex 32)" COOKIE_SECRET="$(openssl rand -hex 32)"
-          DATABASE_URL='postgres://shqipshop_ci_a:merchantA_disposable@127.0.0.1:5432/shqipshop_ci_a' REDIS_URL='redis://127.0.0.1:6379' pnpm --filter @dtc/backend exec medusa develop --port 9000 > "$RUNNER_TEMP/merchant-a.log" 2>&1 &
+          secret_a="$(openssl rand -hex 32)"
+          secret_b="$(openssl rand -hex 32)"
+          cookie_a="$(openssl rand -hex 32)"
+          cookie_b="$(openssl rand -hex 32)"
+          test "$secret_a" != "$secret_b" && test "$cookie_a" != "$cookie_b"
+          DATABASE_URL='postgres://shqipshop_ci_a:merchantA_disposable@127.0.0.1:5432/shqipshop_ci_a' REDIS_URL='redis://127.0.0.1:6379' JWT_SECRET="$secret_a" COOKIE_SECRET="$cookie_a" pnpm --filter @dtc/backend exec medusa develop --port 9000 > "$RUNNER_TEMP/merchant-a.log" 2>&1 &
           pid_a=$!
-          DATABASE_URL='postgres://shqipshop_ci_b:merchantB_disposable@127.0.0.1:5432/shqipshop_ci_b' REDIS_URL='redis://127.0.0.1:6381' pnpm --filter @dtc/backend exec medusa develop --port 9001 > "$RUNNER_TEMP/merchant-b.log" 2>&1 &
+          DATABASE_URL='postgres://shqipshop_ci_b:merchantB_disposable@127.0.0.1:5432/shqipshop_ci_b' REDIS_URL='redis://127.0.0.1:6381' JWT_SECRET="$secret_b" COOKIE_SECRET="$cookie_b" pnpm --filter @dtc/backend exec medusa develop --port 9001 > "$RUNNER_TEMP/merchant-b.log" 2>&1 &
           pid_b=$!
           cleanup() { kill "$pid_a" "$pid_b" 2>/dev/null || true; }
           trap cleanup EXIT
@@ -167,6 +182,7 @@ jobs:
           SHQIPSHOP_CI_MEDUSA_PORT=9000 SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE="$SHQIPSHOP_A_KEY_FILE" SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE="$SHQIPSHOP_CHANNEL_A_FILE" SHQIPSHOP_CI_ORDER_ID_FILE="$SHQIPSHOP_A_ORDER_FILE" node scripts/store-api-checkout.mjs
           SHQIPSHOP_CI_MEDUSA_PORT=9001 SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE="$SHQIPSHOP_B_KEY_FILE" SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE="$SHQIPSHOP_CHANNEL_B_FILE" SHQIPSHOP_CI_ORDER_ID_FILE="$SHQIPSHOP_B_ORDER_FILE" node scripts/store-api-checkout.mjs
           node scripts/parallel-merchant-boundary.mjs
+          node scripts/parallel-auth-boundary.mjs
           kill -0 "$pid_a" && kill -0 "$pid_b"
           echo 'SHQIPSHOP_PARALLEL_MERCHANT_ORDER_ISOLATION_PASSED'
       - name: Statement of limits
