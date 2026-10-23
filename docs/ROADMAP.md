@@ -17,6 +17,8 @@
 
 **Progres 23 tetor:** Dual-currency Android UI PASSED (run 39931562458; kurs vetëm sintetik). Checkout Android PR #7 me adresë/transport/pagesë manuale dhe order PostgreSQL është në testim (run 39934984130), **jo i konfirmuar** deri te marker-at e UI dhe DB.
 
+**Checkout Android UI → PostgreSQL PASSED** [run 39934984130](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39934984130), 1510 ALL, pagesë manuale sintetike. **PR #8** korrigjon nëntotalin e receipt (1500 + 10 = 1510) dhe emërtimin e transportit; Jest/TS green [run 39937851854](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39937851854), recheck i screenshot-it Android pending. Nuk ka pagesë reale EUR/ALL dhe multi-tenant isolation.
+
 **Datë bazë:** 2026-10-22. **Kjo është një strategji zhvillimi**, jo pretendim që të gjitha fazat janë realizuar. Në çdo përditësim mbaj metrikat: koduar / testuar / deploy-uar / përdorur nga klientë realë.
 
 ## Përkufizimi i produktit që duhet të kemi në fund

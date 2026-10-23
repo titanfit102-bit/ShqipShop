@@ -80,3 +80,7 @@ PR #6 Android FX grey hint passed in run 39931562458 using a **synthetic only** 
 ## Passed Android UI checkout and observed display defect
 
 Android CI [run 39934984130](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39934984130) PASSED UI checkout + PostgreSQL order. Evidence artifact [12493738613](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39934984130/artifacts/12493738613) was manually inspected: checkout synthetic Medusa Shorts S/AL address/manual payment total 1510 ALL. **Known UI defect:** order detail subtotal 1510 ALL though product 1500 and shipping 10; `order.subtotal` field is wrong for item subtotal. Order detail also hardcodes English Standard Shipping and truncated navigation title. Fix in a follow-up PR; do not claim visual correctness. No real EUR payment or tenant isolation.
+
+## Order receipt accuracy gate (PR #8, 2026-10-23)
+
+Screenshot artifact [12493738613](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39934984130/artifacts/12493738613) exposed UI bug: subtotal incorrectly 1510 ALL though item 1500, shipping 10 and payable 1510. PR #8 changes receipt to Medusa item_subtotal/fallback line subtotal, dynamic shipping name and ShopPrice on total; fixes truncated navbar title. Native Jest/TypeScript/lint [run 39937851854](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39937851854) PASSED. **A new real Android screenshot of the fix has NOT passed**, so don't claim visually verified until it does. Keep main unmodified; no real dual-currency payment or multi-tenant isolation.

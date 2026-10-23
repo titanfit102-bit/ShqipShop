@@ -17,7 +17,7 @@ const Navbar = ({ title, showBackButton = true }: NavbarProps) => {
   };
   return (
     <View className="p-4 h-14 flex-row justify-between items-center">
-      <View className="flex-1">
+      <View className="w-12">
         {showBackButton ? (
           <RoundedButton onPress={goBack}>
             <Icon name="left" size={14} />
@@ -26,10 +26,17 @@ const Navbar = ({ title, showBackButton = true }: NavbarProps) => {
           <View />
         )}
       </View>
-      <View className="flex-1 items-center">
-        <Text className="font-content-bold text-xl">{title}</Text>
+      <View className="flex-1 items-center px-2">
+        <Text
+          className="font-content-bold text-xl text-center"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}
+        >
+          {title}
+        </Text>
       </View>
-      <View className="flex-1" />
+      <View className="w-12" />
     </View>
   );
 };

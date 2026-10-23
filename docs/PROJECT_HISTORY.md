@@ -187,3 +187,12 @@ Pas çdo sesioni, shto në fund: `data · branch · commit SHA · PR · çfarë 
 - **Gabim UI i zbuluar nga screenshot-i:** rreshti i emërtuar `Nëntotali` tregon **1510 ALL** në vend të 1500 ALL, ndërsa transporti është 10 ALL dhe totali 1510 ALL. Kodi `native-medusa/app/screens/order/order-detail.tsx` përdor `order.subtotal` në vend të `order.item_subtotal`/shumës së produkteve. Emri i metodës së transportit është hardcoded “Standard Shipping” dhe titulli i navbar-it “Detajet e porosisë” ngushtohet. Këto duhen riparuar si PR #8 përpara release-it. Backend order amount **është verifikuar**.
 - **Mbetet:** real EUR checkout, FX zyrtar automatik, pagesa bankare/COD real, klientë/adminë/porosi të izoluar për 2 merchants, abonimet SaaS, release-grade signing, Play Store/iOS. `main` nuk është ndryshuar.
 
+
+## PR #8 — Korrigjimi i nëntotalit të porosisë (23 tetor 2026)
+
+- **Origjina e gabimit:** screenshot real i checkout-it të suksesshëm Android [artifact 12493738613](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39934984130/artifacts/12493738613), porosia e regjistruar me 1 Medusa Shorts S (1500 ALL) + transport (10 ALL) = totali (1510 ALL). Ekrani gabimisht etiketonte si `Nëntotali` vlerën 1510 ALL, sepse përdorte `order.subtotal`. Kjo është **gabim vizual i llogaritjes**, jo i krijimit të porosisë.
+- **Zgjidhja në [PR #8](https://github.com/titanfit102-bit/ShqipShop/pull/8)**, `feat/order-receipt-accuracy` mbi PR #7: utility `native-medusa/app/utils/order-totals.ts` përdor `order.item_subtotal` ose subtotalin e rreshtave, pa e përfshirë transportin; `order-detail.tsx` përdor çmim kryesor të formatuar ALL/EUR, emrin real të metodës së transportit kur ofrohet nga API-ja dhe `ShopPrice` në total. `navbar.tsx` zgjeroi hapësirën e titullit.
+- **Verifikimi i kodit:** [React Native lint + TypeScript + Jest run 39937851854](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39937851854) PASSED, përfshirë testet e reja që `itemSubtotal=1500`, `shipping=10`, `total=1510`.
+- **KUFIZIM PROVE:** përmbajtja e PR #8 nuk ka ende screenshot të ri Android për të konfirmuar pozicionimin vizual, `Transport standard` nga Store Order API dhe shfaqjen e `≈ €15,10` në faqen e porosisë. Mos i deklaro si të verifikuara në emulator pa run real green dhe screenshot të shqyrtuar. Screenshot-i i vjetër tregon gabimin, jo korrigjimin.
+- PR-të #1–#8 mbeten Draft, nuk ka merge në `main`. Në prodhim ende duhen pagesë në EUR/ALL, kurs i verifikuar në mjedis real, tenant isolation, siguri varësish, white-label branding dhe nënshkrim release.
+

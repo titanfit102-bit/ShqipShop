@@ -6,7 +6,9 @@ import Navbar from '@components/common/navbar';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@api/client';
 import { formatImageUrl } from '@utils/image-url';
-import { convertToLocale } from '@utils/product-price';
+import { formatShopPrice } from '@utils/dual-currency';
+import ShopPrice from '@components/common/shop-price';
+import { getOrderProductsSubtotal } from '@utils/order-totals';
 import dayjs from 'dayjs';
 import Loader from '@components/common/loader';
 import ErrorUI from '@components/common/error-ui';
@@ -63,6 +65,10 @@ const OrderDetail = ({ route }: OrderDetailProps) => {
       </View>
     );
   }
+
+  const itemsSubtotal = getOrderProductsSubtotal(order);
+  const shippingMethodName =
+    order.shipping_methods?.[0]?.name || l10n.getString('shipping-method');
 
   return (
     <View className="flex-1 bg-background p-safe">
@@ -127,16 +133,10 @@ const OrderDetail = ({ route }: OrderDetailProps) => {
                     <View className="items-end">
                       <Text className="text-sm">
                         {item.quantity}x{' '}
-                        {convertToLocale({
-                          amount: item.unit_price,
-                          currency_code: order.currency_code,
-                        })}
+                        {formatShopPrice(item.unit_price, order.currency_code)}
                       </Text>
                       <Text className="text-sm font-medium">
-                        {convertToLocale({
-                          amount: item.unit_price * item.quantity,
-                          currency_code: order.currency_code,
-                        })}
+                        {formatShopPrice(item.unit_price * item.quantity, order.currency_code)}
                       </Text>
                     </View>
                   </View>
@@ -190,12 +190,7 @@ const OrderDetail = ({ route }: OrderDetailProps) => {
                 {l10n.getString('method')}
               </Text>
               <Text>
-                Standard Shipping (
-                {convertToLocale({
-                  amount: order.shipping_total,
-                  currency_code: order.currency_code,
-                })}
-                )
+                {shippingMethodName} ({formatShopPrice(order.shipping_total, order.currency_code)})
               </Text>
             </View>
           </View>
@@ -208,19 +203,13 @@ const OrderDetail = ({ route }: OrderDetailProps) => {
             <View className="flex-row justify-between mb-2">
               <Text className="opacity-60">{l10n.getString('subtotal')}</Text>
               <Text>
-                {convertToLocale({
-                  amount: order.subtotal,
-                  currency_code: order.currency_code,
-                })}
+                {itemsSubtotal === null ? '—' : formatShopPrice(itemsSubtotal, order.currency_code)}
               </Text>
             </View>
             <View className="flex-row justify-between mb-2">
               <Text className="opacity-60">{l10n.getString('shipping')}</Text>
               <Text>
-                {convertToLocale({
-                  amount: order.shipping_total,
-                  currency_code: order.currency_code,
-                })}
+                {formatShopPrice(order.shipping_total, order.currency_code)}
               </Text>
             </View>
             {order.discount_total > 0 && (
@@ -228,10 +217,7 @@ const OrderDetail = ({ route }: OrderDetailProps) => {
                 <Text className="opacity-60">{l10n.getString('discount')}</Text>
                 <Text className="text-green-600">
                   -
-                  {convertToLocale({
-                    amount: order.discount_total,
-                    currency_code: order.currency_code,
-                  })}
+                  {formatShopPrice(order.discount_total, order.currency_code)}
                 </Text>
               </View>
             )}
@@ -239,10 +225,7 @@ const OrderDetail = ({ route }: OrderDetailProps) => {
               <Text className="opacity-60">{l10n.getString('taxes')}</Text>
               <Text>
                 {order.tax_total
-                  ? convertToLocale({
-                      amount: order.tax_total,
-                      currency_code: order.currency_code,
-                    })
+                  ? formatShopPrice(order.tax_total, order.currency_code)
                   : '-'}
               </Text>
             </View>
@@ -250,12 +233,12 @@ const OrderDetail = ({ route }: OrderDetailProps) => {
               <Text className="font-content-bold text-lg">
                 {l10n.getString('total')}
               </Text>
-              <Text className="font-content-bold text-lg">
-                {convertToLocale({
-                  amount: order.total,
-                  currency_code: order.currency_code,
-                })}
-              </Text>
+              <ShopPrice
+                amount={order.total}
+                currencyCode={order.currency_code}
+                primaryClassName="font-content-bold text-lg"
+                testID="order-payable-total"
+              />
             </View>
           </View>
         </View>
