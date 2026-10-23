@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { HttpTypes } from '@medusajs/types';
 import apiClient from '@api/client';
@@ -33,7 +33,7 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
   const identityEpoch = useRef(0);
   const currentPrincipalId = useRef<string | undefined>(undefined);
 
-  const applyCustomer = async (
+  const applyCustomer = useCallback(async (
     nextCustomer: HttpTypes.StoreCustomer | undefined,
     epoch: number,
   ) => {
@@ -43,14 +43,9 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
       await clearPrivateCustomerQueries(queryClient);
     }
     if (epoch === identityEpoch.current) setCustomer(nextCustomer);
-  };
+  }, [queryClient]);
 
-  useEffect(() => {
-    // Check for existing session on mount
-    void refreshCustomer();
-  }, []);
-
-  const refreshCustomer = async () => {
+  const refreshCustomer = useCallback(async () => {
     const epoch = identityEpoch.current;
     try {
       const { customer: existingCustomer } =
@@ -60,7 +55,12 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
       // Failed or expired identity must not leave previous private data visible.
       await applyCustomer(undefined, epoch);
     }
-  };
+  }, [applyCustomer]);
+
+  useEffect(() => {
+    // The identity generation rejects late responses from previous logins.
+    refreshCustomer();
+  }, [refreshCustomer]);
 
   const login = async (email: string, password: string) => {
     ++identityEpoch.current;
