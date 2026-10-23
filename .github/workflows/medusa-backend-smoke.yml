@@ -59,6 +59,8 @@ jobs:
       ADMIN_CORS: http://localhost:9000,http://localhost:5173
       AUTH_CORS: http://localhost:9000,http://localhost:5173
       # CI services and credentials are ephemeral; do NOT use this file in production.
+      SHQIPSHOP_FX_ALL_PER_EUR: "100"
+      SHQIPSHOP_FX_SOURCE: "CI illustrative rate, NOT current market exchange rate"
     steps:
       - name: Checkout source without retained credentials
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -74,6 +76,7 @@ jobs:
         run: |
           echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
           echo "COOKIE_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "SHQIPSHOP_FX_AS_OF=$(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
       - name: Install locked Medusa backend dependencies
         run: pnpm install --frozen-lockfile --filter '@dtc/backend...'
       - name: Run Medusa PostgreSQL migrations
@@ -104,6 +107,12 @@ jobs:
             if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:9000/health > "$RUNNER_TEMP/health.json" 2>/dev/null; then
               echo "Medusa API health endpoint returned HTTP 200"
               cat "$RUNNER_TEMP/health.json"
+              fx_key="$(cat "$SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE")"
+              curl --fail --silent --show-error --max-time 8 \
+                -H "x-publishable-api-key: $fx_key" \
+                http://127.0.0.1:9000/store/shqipshop/indicative-fx \
+                > "$RUNNER_TEMP/indicative-fx.json"
+              node -e "const q=require(process.env.RUNNER_TEMP+'/indicative-fx.json'); if(q.available!==true || q.all_per_eur!==100 || q.indicative_only!==true || !q.source?.includes('CI')) process.exit(1); console.log('SHQIPSHOP_INDICATIVE_FX_HTTP_PASSED')"
               node scripts/store-api-checkout.mjs
               exit 0
             fi
