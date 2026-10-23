@@ -5,6 +5,7 @@ import Text from '@components/common/text';
 import Navbar from '@components/common/navbar';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@api/client';
+import type { HttpTypes } from '@medusajs/types';
 import { formatImageUrl } from '@utils/image-url';
 import { formatShopPrice } from '@utils/dual-currency';
 import ShopPrice from '@components/common/shop-price';
@@ -24,13 +25,14 @@ type OrderDetailProps = {
   route: {
     params: {
       orderId: string;
+      cartProof?: string;
     };
   };
 };
 
 const OrderDetail = ({ route }: OrderDetailProps) => {
   const { l10n } = useLocalization();
-  const { orderId } = route.params;
+  const { orderId, cartProof } = route.params;
   const { customer } = useCustomer();
   // An order page opened under A must never be reused under B or signed-out.
   // Guest receipts opened as guest retain their own route identity.
@@ -44,12 +46,19 @@ const OrderDetail = ({ route }: OrderDetailProps) => {
     error,
   } = useQuery({
     queryKey: privateCustomerQueryKey(customer?.id, 'order-detail', orderId),
-    enabled: samePrincipal,
+    enabled: samePrincipal && (!!customer || !!cartProof),
     queryFn: async () => {
-      const { order: orderData } = await apiClient.store.order.retrieve(
-        orderId,
+      if (customer) {
+        const { order: accountOrder } = await apiClient.store.order.retrieve(orderId);
+        return accountOrder;
+      }
+      if (!cartProof) throw new Error('Guest receipt requires originating cart proof');
+      // Header-only capability: do not include secret in URL, logs or query keys.
+      const { order: guestOrder } = await apiClient.client.fetch<HttpTypes.StoreOrderResponse>(
+        `/store/orders/${encodeURIComponent(orderId)}`,
+        { headers: { 'x-shqipshop-cart-proof': cartProof } },
       );
-      return orderData;
+      return guestOrder;
     },
   });
 
@@ -59,6 +68,8 @@ const OrderDetail = ({ route }: OrderDetailProps) => {
     // Do not refetch an old receipt through Medusa's guest-accessible order API.
     return <ErrorUI />;
   }
+
+  if (!customer && !cartProof) return <ErrorUI />;
 
   if (isPending) {
     return <Loader />;
