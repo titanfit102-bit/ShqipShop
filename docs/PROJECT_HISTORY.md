@@ -283,3 +283,15 @@ Pas çdo sesioni, shto në fund: `data · branch · commit SHA · PR · çfarë 
 HEAD e5657c6ddfa79d5cba004868b8ac6ba800263cd1, PR #12 OPEN Draft; CI 39990409987/39990410102/39990410033 **3/3 SUCCESS**. Kodi dhe burimi upstream Medusa v2.22.0 (205aff40bacfa0049e0b9d3a7913a674738bff31) u krahasuan me log-un e job 120540397758: fallback lokal/fake redis, event bus lokal dhe locking in-memory; vetëm REDIS_URL në env nuk aktivizon modulet Redis në këtë rrugë self-hosted. Sessions janë default memory sipas konfigurimit dhe loader-it; restart persistence ende pa provë. JWT default pritet 1d nga source, jo matje runtime exp; cookie logout nuk revokon JWT, refresh-after-logout kërkon test. Workflow-inmemory ka edhe DB persistence dhe nuk u quajt «pa asnjë persistencë».
 
 Analiza, linket immutable të source, kufijtë dhe plani konkret P1a (binding/cache/event/workflow/restart/locking/regressions) u ruajtën te MASTER_HANDOFF §11. Asnjë kod/config/workflow/dependency nuk u ndryshua. Implementimi P1a kërkon scope kodi për konfigurimin dhe fixtures; mirëmbajtja e dokumenteve mbetet e autorizuar. JWT policy/revocation është fazë e veçantë.
+
+## ShqipShop independent audit F01–F16 review — 2026-10-23
+
+**Evidenca:** raport i pavarur për commit e22bb13 (F01–F16), rishikuar kundrejt source GitHub, upstream Medusa 2.21.2/2.22.0 dhe [CI 39991716155](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991716155), [39991715755](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991715755), [39991715961](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991715961): 3/3 SUCCESS. Verifikimi i Work për komponentet native dhe numri i package advisories nuk u riprodhuan veçmas nga ky reviewer; shumica e mekanizmave defektozë u konfirmuan nga source. Detajet dhe caveats: CURRENT_STATE dhe MASTER_HANDOFF §12 në këtë branch (jo main).
+
+**Rruga e rekomanduar, VETËM PROPOZIM, jo leje implementimi:**
+- **Native me llogari reale:** F01 është P0 i privatësisë. F02 SDK logout, F03 stale cart, F04 swallowed mutation errors, F05 checkout resume dhe F13 price=0 duhet të kenë testet e tyre të regression. F12 production signing bllokon vetëm store release të native.
+- **PWA-first:** F06 receipt ID-as-capability guest/account privacy contract dhe F09 një commerce source-of-truth janë prioritete pilot; F15 brand CSS/CSP vetëm nëse pilot FastAPI mbahet.
+- **Operations:** F07 Redis provider/event/session/workflow wiring me prova të vërteta (jo vetëm PING); F08 JWT lifecycle dhe credential storage, F10 native CI gates, F11 dependency advisory triage/release bundle, backup/TLS/secrets/privacy; F14 UI error/accessibility sipas flow-it, F16 shënim historik/superseded.
+- **Release gate:** G2 native është PARTIAL; G3 server tenant auth është PARTIAL (jo production-ready); G4–G8 varen nga target-i real; mos numëro P0 native release kundër një target-i PWA-only.
+- **Autorizimi:** vetëm update docs CURRENT_STATE/MASTER_HANDOFF/PROJECT_HISTORY/ROADMAP/AGENTS në feat/merchant-auth-boundary-ci është i vazhdueshëm. Nuk është dhënë leje e re për F01–F15 kod ose për degë të tjera/main/merge/deploy.
+
