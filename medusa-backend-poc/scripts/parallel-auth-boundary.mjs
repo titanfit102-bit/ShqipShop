@@ -2,7 +2,8 @@
  * Never log JWTs, passwords, cookies or private customer objects.
  */
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { readFileSync, writeFileSync } from "node:fs"
+import { resolve, sep } from "node:path"
 import { request, isDenied } from "./boundary-http.mjs"
 import { verifyMutations } from "./parallel-mutation-boundary.mjs"
 
@@ -263,4 +264,20 @@ for (const m of merchants) {
 console.log("SHQIPSHOP_TWO_MERCHANT_COOKIE_SESSION_ISOLATION_PASSED")
 const health=await Promise.all(merchants.map(m=>fetch(m.base+"/health",{signal:AbortSignal.timeout(5000)})))
 assert(health.every(r=>r.status===200),"Both merchant backends must stay live during auth")
+// CI-only possession credentials for cross-PROCESS cookie session replay.
+// This file never leaves the ephemeral runner and is never printed in logs.
+const sessionProofFile = process.env.SHQIPSHOP_CI_SESSION_PROOF_FILE
+const runnerTemp = process.env.RUNNER_TEMP
+assert(sessionProofFile && runnerTemp, "Missing ephemeral session handoff path")
+assert(resolve(sessionProofFile).startsWith(resolve(runnerTemp) + sep),
+  "Session handoff path must be inside the runner temp directory")
+const sessionProof = Object.fromEntries(merchants.map(m => [m.id, {
+  key: m.key,
+  customer: { id: m.customerId, cookie: m.customerCookie },
+  admin: { id: m.adminId, cookie: m.adminCookie },
+}]))
+writeFileSync(sessionProofFile, JSON.stringify(sessionProof), {
+  encoding: "utf8", mode: 0o600, flag: "wx",
+})
+console.log("SHQIPSHOP_EPHEMERAL_SESSION_HANDOFF_FILE_READY")
 console.log("SHQIPSHOP_TWO_MERCHANT_ADMIN_CUSTOMER_JWT_ISOLATION_PASSED")
