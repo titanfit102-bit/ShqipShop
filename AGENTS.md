@@ -76,3 +76,7 @@ User approved **display** of primary transaction price ALL or EUR and a small gr
 ## Current Android checkout (PR #7, 2026-10-23)
 
 PR #6 Android FX grey hint passed in run 39931562458 using a **synthetic only** ALL/EUR rate; don't assert actual exchange/payment availability. [PR #7](https://github.com/titanfit102-bit/ShqipShop/pull/7) tests *actual native UI* address (one-country default), delivery, system manual payment, place-order and persisted Medusa DB order via [run 39934984130](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39934984130). TypeScript/Jest and backend smoke pass (39935031421, 39935031422), but do not claim Android checkout completion without BOTH UI and Postgres markers. Full merchant isolation, real dual-currency settlement and release-grade signing remain unimplemented. 
+
+## Passed Android UI checkout and observed display defect
+
+Android CI [run 39934984130](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39934984130) PASSED UI checkout + PostgreSQL order. Evidence artifact [12493738613](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39934984130/artifacts/12493738613) was manually inspected: checkout synthetic Medusa Shorts S/AL address/manual payment total 1510 ALL. **Known UI defect:** order detail subtotal 1510 ALL though product 1500 and shipping 10; `order.subtotal` field is wrong for item subtotal. Order detail also hardcodes English Standard Shipping and truncated navigation title. Fix in a follow-up PR; do not claim visual correctness. No real EUR payment or tenant isolation.
