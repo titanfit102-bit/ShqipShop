@@ -9,6 +9,7 @@ on:
       - medusa-backend-poc/apps/backend/package.json
       - medusa-backend-poc/pnpm-lock.yaml
       - medusa-backend-poc/apps/backend/src/scripts/f07d-cache-proof.ts
+      - medusa-backend-poc/apps/backend/src/scripts/f07d-catalog-invalidation-ci.ts
   pull_request:
     paths:
       - .github/workflows/f07d-redis-cache-ci.yml
@@ -16,6 +17,7 @@ on:
       - medusa-backend-poc/apps/backend/package.json
       - medusa-backend-poc/pnpm-lock.yaml
       - medusa-backend-poc/apps/backend/src/scripts/f07d-cache-proof.ts
+      - medusa-backend-poc/apps/backend/src/scripts/f07d-catalog-invalidation-ci.ts
   workflow_dispatch:
 
 permissions:
@@ -163,8 +165,31 @@ jobs:
           as_tenant B clear
           as_tenant B miss
           echo SHQIPSHOP_F07D_TWO_PHYSICAL_REDIS_CROSS_PROCESS_CACHE_ISOLATION_PASSED
+      - name: Real Medusa product workflow invalidates query cache across processes for each merchant
+        env:
+          SHQIPSHOP_F07D_PROOF_DIR: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          export JWT_SECRET="$(openssl rand -hex 32)" COOKIE_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$JWT_SECRET"
+          echo "::add-mask::$COOKIE_SECRET"
+          export JWT_SECRET COOKIE_SECRET
+          for tenant in A B; do
+            if [ "$tenant" = A ]; then
+              export DATABASE_URL=postgres://f07d_a:F07d_A_disposable@127.0.0.1:5432/f07d_a
+              export REDIS_URL=redis://127.0.0.1:6379 CACHE_REDIS_URL=redis://127.0.0.1:6379
+            else
+              export DATABASE_URL=postgres://f07d_b:F07d_B_disposable@127.0.0.1:5432/f07d_b
+              export REDIS_URL=redis://127.0.0.1:6381 CACHE_REDIS_URL=redis://127.0.0.1:6381
+            fi
+            export SHQIPSHOP_F07D_TENANT="$tenant"
+            for action in prime update verify; do
+              pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07d-catalog-invalidation-ci.ts "$action"
+            done
+          done
+          echo SHQIPSHOP_F07D_REAL_PRODUCT_QUERY_AUTO_INVALIDATION_BOTH_TENANTS_PASSED
       - name: Explicit limits
         if: always()
         run: |
           echo "F07d only certifies synthetic cache set/get/clear in CI with two disposable physical Redis."
-          echo "Real-world invalidation, memory pressure, Redis failover, production TLS/ACL, load, billing and live payments remain unverified."
+          echo "Product-title workflow auto-invalidation is tested separately; real variant prices, cart mutations, Next.js/browser cache, Redis failover and production readiness remain unverified."
