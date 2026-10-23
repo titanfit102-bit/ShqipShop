@@ -114,6 +114,93 @@ for (const target of merchants) {
   console.log("SHQIPSHOP_MERCHANT_"+target.id+"_FOREIGN_AUTH_DENIED")
 }
 
+// F06: end-to-end registered checkout must be readable with the owner's
+// bearer token but not with a different account on the SAME merchant.
+for (const m of merchants) {
+  const get = async (path) => {
+    const response = await request(m, "GET", path, { key:true, token:m.customerJwt })
+    assert.equal(response.status, 200, m.id + ": registered checkout query failed")
+    return response.data
+  }
+  const region = (await get("/store/regions")).regions.find(x => x.name === "Shqipëri")
+  assert(region?.id, "Missing registered checkout region")
+  const productData = await get("/store/products?region_id=" + encodeURIComponent(region.id) + "&fields=%2Bvariants.*")
+  const product = productData.products.find(x => x.variants?.length)
+  assert(product, "Missing registered checkout product")
+  const created = await request(m, "POST", "/store/carts", {
+    key:true,token:m.customerJwt,body:{region_id:region.id}
+  })
+  assert.equal(created.status, 200, "Account cart creation failed")
+  const cartId = created.data.cart?.id
+  assert(cartId, "Account cart ID missing")
+
+  const add = await request(m, "POST", "/store/carts/" + cartId + "/line-items", {
+    key:true,token:m.customerJwt,body:{variant_id:product.variants[0].id,quantity:1}
+  })
+  assert.equal(add.status, 200, "Account cart line item failed")
+  const address = {
+    first_name:"Registered",last_name:"Synthetic",address_1:"Rruga CI 2",
+    city:"Tiranë",postal_code:"1001",country_code:"al",phone:"+355690000002"
+  }
+  const addr = await request(m, "POST", "/store/carts/" + cartId, {
+    key:true,token:m.customerJwt,
+    body:{email:m.customer,shipping_address:address,billing_address:address}
+  })
+  assert.equal(addr.status,200,"Account shipping address failed")
+  const opts = await get("/store/shipping-options?cart_id=" + encodeURIComponent(cartId))
+  const shipping = opts.shipping_options.find(x=>x.name==="Transport standard") ?? opts.shipping_options[0]
+  assert(shipping?.id,"Missing account shipping option")
+  const shipped = await request(m,"POST","/store/carts/"+cartId+"/shipping-methods",{
+    key:true,token:m.customerJwt,body:{option_id:shipping.id}
+  })
+  assert.equal(shipped.status,200,"Account cart shipping failed")
+  const collection = await request(m,"POST","/store/payment-collections",{
+    key:true,token:m.customerJwt,body:{cart_id:cartId}
+  })
+  assert.equal(collection.status,200,"Account collection failed")
+  const colId = collection.data.payment_collection?.id
+  assert(colId,"Missing account payment collection")
+  const pay = await request(m,"POST","/store/payment-collections/"+colId+"/payment-sessions",{
+    key:true,token:m.customerJwt,body:{provider_id:"pp_system_default"}
+  })
+  assert([200,201].includes(pay.status),"Account payment session failed")
+  const completed = await request(m,"POST","/store/carts/"+cartId+"/complete",{
+    key:true,token:m.customerJwt,body:{}
+  })
+  assert.equal(completed.status,200,"Account checkout failed")
+  const orderId = completed.data.order?.id
+  assert.equal(completed.data.type,"order","Registered cart not completed")
+  assert(orderId,"Registered order missing")
+  const ownOrder = await request(m,"GET","/store/orders/"+encodeURIComponent(orderId),{
+    key:true,token:m.customerJwt
+  })
+  assert.equal(ownOrder.status,200,
+    m.id+": registered owner cannot read their order with bearer token")
+  assert.equal(ownOrder.data.order?.id,orderId,"Registered owner got wrong order")
+
+  const otherEmail = "stranger-" + m.id.toLowerCase() + "@shqipshop.example.invalid"
+  const password = "CI-Stranger-Disposable-" + m.id + "-2026"
+  const strangerRegister = await request(m,"POST","/auth/customer/emailpass/register",{
+    body:{email:otherEmail,password}
+  })
+  assert([200,201].includes(strangerRegister.status),"Stranger register failed")
+  const strangerCreate = await request(m,"POST","/store/customers",{
+    key:true,token:strangerRegister.data.token,
+    body:{email:otherEmail,first_name:"Stranger",last_name:"Synthetic"}
+  })
+  assert([200,201].includes(strangerCreate.status),"Stranger customer creation failed")
+  const strangerLogin = await request(m,"POST","/auth/customer/emailpass",{
+    body:{email:otherEmail,password}
+  })
+  assert.equal(strangerLogin.status,200,"Stranger login failed")
+  const denied = await request(m,"GET","/store/orders/"+encodeURIComponent(orderId),{
+    key:true,token:strangerLogin.data.token
+  })
+  assert([401,403,404].includes(denied.status),
+    m.id+": foreign account reads registered owner order")
+  console.log("SHQIPSHOP_F06_REGISTERED_OWNER_ONLY_PASSED_"+m.id)
+}
+
 // Establish real cookie sessions. Subsequent probes intentionally omit bearer headers.
 const actors = [
   {name:"customer", path:"/store/customers/me", field:"customer", key:true},
