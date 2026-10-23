@@ -88,3 +88,7 @@ Screenshot artifact [12493738613](https://github.com/titanfit102-bit/ShqipShop/a
 ## PR #8 receipt visual + PR #9 order boundary diagnostic
 
 Android receipt row-specific screenshot proof is under [run 39946022933](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39946022933), NOT assumed passed before CI conclusion. PR #9 probes synthetic cross-channel direct order-ID access (statuses only) under [run 39946398016](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39946398016); unauthorized HTTP 200 fails, while lack of positive customer auth makes it INCONCLUSIVE, never a proof of full multi-tenancy. See docs/ORDER_BOUNDARY_PROBE.md. No real users, keys, merchants or production deployments.
+
+## CRITICAL: Medusa channel is not a tenant boundary (2026-10-23)
+
+[CI run 39946398016](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39946398016) FAILED AS INTENDED: accessing synthetic order ID using *either* sales channel's independent publishable key returned HTTP 200. Protect real merchant order/customer/admin data; do not use shared Medusa channels as tenant auth. Provisional [ADR-006](docs/ADR-006_TENANT_BACKEND_ISOLATION.md) chooses per-merchant Medusa backend+database+roles for first pilots with an independent control plane. **This model has NOT been implemented or proven. G3 remains BLOCKED.** Do not remove the red security gate to fake success. Keep main unmodified and PR9 Draft.
