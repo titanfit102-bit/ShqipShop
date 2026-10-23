@@ -1,5 +1,12 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-10-24 · F07e price/cart data Query cache tests
+
+- Baseline docs SHA `b388e4f7` had 7/7 CI PASS. User continued F07e scope. Code [a16263f2](https://github.com/titanfit102-bit/ShqipShop/commit/a16263f2bc042eaf0a6e848440bf699a426bd137) changed only F07d workflow and new CI-only proof script. **7/7 PR + 2/2 push CI PASS:** [F07e/F07d PR 40040438586](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40040438586), [F07e/F07d push 40040432525](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40040432525), [parallel push 40040433822](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40040433822), [parallel PR 40040438527](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40040438527), [F07c PR 40040438462](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40040438462), [two isolated 40040438484](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40040438484), [backend smoke 40040438509](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40040438509), [pilot 40040438466](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40040438466), [native 40040438482](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40040438482).
+- [F07e PR logs](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40040438586) demonstrate same-merchant linked variant price amount fresh across processes after `upsertVariantPricesWorkflow`, and freshly created cart email after `updateCartWorkflow`, each under separate dedicated A/B Redis workers and physical database isolation. Bounded 30s tests, no manual purge. All previous Medusa, native, pilot, worker and parallel checks still green.
+- **Limits:** not `calculated_price` HTTP presentation/price-rule correctness, cart line items/totals, frontend Next.js product invalidation, worker outage; F07 PARTIAL, G3/G5 OPEN. No main, merge, deploy, live payments, secrets or real customer records touched. Documentation checkpoint CI pending independent verification.
+
+
 ## 2026-10-24 · F07d real product query auto-invalidation / worker boundary
 
 - Base HEAD `0668ed9e`: 7/7 PR CI SUCCESS. New strict test `6e04f522` demonstrated real defect in *server-only / no-worker* CI topology: after updateProductsWorkflow committed title in DB, Redis cached Query still returned old title, [CI push FAIL 40033739068](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40033739068) + [PR FAIL 40033744129](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40033744129).

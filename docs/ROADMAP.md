@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F07e — linked variant-price and cart metadata cache proof (2026-10-24)
+
+**DONE / CI verified:** [a16263f2](https://github.com/titanfit102-bit/ShqipShop/commit/a16263f2bc042eaf0a6e848440bf699a426bd137) with 7/7 PR and 2/2 push Actions SUCCESS including [F07e PR](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40040438586). New CI guarded Medusa script verifies a linked `price.amount` and a cart `email` field are refreshed across independent processes after official variant-price/cart workflows; A and B isolated Redis/DB + live workers. Old F07d title and cache isolation remain green. Docs commit requires its own CI check.
+
+**STILL OPEN:** Store API `calculated_price`, currencies/price lists and correct cart item quantities, tax/discount/total recomputation, backend-to-Next.js `force-cache` invalidation and PWA/browser price freshness, worker downtime and Redis failure policies/observability, TLS/ACL/HA/backup/restore, JWT server revocation F08, unified commerce authority F09. F07 remains PARTIAL; G3/G5 not ready for production; no merge/deploy.
+
+
 ## F07d product title Query cache invalidation — CI validated (2026-10-24)
 
 **DONE as scoped CI proof (not release gate):** [code bc682a9a](https://github.com/titanfit102-bit/ShqipShop/commit/bc682a9a4d8546e76504857594ab1f603caaee78); 7/7 PR and 2/2 push CI PASS, [F07d PR](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40034143183). Discovered initial stale cache in server-only setup with no workers (code 6e04f522, [failed run 40033739068](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40033739068)); fixed testing architecture by starting isolated A/B Medusa dedicated workers. Real seeded product title changes through Medusa update workflow invalidate cached Query result across fresh processes within bounded wait, without manual clear; repeated for both merchants. Existing synthetic Redis cache isolation preserved. Docs HEAD requires separate CI verification.
