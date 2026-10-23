@@ -1,5 +1,13 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F07 — real Medusa Redis modules (PARTIAL, 2026-10-23)
+
+- **Implemented in [ad7a86dc](https://github.com/titanfit102-bit/ShqipShop/commit/ad7a86dc82778fe1658c51152210298a03ece6be):** Medusa `projectConfig.redisUrl` for sessions and explicit Redis event-bus, workflow-engine and locking provider registrations. `SHQIPSHOP_REQUIRE_REDIS=true` in parallel CI rejects absent Redis URL. Two physically separate Redis services A/B.
+- **Evidence 5/5 CI GREEN at code SHA:** [A/B Redis runtime 40021073660](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073660), [two DB 40021073589](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073589), [Medusa 40021073486](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073486), [native 40021073350](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073350), [pilot 40021073534](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073534). Markers prove Medusa events in Redis on both merchants: each 2 event and 4 workflow-named keys; log shows provider connections. **This is not a mere Redis PING.**
+- **F07 still OPEN/PARTIAL:** session restart persistence, worker/server separation and queue retry, contended locking, Redis caching module provider installation/pnpm frozen lock consistency, real Redis outage/recovery, backups/HA/ACL/TLS and operational tests. No proof of all these from connection logs or event keys alone.
+- **Next** (separate code scope): test session cookie across restart and worker activity; then add `@medusajs/caching-redis` provider with lockfile updated and CI proof. Do not mark G3/G5 production ready. F09 PWA/Medusa single commerce truth still OPEN. Docs checkpoint in `feat/merchant-auth-boundary-ci` only; PR #12 Draft, no merge/deploy/main.
+
+
 ## RegionProvider recovery checkpoint — 2026-10-23
 
 - **Implemented native, code [77de0869](https://github.com/titanfit102-bit/ShqipShop/commit/77de0869a4f072eeb3dcbd047c21dd5a0f525909):** saved `region_id` valid reuse, expired 404/410 fallback after successful list, offline/401/5xx preserve; epoch ignores outdated responses; serial AsyncStorage writes for rapid B→C selection; Home and RegionSelect error/retry states.
