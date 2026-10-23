@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F06 — guest and registered order privacy (CI verified, 2026-10-23)
+
+- **Implementuar në code SHA [9a6a4e1](https://github.com/titanfit102-bit/ShqipShop/commit/9a6a4e199fa4b72935fa44b356776bd9843bb408):** 5/5 workflow-t kryesore PASS, përfshirë customer-owner order retrieval/foreign registered account denial në A/B, guest receipt 200 vetëm me cart proof, order-ID-only denial, existing Medusa smoke/native/pilot. [Parallel test 40009599479](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599479).
+- **F06 ka kaluar gate-in HTTP/CI të synuar**, por jo release/security production. Mbeten: restaurimi i receipt guest pas restart-it, endpoint-e të tjera me ID-as-capability (returns), abuse/rate limiting, mobile device end-to-end, TLS/secure storage. **G3 = IN PROGRESS.**
+- **Next recommended:** F03 rikuperimi i shportës kur ID vjetrohet, F04 error propagation i mutacioneve, F05 resume/payment-session check, me regresione të automatizuara. Autorizim i ri i veçantë për kodin e ardhshëm. Dokumentacioni CURRENT_STATE dhe MASTER_HANDOFF §15 është në degën `feat/merchant-auth-boundary-ci`, **jo në main**.
+
+
 ## F02 native JWT logout — verified checkpoint 2026-10-23
 
 - **F02 local signout race:** implementuar në degën `feat/merchant-auth-boundary-ci`, code SHA [b3097a3](https://github.com/titanfit102-bit/ShqipShop/commit/b3097a3d9f8b78a7d60a5418ca565e82b66a1905), [native 40005009842](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40005009842) **PASS** (10/10 suites, 36/36 tests, ESLint, TypeScript). Pilot, Medusa smoke dhe parallel A/B **PASS** në të njëjtin SHA ([40005009867](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40005009867), [40005009885](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40005009885), [40005009829](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40005009829)).
