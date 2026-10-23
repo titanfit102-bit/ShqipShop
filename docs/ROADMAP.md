@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F03–F05 — native cart/checkout resilience (2026-10-23)
+
+- **Implementuar (CI-verified në code SHA [7ea5153](https://github.com/titanfit102-bit/ShqipShop/commit/7ea515388d70ce45517ed667ab0275ff86cc9040)):** F03 cart 404/410 recreate; offline/401/5xx preserve + UI retry. F04 add/update mutation error propagation, alerts dhe finally/loading. F05 payment status pending/authorized para review/complete, pas GET Store cart. Testet [native 40012363697](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40012363697) 56/56 PASS, [Medusa HTTP 40012363691](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40012363691) marker `SHQIPSHOP_F05_CART_PAYMENT_SESSION_VERIFIED` PASS, pilot dhe parallel CI GREEN; two isolated job SUCCESS, verify final run.
+- **OPEN për release:** region-context async restore pa catch, rapid region switching, cart items të fshirë server-side, device E2E, checkout idempotency, Stripe/real payments, guest receipt restart dhe F07 Redis. G3/G5 nuk janë closed. 
+- **Next:** verifikimi i CI te HEAD dokumentacionit; më pas read-only audit RegionProvider dhe planifikimi F07 (Redis) / F09 (commerce source of truth), sipas prioritetit. Pa leje të re kodi për këto faza. PR #12 Draft, degë e dokumentacionit `feat/merchant-auth-boundary-ci`, jo main.
+
+
 ## F06 — guest and registered order privacy (CI verified, 2026-10-23)
 
 - **Implementuar në code SHA [9a6a4e1](https://github.com/titanfit102-bit/ShqipShop/commit/9a6a4e199fa4b72935fa44b356776bd9843bb408):** 5/5 workflow-t kryesore PASS, përfshirë customer-owner order retrieval/foreign registered account denial në A/B, guest receipt 200 vetëm me cart proof, order-ID-only denial, existing Medusa smoke/native/pilot. [Parallel test 40009599479](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599479).
