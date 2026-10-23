@@ -77,7 +77,22 @@ export default async function catalogInvalidationProof({ container, args }: Exec
     console.log("SHQIPSHOP_F07D_" + tenant + "_PRODUCT_WORKFLOW_UPDATED")
     return
   }
-  const value = await cachedProduct(proof.id)
+  let value = await cachedProduct(proof.id)
+  // Invalidations are dispatched via the Redis event bus. Dedicated workers
+  // may process them shortly after the mutation commits: bound the freshness SLA.
+  for (let attempt = 0; attempt < 30 && value.title !== proof.after; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    value = await cachedProduct(proof.id)
+  }
+  if (value.title !== proof.after) {
+    const { data: uncached } = await query.graph({
+      entity: "product", fields: ["id", "title"], filters: { id: proof.id },
+    })
+    console.error("F07D_CACHE_INVALIDATION_DIAGNOSTIC", JSON.stringify({
+      tenant, cachedStillOld: value.title === proof.before,
+      databaseUpdated: uncached[0]?.title === proof.after,
+    }))
+  }
   assert.equal(value.title, proof.after, "STALE PRODUCT CACHE after Medusa update workflow")
   assert.notEqual(value.title, proof.before, "Product cache still contains old title")
   console.log("SHQIPSHOP_F07D_" + tenant + "_PRODUCT_AUTO_INVALIDATION_PASSED")

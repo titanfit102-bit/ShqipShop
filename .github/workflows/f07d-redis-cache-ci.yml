@@ -174,6 +174,44 @@ jobs:
           echo "::add-mask::$JWT_SECRET"
           echo "::add-mask::$COOKIE_SECRET"
           export JWT_SECRET COOKIE_SECRET
+          worker_a=""
+          worker_b=""
+          cleanup() {
+            for pid in "$worker_a" "$worker_b"; do
+              if [ -n "$pid" ]; then kill -TERM -- "-$pid" 2>/dev/null || true; fi
+            done
+          }
+          trap cleanup EXIT
+          # Automatic cache invalidation consumes product.updated events on
+          # dedicated workers; API-only mode deliberately has no consumers.
+          DATABASE_URL=postgres://f07d_a:F07d_A_disposable@127.0.0.1:5432/f07d_a \
+            REDIS_URL=redis://127.0.0.1:6379 CACHE_REDIS_URL=redis://127.0.0.1:6379 \
+            SHQIPSHOP_F07D_TENANT=A WORKER_MODE=worker \
+            setsid pnpm --filter @dtc/backend exec medusa develop --port 9110 \
+            > "$RUNNER_TEMP/f07d-product-worker-a.log" 2>&1 &
+          worker_a=$!
+          DATABASE_URL=postgres://f07d_b:F07d_B_disposable@127.0.0.1:5432/f07d_b \
+            REDIS_URL=redis://127.0.0.1:6381 CACHE_REDIS_URL=redis://127.0.0.1:6381 \
+            SHQIPSHOP_F07D_TENANT=B WORKER_MODE=worker \
+            setsid pnpm --filter @dtc/backend exec medusa develop --port 9111 \
+            > "$RUNNER_TEMP/f07d-product-worker-b.log" 2>&1 &
+          worker_b=$!
+          workers_ready=0
+          for i in $(seq 1 90); do
+            if grep -q "Connection to Redis in module 'event-bus-redis' established" "$RUNNER_TEMP/f07d-product-worker-a.log" 2>/dev/null && \
+               grep -q "Connection to Redis in module 'event-bus-redis' established" "$RUNNER_TEMP/f07d-product-worker-b.log" 2>/dev/null; then
+              workers_ready=1; break
+            fi
+            if ! kill -0 "$worker_a" 2>/dev/null || ! kill -0 "$worker_b" 2>/dev/null; then break; fi
+            sleep 2
+          done
+          if [ "$workers_ready" != 1 ]; then
+            tail -75 "$RUNNER_TEMP/f07d-product-worker-a.log" || true
+            tail -75 "$RUNNER_TEMP/f07d-product-worker-b.log" || true
+            echo "::error::Dedicated cache invalidation workers not ready"; exit 1
+          fi
+          sleep 3
+          echo SHQIPSHOP_F07D_DEDICATED_INVALIDATION_WORKERS_READY
           for tenant in A B; do
             if [ "$tenant" = A ]; then
               export DATABASE_URL=postgres://f07d_a:F07d_A_disposable@127.0.0.1:5432/f07d_a
