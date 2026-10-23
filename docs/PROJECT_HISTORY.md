@@ -1,5 +1,12 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-10-24 — F07d Medusa Redis Caching Module
+
+- Branch `feat/merchant-auth-boundary-ci`, PR #12 OPEN Draft. Code [cd300404](https://github.com/titanfit102-bit/ShqipShop/commit/cd3004040f80aabf3fa0f541e20fc55d66649323), **7/7 PR + 3/3 push Actions SUCCESS**, [F07d PR 40032304599](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40032304599), [F07d push 40032297123](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40032297123), [pilot 40032306040](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40032306040), [native 40032304614](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40032304614), [Medusa smoke 40032304629](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40032304629), [two isolated 40032304573](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40032304573), [parallel PR 40032304574](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40032304574), [F07c PR 40032304788](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40032304788), [parallel push 40032296950](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40032296950), [F07c push 40032296958](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40032296958). Existing `@medusajs/caching-redis@2.22.0` transitive lock snapshot reused via pinned direct backend dependency and only importer change; `pnpm --frozen-lockfile` PASS. Scoped caching enabled only by `MEDUSA_FF_CACHING=true` and requires Redis URL.
+- Dedicated CI proves 13 fresh Medusa CLI processes write/read/miss/clear the identical synthetic key on two physically separate Redis servers A/B, with distinct PostgreSQL DBs/roles; neither tenant sees/invalidates the other's cache. CI markers include `SHQIPSHOP_F07D_TWO_PHYSICAL_REDIS_CROSS_PROCESS_CACHE_ISOLATION_PASSED`.
+- No main/merge/deploy/live payments; F07 PARTIAL, G3/G5 OPEN. Production cache invalidation, outage, TLS, metrics, real tenant onboarding and F08/F09 still missing. New documentation commit needs independent CI check.
+
+
 ## 2026-10-23 · F07c Redis outage/AOF & lock contention, code and CI evidence
 
 - Branch `feat/merchant-auth-boundary-ci`, PR #12 OPEN Draft atop #11, code SHA `0b058e8c`. Added disposable Redis AOF container test (queue before actual Docker stop, start same container, queue retained and synthetic event consumed afterward), two-process Medusa Redis lock `execute()` overlap denial and sequential critical side effects; tests only. No main/merge/deploy or new dependencies.

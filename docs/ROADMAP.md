@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F07d — Redis cache explicit provider, pinned dependency, isolation proof (2026-10-24)
+
+**CI-VERIFIED:** [cd300404](https://github.com/titanfit102-bit/ShqipShop/commit/cd3004040f80aabf3fa0f541e20fc55d66649323), **7/7 PR + 3/3 push checks SUCCESS**. `@medusajs/caching-redis@2.22.0` explicit backend dep+existing lock snapshot; frozen pnpm install passed. Opt-in Caching Module plus Redis default provider, fail closed when opt-in enabled without Redis. Synthetic 13 independent Medusa processes, separate DB/Redis A/B, cross-process cache sharing within tenant, denial of foreign-tenant reads, key invalidation contained within tenant. [F07d PR](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40032304599) / [push](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40032297123).
+
+**OPEN:** real product/cart invalidation under concurrency, cache Redis outage handling, server/worker metrics, automatic non-dev fail-closed, TLS/ACL/HA/persistence/backups and realistic performance, JWT revocation (F08), unified commerce backend truth (F09), physical phone/browser QA. F07 **PARTIAL**, G3/G5 **IN PROGRESS**. Do not merge/deploy. Check docs commit's CI separately.
+
+
 ## F07c follow-up — controlled Redis outage and locking (2026-10-23)
 
 **CI-VERIFIED at code SHA [0b058e8c](https://github.com/titanfit102-bit/ShqipShop/commit/0b058e8c63a5bf6621cb0cbab5f814f0368dd215), 6/6 PR workflows SUCCESS and 2/2 push workflows SUCCESS:** [F07c PR](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40030658466), [F07c push](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40030654260). F07c server/worker and retry regression preserved; new synthetic Redis AOF queue persists through deliberate container stop/start and is consumed after restart, and Medusa Redis lock contention serializes two independent processes. This is a test milestone, not infrastructure certification; documentation commit CI must be rechecked.
