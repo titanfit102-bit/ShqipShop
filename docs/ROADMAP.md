@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F07c follow-up — controlled Redis outage and locking (2026-10-23)
+
+**CI-VERIFIED at code SHA [0b058e8c](https://github.com/titanfit102-bit/ShqipShop/commit/0b058e8c63a5bf6621cb0cbab5f814f0368dd215), 6/6 PR workflows SUCCESS and 2/2 push workflows SUCCESS:** [F07c PR](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40030658466), [F07c push](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40030654260). F07c server/worker and retry regression preserved; new synthetic Redis AOF queue persists through deliberate container stop/start and is consumed after restart, and Medusa Redis lock contention serializes two independent processes. This is a test milestone, not infrastructure certification; documentation commit CI must be rechecked.
+
+**STILL OPEN:** abrupt Redis kill/power loss/replica failover, restore to replacement persistent volume, worker killed inside handler, exactly-once/idempotent business mutations, locking lease expiration under actual crash, load/multiple consumers; Redis caching cross-process provider (`@medusajs/caching-redis`, lockfile), TLS/ACL/backup/HA/monitoring, automatic production Redis fail-closed, production security and mobile QA. F07 PARTIAL, G3/G5 not release-ready; no main/merge/deploy. Next separately authorized F07d caching integration and regression CI.
+
+
 ## F07c verified increment — Redis dedicated worker (2026-10-23)
 
 **DONE as CI-scoped proof:** `WORKER_MODE=server|worker|shared` Medusa config; synthetic-only event with separate HTTP server and Medusa worker; controlled failure recovered by event retry; worker process stop/restart and new process delivery. [Verified code 02fa531d](https://github.com/titanfit102-bit/ShqipShop/commit/02fa531de23e03c2aad36d0cd053c4a9dfbb74e2), **6/6 PR Actions SUCCESS**, F07c [40027474910](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40027474910) and [push 40027467532](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40027467532). Tests use CI-only synthetic payloads and disposable services. Docs commit requires CI recheck.

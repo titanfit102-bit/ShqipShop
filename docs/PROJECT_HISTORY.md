@@ -1,5 +1,12 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-10-23 · F07c Redis outage/AOF & lock contention, code and CI evidence
+
+- Branch `feat/merchant-auth-boundary-ci`, PR #12 OPEN Draft atop #11, code SHA `0b058e8c`. Added disposable Redis AOF container test (queue before actual Docker stop, start same container, queue retained and synthetic event consumed afterward), two-process Medusa Redis lock `execute()` overlap denial and sequential critical side effects; tests only. No main/merge/deploy or new dependencies.
+- **CI code SHA 0b058e8c: 6/6 PR + 2/2 push SUCCESS:** [F07c PR 40030658466](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40030658466), [F07c push 40030654260](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40030654260), [parallel A/B PR 40030658486](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40030658486), [parallel push 40030654117](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40030654117), [Medusa smoke 40030658380](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40030658380), [two isolated 40030658489](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40030658489), [native 40030658499](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40030658499), [pilot 40030658386](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40030658386). Job log markers confirm `SHQIPSHOP_F07C_REDIS_AOF_RESTART_DELIVERY_PASSED` and `SHQIPSHOP_F07C_REDIS_LOCK_CONTENTION_PASSED`, including preceding queue/port/lock checks.
+- Does **NOT** certify Redis crash/HA, persistent-volume recovery on new host, lease expiry, in-flight worker failure or exactly-once business semantics. F07 PARTIAL, G3/G5 OPEN. F07d Redis caching and further production gates remain future scope. This document's own commit requires independent CI verification.
+
+
 ## 2026-10-23 · F07c dedicated Redis worker increment
 
 - User continued the explicitly proposed F07c scope («vazhdojm»); modified only Medusa worker-mode config, test-only subscriber/producer, and a dedicated synthetic GitHub Actions workflow in `feat/merchant-auth-boundary-ci` / PR #12 Draft. No main/merge/deploy.
