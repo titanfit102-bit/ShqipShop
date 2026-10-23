@@ -9,7 +9,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/parallel-medusa-isolation-ci.yml
-      - medusa-backend-poc/scripts/two-merchant-boundary.mjs
+      - medusa-backend-poc/**
   workflow_dispatch:
 
 permissions:
@@ -77,6 +77,11 @@ jobs:
         run: |
           npm install -g pnpm@10.11.1
           pnpm install --frozen-lockfile --filter '@dtc/backend...'
+      - name: Verify boundary transport and fail-closed assertions
+        run: |
+          node --check scripts/parallel-auth-boundary.mjs
+          node --check scripts/parallel-mutation-boundary.mjs
+          node --test scripts/boundary-http.test.mjs
       - name: Create isolated tenant databases and database users
         run: |
           set -euo pipefail
@@ -158,6 +163,9 @@ jobs:
           secret_b="$(openssl rand -hex 32)"
           cookie_a="$(openssl rand -hex 32)"
           cookie_b="$(openssl rand -hex 32)"
+          for value in "$secret_a" "$secret_b" "$cookie_a" "$cookie_b"; do
+            echo "::add-mask::$value"
+          done
           test "$secret_a" != "$secret_b" && test "$cookie_a" != "$cookie_b"
           DATABASE_URL='postgres://shqipshop_ci_a:merchantA_disposable@127.0.0.1:5432/shqipshop_ci_a' REDIS_URL='redis://127.0.0.1:6379' JWT_SECRET="$secret_a" COOKIE_SECRET="$cookie_a" pnpm --filter @dtc/backend exec medusa develop --port 9000 > "$RUNNER_TEMP/merchant-a.log" 2>&1 &
           pid_a=$!
@@ -189,4 +197,5 @@ jobs:
         if: always()
         run: |
           echo "Demo databases and merchant keys are ephemeral."
-          echo "Simultaneous Medusa processes and independent database roles are tested; customer/admin auth, Medusa Redis provider binding, concurrency load, storage, billing, prod signing are NOT certified."
+          echo "Auth/session/mutation assertions are meaningful only if their test step passed."
+          echo "JWT revocation, browser HTTPS/CSRF/domain cookie isolation, admin RBAC, Medusa Redis provider binding, load, storage, billing and prod signing are NOT certified."

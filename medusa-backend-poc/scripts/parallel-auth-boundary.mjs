@@ -3,6 +3,8 @@
  */
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
+import { request, isDenied } from "./boundary-http.mjs"
+import { verifyMutations } from "./parallel-mutation-boundary.mjs"
 
 assert.equal(process.env.CI, "true")
 assert.equal(process.env.NODE_ENV, "development")
@@ -26,25 +28,6 @@ for (const m of merchants) {
 assert.notEqual(merchants[0].key, merchants[1].key)
 assert.notEqual(merchants[0].adminPassword, merchants[1].adminPassword)
 
-async function request(m, method, path, {token, key, body}={}) {
-  const response = await fetch(m.base + path, {
-    method,
-    headers: {
-      ...(key ? {"x-publishable-api-key": m.key} : {}),
-      ...(token ? {"authorization": "Bearer " + token} : {}),
-      ...(body ? {"content-type":"application/json"} : {}),
-    },
-    ...(body ? {body:JSON.stringify(body)} : {}),
-    signal: AbortSignal.timeout(20000),
-  })
-  // Parse only in memory. Avoid logging credentials or user PII to CI logs.
-  const raw = await response.text()
-  let data = {}
-  try { data = raw ? JSON.parse(raw) : {} } catch { /* status assertion below */ }
-  return {status:response.status, data}
-}
-const isDenied = (res, context) =>
-  assert([401,403].includes(res.status), context + ": expected HTTP 401 or 403, got " + res.status)
 const isBadLogin = (res, context) =>
   assert([400,401,403].includes(res.status), context + ": rejected identity expected, got " + res.status)
 
@@ -107,6 +90,67 @@ for (const target of merchants) {
   }),target.id+" foreign admin credentials")
   console.log("SHQIPSHOP_MERCHANT_"+target.id+"_FOREIGN_AUTH_DENIED")
 }
+
+// Establish real cookie sessions. Subsequent probes intentionally omit bearer headers.
+const actors = [
+  {name:"customer", path:"/store/customers/me", field:"customer", key:true},
+  {name:"admin", path:"/admin/users/me", field:"user", key:false},
+]
+for (const m of merchants) {
+  for (const actor of actors) {
+    const session = await request(m, "POST", "/auth/session", {token:m[actor.name + "Jwt"]})
+    assert.equal(session.status, 200, m.id + " session creation failed")
+    assert(session.cookie.includes("connect.sid="), m.id + " session cookie missing")
+    m[actor.name + "Cookie"] = session.cookie
+    const own = await request(m, "GET", actor.path, {key:actor.key, cookie:session.cookie})
+    assert.equal(own.status, 200, m.id + " own cookie rejected")
+    assert.equal(own.data[actor.field]?.id, m[actor.name + "Id"], "Cookie actor mismatch")
+    isDenied(await request(m, "GET", actor.path, {key:actor.key}), m.id + " no cookie")
+    const tampered = session.cookie.slice(0, -1) + (session.cookie.endsWith("a") ? "b" : "a")
+    isDenied(await request(m, "GET", actor.path, {key:actor.key,cookie:tampered}), m.id + " tampered cookie")
+  }
+  isDenied(await request(m,"GET","/admin/users/me",{cookie:m.customerCookie}),m.id + " customer cookie as admin")
+  isDenied(await request(m,"GET","/store/customers/me",{key:true,cookie:m.adminCookie}),m.id + " admin cookie as customer")
+  console.log("SHQIPSHOP_MERCHANT_" + m.id + "_OWN_COOKIE_AUTH_PASSED")
+}
+for (const target of merchants) {
+  const foreign = merchants.find(m => m !== target)
+  for (const actor of actors) {
+    isDenied(await request(target,"GET",actor.path,{key:actor.key,cookie:foreign[actor.name + "Cookie"]}),
+      target.id + " foreign " + actor.name + " cookie")
+  }
+  console.log("SHQIPSHOP_MERCHANT_" + target.id + "_FOREIGN_COOKIE_DENIED")
+}
+
+await verifyMutations(merchants)
+
+for (const m of merchants) {
+  const other = merchants.find(candidate => candidate !== m)
+  for (const actor of actors) {
+    const cookie = m[actor.name + "Cookie"]
+    const logout = await request(m,"DELETE","/auth/session",{cookie})
+    assert.equal(logout.status,200,m.id + " cookie logout failed")
+    assert.equal(logout.data.success,true,"Logout did not report success")
+    assert(logout.cookie.includes("connect.sid=;" ) || logout.cookie === "connect.sid=", "Logout did not clear cookie")
+    isDenied(await request(m,"GET",actor.path,{key:actor.key,cookie}),m.id + " logged-out cookie replay")
+    // Cookie logout does not certify JWT revocation. Characterize separately, without logging the token.
+    const bearer = await request(m,"GET",actor.path,{key:actor.key,token:m[actor.name + "Jwt"]})
+    assert([200,401,403].includes(bearer.status),"Unexpected JWT replay status")
+    console.log("SHQIPSHOP_POST_LOGOUT_JWT_STATUS", JSON.stringify({merchant:m.id,actor:actor.name,status:bearer.status}))
+    const renewed = await request(m,"POST","/auth/session",{token:m[actor.name + "Jwt"]})
+    assert.equal(renewed.status,200,"Fresh session creation failed")
+    const fresh = await request(m,"GET",actor.path,{key:actor.key,cookie:renewed.cookie})
+    assert.equal(fresh.status,200,"Fresh session not usable")
+    assert.equal(fresh.data[actor.field]?.id,m[actor.name + "Id"],"Fresh session actor mismatch")
+    // Keep the renewed cookie for the later tenant's independence check.
+    m[actor.name + "Cookie"] = renewed.cookie
+    const independent = await request(other,"GET",actor.path,{key:actor.key,cookie:other[actor.name + "Cookie"]})
+    assert.equal(independent.status,200,"Other merchant session affected by logout")
+    assert.equal(independent.data[actor.field]?.id,other[actor.name + "Id"],"Other session actor mismatch")
+  }
+  console.log("SHQIPSHOP_MERCHANT_" + m.id + "_COOKIE_LOGOUT_REPLAY_DENIED")
+}
+console.log("SHQIPSHOP_TWO_MERCHANT_COOKIE_SESSION_ISOLATION_PASSED")
 const health=await Promise.all(merchants.map(m=>fetch(m.base+"/health",{signal:AbortSignal.timeout(5000)})))
 assert(health.every(r=>r.status===200),"Both merchant backends must stay live during auth")
 console.log("SHQIPSHOP_TWO_MERCHANT_ADMIN_CUSTOMER_JWT_ISOLATION_PASSED")

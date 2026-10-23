@@ -1,5 +1,15 @@
 # Working on ShqipShop — repository instructions
 
+## Autorizim dhe implementim P0 — 2026-10-23 (CI NË PRITJE)
+
+Përdoruesi autorizoi shprehimisht: «po te autorizoj, vazhdo permirsimin sipas planit», në përgjigje të kërkesës për testet cookie/session, mutation authorization dhe maskimin e sekreteve CI. **Leja e kësaj faze** përfshin scripts/workflows të këtij increment-i në `feat/merchant-auth-boundary-ci`, testim sintetik dhe dokumentacion; **pa merge/deploy/main/pagesa reale**. Ky autorizim plotëson kufirin e mëparshëm docs-only, nuk e zgjeron te faza të tjera.
+
+**Implementuar, jo ende provuar në Medusa runtime:** helper HTTP/assertions fail-closed + 3 teste Node; cookie/session customer/admin A/B, role separation, tampering dhe logout/replay; mutations customer/order/inventory me snapshot para/pas për të dy tenant-et; DELETE vetëm në customer fixture të dedikuar; maskim i sekreteve të gjeneruara në backend smoke. Workflow dy-Medusa tani aktivizohet edhe për ndryshime script-esh në PR dhe ekzekuton testet e helper-it. JWT pas logout raportohet veçmas dhe nuk quhet i revokuar.
+
+**Lokalisht:** Node 24.19.0, `node --test medusa-backend-poc/scripts/boundary-http.test.mjs` **3/3 PASS**, syntax checks PASS; `compileall` PASS; pytest **10 PASS, 1 warning** nga Starlette/AnyIO deprecated alias. Medusa session/mutation proof **PENDING**, duhet lexuar CI në HEAD të ri përpara pretendimit të suksesit. G3 mbetet IN_PROGRESS.
+
+**Next:** verifiko CI real; diagnostiko dështime pa hequr checks, pastaj ruaj SHA/run dhe rezultatin e konfirmuar. Plani i detajuar mbetet MASTER_HANDOFF §10. Kufijtë: browser HTTPS/CSRF/domain cookie scope, JWT revocation, RBAC i kufizuar mes adminëve, Redis/jobs/media/backup/production ende të paprovuara.
+
 ## Mandatory continuity — current checkpoint (2026-10-23, authorized)
 
 **First, discover the correct branch — not main.** The authoritative documentation is at:
