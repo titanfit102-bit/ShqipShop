@@ -16,6 +16,14 @@ if (process.env.SHQIPSHOP_REQUIRE_REDIS === 'true' && !redisUrl) {
   throw new Error('ShqipShop Redis is required but REDIS_URL is missing')
 }
 
+// Caching is enabled only when explicitly requested. Each merchant must use
+// its own Redis instance (not merely a shared key prefix).
+const redisCachingEnabled = process.env.MEDUSA_FF_CACHING === "true"
+const cacheRedisUrl = process.env.CACHE_REDIS_URL || redisUrl
+if (redisCachingEnabled && (!redisUrl || !cacheRedisUrl)) {
+  throw new Error("F07d Redis caching requires REDIS_URL/CACHE_REDIS_URL")
+}
+
 module.exports = defineConfig({
   projectConfig: {
     databaseUrl: process.env.DATABASE_URL,
@@ -30,7 +38,19 @@ module.exports = defineConfig({
       cookieSecret: process.env.COOKIE_SECRET,
     },
   },
+  ...(redisCachingEnabled ? { featureFlags: { caching: true } } : {}),
   modules: redisUrl ? [
+    ...(redisCachingEnabled ? [{
+      resolve: '@medusajs/medusa/caching',
+      options: {
+        providers: [{
+          resolve: '@medusajs/caching-redis',
+          id: 'caching-redis',
+          is_default: true,
+          options: { redisUrl: cacheRedisUrl, prefix: 'shqipshop-cache' },
+        }],
+      },
+    }] : []),
     {
       resolve: '@medusajs/medusa/event-bus-redis',
       options: {

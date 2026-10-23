@@ -1,0 +1,170 @@
+name: F07d Medusa Redis cache boundaries (synthetic CI)
+
+on:
+  push:
+    branches: [feat/merchant-auth-boundary-ci]
+    paths:
+      - .github/workflows/f07d-redis-cache-ci.yml
+      - medusa-backend-poc/apps/backend/medusa-config.ts
+      - medusa-backend-poc/apps/backend/package.json
+      - medusa-backend-poc/pnpm-lock.yaml
+      - medusa-backend-poc/apps/backend/src/scripts/f07d-cache-proof.ts
+  pull_request:
+    paths:
+      - .github/workflows/f07d-redis-cache-ci.yml
+      - medusa-backend-poc/apps/backend/medusa-config.ts
+      - medusa-backend-poc/apps/backend/package.json
+      - medusa-backend-poc/pnpm-lock.yaml
+      - medusa-backend-poc/apps/backend/src/scripts/f07d-cache-proof.ts
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shqipshop-f07d-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tenant-cache-boundary:
+    name: Frozen install, cross-process cache and two Redis tenants
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: medusa-backend-poc
+    env:
+      CI: "true"
+      NODE_ENV: development
+      WORKER_MODE: server
+      SHQIPSHOP_REQUIRE_REDIS: "true"
+      MEDUSA_FF_CACHING: "true"
+      SHQIPSHOP_F07D_PROBE: "true"
+      REDIS_URL: redis://127.0.0.1:6379
+      CACHE_REDIS_URL: redis://127.0.0.1:6379
+      SHQIPSHOP_F07D_TENANT: A
+      DATABASE_URL: postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci
+      STORE_CORS: http://localhost:8000
+      ADMIN_CORS: http://localhost:9000
+      AUTH_CORS: http://localhost:9000
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: medusa_ci
+          POSTGRES_PASSWORD: disposable_ci_password
+          POSTGRES_DB: medusa_ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U medusa_ci -d medusa_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: [6379:6379]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis_b:
+        image: redis:7-alpine
+        ports: [6381:6379]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout read-only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: "24"
+      - name: Frozen pnpm install including caching Redis
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.11.1
+          pnpm install --frozen-lockfile --filter '@dtc/backend...'
+          test -d apps/backend/node_modules/@medusajs/caching-redis
+          echo SHQIPSHOP_F07D_FROZEN_CACHE_PROVIDER_INSTALLED
+      - name: Isolate disposable PostgreSQL identities
+        run: |
+          set -euo pipefail
+          command -v psql || { sudo apt-get update -qq; sudo apt-get install -y postgresql-client; }
+          export PGPASSWORD=disposable_ci_password
+          psql -h 127.0.0.1 -U medusa_ci -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE f07d_a LOGIN PASSWORD 'F07d_A_disposable';
+          CREATE ROLE f07d_b LOGIN PASSWORD 'F07d_B_disposable';
+          CREATE DATABASE f07d_a OWNER f07d_a;
+          CREATE DATABASE f07d_b OWNER f07d_b;
+          REVOKE CONNECT ON DATABASE f07d_a FROM PUBLIC;
+          REVOKE CONNECT ON DATABASE f07d_b FROM PUBLIC;
+          SQL
+          if PGPASSWORD=F07d_B_disposable psql -h 127.0.0.1 -U f07d_b -d f07d_a -c 'SELECT 1' >/dev/null 2>&1; then
+            echo "::error::F07d B connected to A database"; exit 1
+          fi
+          if PGPASSWORD=F07d_A_disposable psql -h 127.0.0.1 -U f07d_a -d f07d_b -c 'SELECT 1' >/dev/null 2>&1; then
+            echo "::error::F07d A connected to B database"; exit 1
+          fi
+      - name: Migrate both isolated tenants with caching enabled
+        run: |
+          set -euo pipefail
+          export JWT_SECRET="$(openssl rand -hex 32)" COOKIE_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$JWT_SECRET"
+          echo "::add-mask::$COOKIE_SECRET"
+          export JWT_SECRET COOKIE_SECRET
+          for tenant in A B; do
+            if [ "$tenant" = A ]; then
+              export DATABASE_URL=postgres://f07d_a:F07d_A_disposable@127.0.0.1:5432/f07d_a
+              export REDIS_URL=redis://127.0.0.1:6379 CACHE_REDIS_URL=redis://127.0.0.1:6379
+            else
+              export DATABASE_URL=postgres://f07d_b:F07d_B_disposable@127.0.0.1:5432/f07d_b
+              export REDIS_URL=redis://127.0.0.1:6381 CACHE_REDIS_URL=redis://127.0.0.1:6381
+            fi
+            export SHQIPSHOP_F07D_TENANT="$tenant"
+            pnpm --filter @dtc/backend exec medusa db:migrate
+          done
+      - name: Verify same tenant cache works across independent Medusa processes without tenant leakage
+        run: |
+          set -euo pipefail
+          export JWT_SECRET="$(openssl rand -hex 32)" COOKIE_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$JWT_SECRET"
+          echo "::add-mask::$COOKIE_SECRET"
+          export JWT_SECRET COOKIE_SECRET
+          as_tenant() {
+            local tenant="$1"
+            local action="$2"
+            if [ "$tenant" = A ]; then
+              export DATABASE_URL=postgres://f07d_a:F07d_A_disposable@127.0.0.1:5432/f07d_a
+              export REDIS_URL=redis://127.0.0.1:6379 CACHE_REDIS_URL=redis://127.0.0.1:6379
+            else
+              export DATABASE_URL=postgres://f07d_b:F07d_B_disposable@127.0.0.1:5432/f07d_b
+              export REDIS_URL=redis://127.0.0.1:6381 CACHE_REDIS_URL=redis://127.0.0.1:6381
+            fi
+            export SHQIPSHOP_F07D_TENANT="$tenant"
+            pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07d-cache-proof.ts "$action"
+          }
+          as_tenant A miss
+          as_tenant B miss
+          as_tenant A write
+          as_tenant B miss
+          as_tenant A read
+          as_tenant B write
+          as_tenant A read
+          as_tenant B read
+          as_tenant A clear
+          as_tenant A miss
+          as_tenant B read
+          as_tenant B clear
+          as_tenant B miss
+          echo SHQIPSHOP_F07D_TWO_PHYSICAL_REDIS_CROSS_PROCESS_CACHE_ISOLATION_PASSED
+      - name: Explicit limits
+        if: always()
+        run: |
+          echo "F07d only certifies synthetic cache set/get/clear in CI with two disposable physical Redis."
+          echo "Real-world invalidation, memory pressure, Redis failover, production TLS/ACL, load, billing and live payments remain unverified."
