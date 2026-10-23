@@ -34,6 +34,16 @@ const AddressForm = ({
     | { [K in keyof AddressFields]?: FieldError }
     | undefined;
 
+  // The currently seeded Albanian region has exactly one supported country.
+  // Default it only when no country was entered, without hiding other regions.
+  React.useEffect(() => {
+    if (countries.length !== 1) return;
+    const field = `${type}_address.country_code` as Path<CheckoutFormData>;
+    if (!form.getValues(field)) {
+      form.setValue(field, countries[0].value, { shouldValidate: true });
+    }
+  }, [countries, form, type]);
+
   const getFieldName = (field: keyof AddressFields): Path<CheckoutFormData> =>
     `${type}_address.${field}` as Path<CheckoutFormData>;
 

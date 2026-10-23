@@ -22,10 +22,12 @@ def hierarchy() -> ET.Element:
     return ET.fromstring(adb("exec-out", "cat", "/sdcard/shqipshop-ui.xml"))
 
 
-def matching_bounds(root: ET.Element, needle: str, exact: bool) -> tuple[int, int] | None:
+def matching_bounds(root: ET.Element, needle: str, exact: bool, editable: bool = False) -> tuple[int, int] | None:
     for node in root.iter("node"):
         attrs = node.attrib
         if attrs.get("enabled") == "false":
+            continue
+        if editable and attrs.get("class") != "android.widget.EditText":
             continue
         values = [attrs.get("text", ""), attrs.get("content-desc", "")]
         found = any(v == needle if exact else needle in v for v in values)
@@ -43,7 +45,8 @@ def matching_bounds(root: ET.Element, needle: str, exact: bool) -> tuple[int, in
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("action", choices=("tap", "wait"))
+    p.add_argument("action", choices=("tap", "wait", "fill"))
+    p.add_argument("--value")
     p.add_argument("text")
     p.add_argument("--exact", action="store_true")
     p.add_argument("--timeout", type=int, default=65)
@@ -56,14 +59,20 @@ def main() -> None:
     while time.monotonic() < expires:
         attempts += 1
         try:
-            found = matching_bounds(hierarchy(), args.text, args.exact)
+            found = matching_bounds(hierarchy(), args.text, args.exact, editable=args.action == 'fill')
         except (ET.ParseError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
             last_error = type(err).__name__
             found = None
         if found is not None:
-            if args.action == "tap":
+            if args.action in ("tap", "fill"):
                 adb("shell", "input", "tap", str(found[0]), str(found[1]))
-            print(f"SHQIPSHOP_ANDROID_UI_{args.action.upper()}_OK target={args.text!r} tries={attempts}")
+            if args.action == "fill":
+                if not args.value or not re.fullmatch(r"[a-zA-Z0-9@._+\-]+", args.value):
+                    raise SystemExit("Only nonempty safe ASCII synthetic input is supported")
+                adb("shell", "input", "text", args.value)
+                adb("shell", "input", "keyevent", "KEYCODE_BACK")
+            # Do not echo typed addresses, emails, phone numbers, or private form values.
+            print(f"SHQIPSHOP_ANDROID_UI_{args.action.upper()}_OK field={args.text!r} tries={attempts}")
             return
         if remaining_scrolls and attempts % 3 == 0:
             # Android UI test-only scroll to reveal native product variants/CTA.
