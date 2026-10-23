@@ -4,7 +4,7 @@ import { useLocalization } from '@fluent/react';
 import Text from '@components/common/text';
 import MaterialIcon from '@react-native-vector-icons/material-design-icons';
 import { useColors } from '@styles/hooks';
-import { useNavigation } from '@react-navigation/native';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import Navbar from '@components/common/navbar';
 import { useCustomer } from '@data/customer-context';
 import twColors from 'tailwindcss/colors';
@@ -49,7 +49,10 @@ const Profile = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      navigation.navigate('Main');
+      // Do not leave customer-private screens in the back stack after logout.
+      navigation.dispatch(
+        CommonActions.reset({ index: 0, routes: [{ name: 'Main' }] }),
+      );
     } catch (error) {
       console.log('Logout error:', error);
     }
