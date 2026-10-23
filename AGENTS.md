@@ -1,5 +1,12 @@
 # Working on ShqipShop — repository instructions
 
+## F06 checkout receipt privacy — latest checkpoint (2026-10-23)
+
+**Latest verified code SHA: [9a6a4e1](https://github.com/titanfit102-bit/ShqipShop/commit/9a6a4e199fa4b72935fa44b356776bd9843bb408)**, **5/5 distinct CI workflows GREEN**: [Medusa](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599530), [Parallel merchants](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599479), [Native](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599449), [pilot](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599424), [two DBs](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599412). Customer-owned receipts require owner authentication; guest receipts require originating cart proof header, not order ID alone. Passed same-store customer-stranger denials in two merchant instances. **F06 passed scoped HTTP/CI proof, NOT production**; guest proof survives only route navigation (no post-restart guest recovery), other order-ID routes and device/infra security remain untested.
+
+**Recovery:** FIRST read [CURRENT_STATE](docs/CURRENT_STATE.md), then [MASTER_HANDOFF v22 §15](docs/MASTER_HANDOFF.md). F01/F02 CI-verified, F03–F05/F07–F16 open, G3 in progress. Branch `feat/merchant-auth-boundary-ci`, PR #12 Draft, **not main**. User authorization was specific to F06 plus ongoing updates of these five documents on this branch; further code, branch, merge/deploy/Production requires separate authorization. Verify HEAD/Actions after documentation writes.
+
+
 ## F02 native JWT signout — latest verified checkpoint 2026-10-23
 
 **Pas F01**, përdoruesi tha «vazhdo» për F02 (JWT custom storage logout race). Vetëm kodi/testet e F02 në `feat/merchant-auth-boundary-ci` u ndryshuan; nuk është leje për F06/Redis/merge/main/deploy. Code SHA [b3097a3](https://github.com/titanfit102-bit/ShqipShop/commit/b3097a3d9f8b78a7d60a5418ca565e82b66a1905): **4/4 CI GREEN**, përfshirë native lint/TS + 36/36 Jest. Custom token storage bllokon token-in e vjetër gjatë logout-it; `await client.clearToken()` dhe fshirje e verifikuar; marker lokal për rastin e gabimit në deletion, login i ri i verifikuar. Nuk është revokim JWT në server. F06 ownership dhe F03–F16 OPEN.
