@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F01 implementation checkpoint — 2026-10-23
+
+- **F01 private cache native:** Implementuar në `feat/merchant-auth-boundary-ci`, code SHA [2219e65](https://github.com/titanfit102-bit/ShqipShop/commit/2219e65e5dff987ad5046bcf34f03fc253d9e714), [native CI 40001961028](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40001961028) **PASS**, ESLint/TS + 32/32 Jest. Address/order/order-detail query keys të izoluara, pastrim gjatë logout/login, in-flight stale guard, reset navigation dhe tests A→B/offline.
+- **Kufizim:** pa Android device/emulator E2E të ri ose validim të Medusa same-merchant receipt privacy. F01 është verified për regression suite, jo release approved. F02 logout JWT dhe F06 order capability mbeten P1 (native/pilot), G3 në progres.
+- **Veprimi i ardhshëm:** F02 token cleanup race ose F06 receipt ownership sipas target-it. Kërko scope të ri për kodin; pa merge/deploy/main. Dokumentet CURRENT_STATE/MASTER_HANDOFF §13 japin gjendjen e plotë dhe referencat.
+
+
 ## ShqipShop independent audit F01–F16 review — 2026-10-23
 
 **Evidenca:** raport i pavarur për commit e22bb13 (F01–F16), rishikuar kundrejt source GitHub, upstream Medusa 2.21.2/2.22.0 dhe [CI 39991716155](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991716155), [39991715755](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991715755), [39991715961](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991715961): 3/3 SUCCESS. Verifikimi i Work për komponentet native dhe numri i package advisories nuk u riprodhuan veçmas nga ky reviewer; shumica e mekanizmave defektozë u konfirmuan nga source. Detajet dhe caveats: CURRENT_STATE dhe MASTER_HANDOFF §12 në këtë branch (jo main).
