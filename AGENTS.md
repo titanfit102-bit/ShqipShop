@@ -1,5 +1,23 @@
 # Working on ShqipShop — repository instructions
 
+## Mandatory continuity — current checkpoint (2026-10-23, authorized)
+
+**First, discover the correct branch — not main.** The authoritative documentation is at:
+- Repository: https://github.com/titanfit102-bit/ShqipShop
+- **Authorized continuity branch:** feat/merchant-auth-boundary-ci
+- **Fast checkpoint:** https://github.com/titanfit102-bit/ShqipShop/blob/feat/merchant-auth-boundary-ci/docs/CURRENT_STATE.md
+- **Complete consolidated handoff:** https://github.com/titanfit102-bit/ShqipShop/blob/feat/merchant-auth-boundary-ci/docs/MASTER_HANDOFF.md (v22)
+- PR #12: https://github.com/titanfit102-bit/ShqipShop/pull/12 (Draft, depends on PR #11); as of checkpoint, code SHA 3eab3c3, 3/3 CI checks GREEN. Reverify SHA and latest Actions before assuming that remains true.
+
+**Required recovery order:** CURRENT_STATE → MASTER_HANDOFF → AGENTS → PROJECT_HISTORY/ROADMAP → ADRs → actual source, open PR dependency graph, branch HEAD and CI job logs. This root AGENTS.md also lives on the development branch rather than main. Historical priority/status paragraphs further down are snapshots; the CURRENT_STATE/latest verified tests override stale statuses.
+
+**Authorized documentation writes:** The user gave continuing permission to update only docs/CURRENT_STATE.md, docs/MASTER_HANDOFF.md, AGENTS.md, docs/PROJECT_HISTORY.md and docs/ROADMAP.md **on branch feat/merchant-auth-boundary-ci**, after meaningful verified changes. On each checkpoint, preserve code SHA versus documentation HEAD and test evidence; if a check is pending/failed record it honestly. Do not overwrite historical ADRs. After writes, verify GitHub refs, content and diff. No permission under this continuity protocol for code changes, other branches, merge, deploy, live payments, production data or secrets.
+
+**When development moves to a new branch:** do NOT assume the docs move. Continue maintaining the authorized continuity branch, recording the other PR/branch SHA and tests there. A dedicated documentation branch/PR or docs-only migration to main requires distinct authorization. If this branch is inaccessible, find PR #12/its last known commit and report the blocker rather than writing somewhere else. GitHub docs do not auto-update when ChatGPT is closed. Do not claim background work.
+
+**Finish each work report with:** done; pending; exact next step; handoff status (updated/unchanged/save failed).
+
+
 **Final product decision (2026-10-22):** Original white-label concept only. Each merchant gets a branded ecommerce storefront and optionally its own Android/iOS app. The user explicitly rejected creating an APK app store / installer / alternative Play Store. Preserve the historical ADR-004, but do not implement it without a new explicit request. Android bundled ARM64 APK was built in GitHub Actions and Medusa 2.22.0 CI backend migrated/seeded with Albania/ALL and responded HTTP 200. Real Store API cart/shipping/manual-payment/order was verified from CI and persisted in PostgreSQL (run 39839755263). Next: Android install/launch and checkout proof; inventory reservation is now verified (+1 reserved/physical stock unchanged, run 39841615561); sales-channel publishable-key catalog scoping passed in run 39842677918. These are NOT full tenant isolation. Next: negative tests for customers/orders/auth/admin; Android emulator proof in PR #4; security advisory remediation.
 
 
