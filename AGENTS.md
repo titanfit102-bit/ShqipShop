@@ -1,5 +1,12 @@
 # Working on ShqipShop — repository instructions
 
+## F07 Redis integration verified — latest technical checkpoint (2026-10-23)
+
+**Code checkpoint [ad7a86dc](https://github.com/titanfit102-bit/ShqipShop/commit/ad7a86dc82778fe1658c51152210298a03ece6be), PR #12 Draft in `feat/merchant-auth-boundary-ci`:** Medusa sessions now receive `projectConfig.redisUrl`, and explicit Redis event/workflow/locking providers are registered when URL present. Parallel CI enforces `SHQIPSHOP_REQUIRE_REDIS=true`. **5/5 CI success**: [parallel runtime 40021073660](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073660) proves two separate Redis A/B keyspaces with events (17 total, 2 event, 4 workflow-named keys EACH), [two isolated 40021073589](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073589), [Medusa 40021073486](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073486), [native 40021073350](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073350), [pilot 40021073534](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073534).
+
+**Do NOT overclaim:** F07 is PARTIAL; cache provider not configured, session persistence after restart and worker retries/locking contention untested, no Redis TLS/ACL/failover. Only event-bus redis keys and provider connection were proven. Local dev without Redis still allows fallback, but self-host production must require Redis. Consult [CURRENT_STATE](docs/CURRENT_STATE.md) and [MASTER_HANDOFF §18](docs/MASTER_HANDOFF.md) before resuming. Future F07 phase-two code and F09 require new scope; user authorization for this increment was to implement F07's initial Redis provider binding only, no main/merge/deploy.
+
+
 ## RegionProvider native recovery checkpoint — 2026-10-23
 
 **Code [77de0869](https://github.com/titanfit102-bit/ShqipShop/commit/77de0869a4f072eeb3dcbd047c21dd5a0f525909)** on authorized branch `feat/merchant-auth-boundary-ci`, PR #12 Draft: region restore has 404/410 fallback, offline/401/5xx preserved ID, epoch-stale-response protection, sequential storage writes B→C, Home/RegionSelect error+Retry. Tests `region-recovery.test.ts`, `region-provider.test.tsx`. [Native 40014816829](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40014816829) SUCCESS: lint/typecheck, 15/15 suites, 71/71 Jest on f4a43d6. Final code SHA native [40015015192](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40015015192) pending in initial snapshot; check current GitHub CI and SHA. No merge/deploy/main.
