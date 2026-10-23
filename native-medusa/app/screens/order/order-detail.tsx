@@ -17,6 +17,8 @@ import { useCountries } from '@data/region-context';
 import utils from '@utils/common';
 import Button from '@components/common/button';
 import { useNavigation } from '@react-navigation/native';
+import { useCustomer } from '@data/customer-context';
+import { privateCustomerQueryKey } from '@data/private-customer-queries';
 
 type OrderDetailProps = {
   route: {
@@ -29,6 +31,7 @@ type OrderDetailProps = {
 const OrderDetail = ({ route }: OrderDetailProps) => {
   const { l10n } = useLocalization();
   const { orderId } = route.params;
+  const { customer } = useCustomer();
   const navigation = useNavigation();
 
   const {
@@ -36,7 +39,7 @@ const OrderDetail = ({ route }: OrderDetailProps) => {
     isPending,
     error,
   } = useQuery({
-    queryKey: ['order', orderId],
+    queryKey: privateCustomerQueryKey(customer?.id, 'order-detail', orderId),
     queryFn: async () => {
       const { order: orderData } = await apiClient.store.order.retrieve(
         orderId,
