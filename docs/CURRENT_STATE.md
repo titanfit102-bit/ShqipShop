@@ -1,5 +1,20 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## F06 — order receipt ownership and guest-cart proof (2026-10-23)
+
+**IMPLEMENTUAR DHE VERIFIKUAR NË CI:** code SHA [`9a6a4e199fa4b72935fa44b356776bd9843bb408`](https://github.com/titanfit102-bit/ShqipShop/commit/9a6a4e199fa4b72935fa44b356776bd9843bb408), [PR #12 Draft](https://github.com/titanfit102-bit/ShqipShop/pull/12). **5/5 workflows SUCCESS**: [Medusa smoke 40009599530](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599530), [Parallel Medusa auth/receipts 40009599479](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599479), [native Jest/TS/lint 40009599449](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599449), [web pilot 40009599424](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599424), [two isolated Medusa 40009599412](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599412). E gjitha në CI me të dhëna sintetike, pa merge/deploy.
+
+**Si funksionon:** Medusa middleware për `GET /store/orders/:id` kërkon ose customer JWT/session me `auth_context.actor_id === order.customer_id`, ose për guest ID-në origjinale të shportës në header-in `x-shqipshop-cart-proof`; e verifikon ndaj `order.cart.id`, nuk ekspozon provën në URL, mban krahasimin `timingSafeEqual`, dhe nuk lejon fallback nga JWT i pavlefshëm apo JWT i klientit tjetër në guest. Android ruan `cartProof` vetëm në parametrat e navigimit pas checkout-it dhe e dërgon në header për faturën guest; lista e porosive të klientit përdor JWT normal.
+
+**Provat HTTP**: në A dhe B blerësi guest lexon faturën e vet, vetëm order ID/provë e gabuar/provë e biznesit tjetër refuzohen; klienti i regjistruar lexon porosinë e vet pa cartProof, një llogari e dytë e të njëjtit dyqan refuzohet. Markers `SHQIPSHOP_GUEST_RECEIPT_CART_PROOF_PASSED`, `SHQIPSHOP_F06_SAME_MERCHANT_STRANGER_DENIED_A/B`, `SHQIPSHOP_F06_REGISTERED_OWNER_ONLY_PASSED_A/B`; janë në log-et e [40009599479](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40009599479).
+
+**KUFIZIMET:** F06 është CI-verified për këtë endpoint/rrjedhë, **jo certifikim sigurie production**; nuk u krye Android emulator/telefon fizik në këtë increment, nuk është provuar restaurimi i faturës guest pas mbylljes së aplikacionit (cartProof nuk persiston për këtë qëllim), as hardening i API-ve të tjera të lidhura me order ID (`POST /store/returns` p.sh.), rate-limits, CSRF, TLS, device secret storage, Redis/queues apo backup. G3 ende NË PROGRES. F01/F02 mbeten CI verified, F03–F05 dhe F07–F16 të hapura.
+
+**Autorizimi:** përdoruesi tha «vazhdojm» pas propozimit konkret F06; ky increment u kufizua te kontrollet server, testet CI, rrjedha native e faturës dhe konfigurimi i testeve në degën ekzistuese. Leja e vazhdueshme për dokumentet vazhdon vetëm në këtë degë. Pa autorizim për F03–F05/F07, degë të tjera, main, merge apo Production.
+
+**Hapi pasues:** audit read-only i F03–F05 (recovery i cart 404/410/offline, propagimi i gabimeve të mutacioneve dhe checkout-resume), pastaj implementim vetëm me scope të ri kodi. Kontrollo HEAD dhe Actions live në çdo seancë; commit-et e dokumentacionit pas SHA-së së kodit nisin CI të reja.
+
+
 ## F02 — verified awaited local JWT logout (2026-10-23)
 
 **Implementuar në scope + CI verified:** code commit [`b3097a3d9f8b78a7d60a5418ca565e82b66a1905`](https://github.com/titanfit102-bit/ShqipShop/commit/b3097a3d9f8b78a7d60a5418ca565e82b66a1905); [native CI 40005009842](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40005009842) **SUCCESS** — ESLint, TS dhe **10/10 suites, 36/36 Jest**. [Pilot CI 40005009867](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40005009867) **SUCCESS**; [Medusa backend 40005009885](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40005009885) dhe [parallel/auth 40005009829](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40005009829) **SUCCESS**; pra **4/4 CI GREEN** në commit-in e kodit F02. HEAD i dokumentacionit ka commit dhe runs të reja që duhen verifikuar më vete.
