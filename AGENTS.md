@@ -68,3 +68,7 @@ The new `.github/workflows/android-medusa-catalog.yml` is in PR #4. It provision
 ## Verified UI cart (2026-10-23)
 
 [Run 39867727695](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39867727695) passed Android API35 UI automation product Medusa Shorts → select size S → add one → view cart, plus Medusa PostgreSQL cart query (ALL, one item). UI screenshot artifact 12465970419 visually verified (1500 ALL pre-shipping). Next: UI-driven Android checkout with synthetic address/shipping/manual payment, server-side order proof and security checks. No checkout success claim yet.
+
+## Multi-currency price presentation (PR #6; 2026-10-23)
+
+User approved **display** of primary transaction price ALL or EUR and a small grey indicative reciprocal price for guidance. Only valid operator-provided dated ALL/EUR quote from Medusa `/store/shqipshop/indicative-fx` may be used. Never hardcode a market rate, never change actual cart/order totals with the indicative rate, never claim EUR payment is ready. Synthetic CI rate 100 is only an illustration. See `docs/DUAL_CURRENCY_POLICY.md`; preserve 7-day freshness guard, rate source, missing-rate fallback and full native/Jest/Medusa checks. Follow Android emulator visual result on PR #6; then resume Android UI checkout + two merchant isolation.

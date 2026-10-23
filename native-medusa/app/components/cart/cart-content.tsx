@@ -7,6 +7,7 @@ import { HttpTypes } from '@medusajs/types';
 import LineItemQuantity from '@components/cart/line-item-quantity';
 import LineItemUnitPrice from '@components/cart/line-item-price';
 import { convertToLocale } from '@utils/product-price';
+import ShopPrice from '@components/common/shop-price';
 import { formatImageUrl } from '@utils/image-url';
 import PromoCodeInput from '@components/cart/promo-code-input';
 
@@ -129,12 +130,11 @@ const CartSummary = ({ cart }: { cart?: StoreCart }) => {
             key={item.key}
           >
             <Text className="opacity-80">{item.name}</Text>
-            <Text className="text-base">
-              {convertToLocale({
-                amount: cart[item.key] as number,
-                currency_code: cart.currency_code,
-              })}
-            </Text>
+            <ShopPrice
+              amount={cart[item.key] as number}
+              currencyCode={cart.currency_code}
+              testID={`cart-summary-${String(item.key)}`}
+            />
           </View>
         ))}
         {discountTotal > 0 && (
@@ -153,13 +153,18 @@ const CartSummary = ({ cart }: { cart?: StoreCart }) => {
       <View className="border-t border-b border-gray-300 py-4">
         <View className="flex-row justify-between items-center">
           <Text className="opacity-80">{l10n.getString('total')}</Text>
-          <Text className="text-lg font-content-bold">
-            {convertToLocale({
-              amount: cart.total,
-              currency_code: cart.currency_code,
-            })}
-          </Text>
+          <ShopPrice
+            amount={cart.total}
+            currencyCode={cart.currency_code}
+            primaryClassName="text-lg font-content-bold"
+            testID="cart-grand-total"
+          />
         </View>
+        {cart.currency_code?.toLowerCase() === 'all' && (
+          <Text className="text-xs text-gray-500 mt-2">
+            ALL = lekë të reja. Vlera në euro është vetëm orientuese.
+          </Text>
+        )}
       </View>
     </View>
   );
