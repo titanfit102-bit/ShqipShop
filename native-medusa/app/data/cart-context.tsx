@@ -9,6 +9,7 @@ import { HttpTypes } from '@medusajs/types';
 import { useRegion } from './region-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '@api/client';
+import { CART_FIELDS, isMissingCartError, restoreOrCreateCart } from './cart-recovery';
 
 const CART_KEY = 'cart_id';
 
@@ -33,6 +34,9 @@ type CartUpdateData = Partial<{
 
 type CartContextType = {
   cart?: HttpTypes.StoreCart;
+  cartLoading: boolean;
+  cartError?: string;
+  retryCart: () => void;
   setCart: React.Dispatch<
     React.SetStateAction<HttpTypes.StoreCart | undefined>
   >;
@@ -55,8 +59,12 @@ type CartProviderProps = {
 export const CartProvider = ({ children }: CartProviderProps) => {
   const [cart, setCart] = useState<HttpTypes.StoreCart>();
   const { region } = useRegion();
+  const [cartLoading, setCartLoading] = useState(false);
+  const [cartError, setCartError] = useState<string>();
+  const [retryKey, setRetryKey] = useState(0);
+  const retryCart = () => setRetryKey(value => value + 1);
 
-  const additionalFields = '+shipping_methods.name';
+  const additionalFields = CART_FIELDS;
 
   const resetCart = async () => {
     await AsyncStorage.removeItem(CART_KEY);
@@ -82,68 +90,39 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     [cart?.id],
   );
 
-  const updateCartRegion = useCallback(
-    async (regionId: string) => {
-      try {
-        await updateCart({
-          region_id: regionId,
-        });
-      } catch (err) {
-        console.log('Failed to update cart region:', err);
-        // If updating region fails, fallback to reset
-        resetCart();
-      }
-    },
-    [updateCart],
-  );
-
+  // Recover from a deleted/completed cart without treating an offline network as
+  // a missing cart. Cancelling the effect ignores late responses from a prior region.
   useEffect(() => {
-    // Don't do anything if region is not set
-    if (!region) {
-      return;
-    }
-
-    // If cart exists, check if region matches, if not update the cart region
-    if (cart) {
-      if (cart.region_id !== region.id) {
-        updateCartRegion(region.id);
+    if (!region?.id || (cart?.id && cart.region_id === region.id)) return;
+    let active = true;
+    setCartLoading(true);
+    setCartError(undefined);
+    void (async () => {
+      try {
+        const nextCart = await restoreOrCreateCart(region.id, AsyncStorage, apiClient.store.cart);
+        if (active) setCart(nextCart);
+      } catch (error) {
+        if (active) {
+          console.error('Cart restore unavailable:', error);
+          setCartError(error instanceof Error ? error.message : 'Cart unavailable');
+        }
+      } finally {
+        if (active) setCartLoading(false);
       }
-      return;
-    }
-
-    // No cart exists, try to restore from storage or create new one
-    AsyncStorage.getItem(CART_KEY).then(cartId => {
-      if (!cartId) {
-        // create a cart
-        apiClient.store.cart
-          .create({ region_id: region.id })
-          .then(async ({ cart: dataCart }) => {
-            await AsyncStorage.setItem(CART_KEY, dataCart.id);
-            setCart(dataCart);
-          })
-          .catch(err => {
-            console.log(err);
-          });
-      } else {
-        // retrieve cart
-        fetchCart(cartId);
-      }
-    });
-  }, [cart, region, updateCartRegion]);
+    })();
+    return () => { active = false; };
+  }, [region?.id, cart?.id, cart?.region_id, retryKey]);
 
   const fetchCart = async (cartId: string) => {
-    return apiClient.store.cart
-      .retrieve(cartId, {
-        fields: additionalFields,
-      })
-      .then(({ cart: dataCart }) => {
-        setCart(dataCart);
-      });
+    const { cart: restored } = await apiClient.store.cart.retrieve(cartId, {
+      fields: additionalFields,
+    });
+    setCart(restored);
   };
 
   const addToCart = async (variantId: string, quantity: number) => {
-    if (!cart) {
-      return;
+    if (!cart?.id) {
+      throw new Error('Cart is not available; retry recovery before adding products');
     }
 
     try {
@@ -156,13 +135,14 @@ export const CartProvider = ({ children }: CartProviderProps) => {
       );
       setCart(dataCart);
     } catch (err) {
-      console.log(err);
+      console.error('Add to cart failed:', err);
+      throw err;
     }
   };
 
   const updateLineItem = async (lineItemId: string, quantity: number) => {
-    if (!cart) {
-      return;
+    if (!cart?.id) {
+      throw new Error('Cart is not available; retry recovery before editing items');
     }
 
     try {
@@ -180,7 +160,12 @@ export const CartProvider = ({ children }: CartProviderProps) => {
         setCart(dataCart);
       }
     } catch (err) {
-      console.log(err);
+      console.error('Update cart item failed:', err);
+      if (isMissingCartError(err)) {
+        // Do not reuse a deleted cart. The next effect creates a fresh one.
+        await resetCart();
+      }
+      throw err;
     }
   };
 
@@ -257,6 +242,9 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     <CartContext.Provider
       value={{
         cart,
+        cartLoading,
+        cartError,
+        retryCart,
         setCart,
         resetCart,
         addToCart,
