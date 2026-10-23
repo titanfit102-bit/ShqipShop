@@ -151,6 +151,8 @@ jobs:
           SHQIPSHOP_B_KEY_FILE: ${{ runner.temp }}/merchant-b-key.txt
           SHQIPSHOP_A_ORDER_FILE: ${{ runner.temp }}/merchant-a-order.txt
           SHQIPSHOP_B_ORDER_FILE: ${{ runner.temp }}/merchant-b-order.txt
+          SHQIPSHOP_A_CART_FILE: ${{ runner.temp }}/merchant-a-cart.txt
+          SHQIPSHOP_B_CART_FILE: ${{ runner.temp }}/merchant-b-cart.txt
           SHQIPSHOP_CHANNEL_A_FILE: ${{ runner.temp }}/merchant-a-second-channel.txt
           SHQIPSHOP_CHANNEL_B_FILE: ${{ runner.temp }}/merchant-b-second-channel.txt
           SHQIPSHOP_A_ADMIN_PASSWORD: CI-Admin-A_disposable2026
@@ -187,8 +189,8 @@ jobs:
             echo '::error::Two simultaneous Medusa servers failed readiness'; exit 1
           fi
           echo 'SHQIPSHOP_PARALLEL_TWO_SERVERS_READY'
-          SHQIPSHOP_CI_MEDUSA_PORT=9000 SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE="$SHQIPSHOP_A_KEY_FILE" SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE="$SHQIPSHOP_CHANNEL_A_FILE" SHQIPSHOP_CI_ORDER_ID_FILE="$SHQIPSHOP_A_ORDER_FILE" node scripts/store-api-checkout.mjs
-          SHQIPSHOP_CI_MEDUSA_PORT=9001 SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE="$SHQIPSHOP_B_KEY_FILE" SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE="$SHQIPSHOP_CHANNEL_B_FILE" SHQIPSHOP_CI_ORDER_ID_FILE="$SHQIPSHOP_B_ORDER_FILE" node scripts/store-api-checkout.mjs
+          SHQIPSHOP_CI_MEDUSA_PORT=9000 SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE="$SHQIPSHOP_A_KEY_FILE" SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE="$SHQIPSHOP_CHANNEL_A_FILE" SHQIPSHOP_CI_ORDER_ID_FILE="$SHQIPSHOP_A_ORDER_FILE" SHQIPSHOP_CI_CART_ID_FILE="$SHQIPSHOP_A_CART_FILE" node scripts/store-api-checkout.mjs
+          SHQIPSHOP_CI_MEDUSA_PORT=9001 SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE="$SHQIPSHOP_B_KEY_FILE" SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE="$SHQIPSHOP_CHANNEL_B_FILE" SHQIPSHOP_CI_ORDER_ID_FILE="$SHQIPSHOP_B_ORDER_FILE" SHQIPSHOP_CI_CART_ID_FILE="$SHQIPSHOP_B_CART_FILE" node scripts/store-api-checkout.mjs
           node scripts/parallel-merchant-boundary.mjs
           node scripts/parallel-auth-boundary.mjs
           kill -0 "$pid_a" && kill -0 "$pid_b"
