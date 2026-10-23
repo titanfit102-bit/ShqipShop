@@ -8,13 +8,14 @@ export const isDenied = (res, context) =>
 export const unchanged = (actual, expected, context) =>
   assert(isDeepStrictEqual(actual, expected), context + ": unexpected side effect")
 
-export async function request(m, method, path, {token, key, body, cookie}={}) {
+export async function request(m, method, path, {token, key, body, cookie, headers={}}={}) {
   assert(["http://127.0.0.1:9000", "http://127.0.0.1:9001"].includes(m.base), "CI localhost only")
   assert(path.startsWith("/") && !path.startsWith("//"), "Relative API path required")
   const response = await fetch(m.base + path, {
     method,
     redirect: "manual",
     headers: {
+      ...headers,
       ...(key ? {"x-publishable-api-key": m.key} : {}),
       ...(token ? {authorization:"Bearer " + token} : {}),
       ...(cookie ? {cookie} : {}),

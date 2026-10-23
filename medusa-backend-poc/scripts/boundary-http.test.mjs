@@ -26,7 +26,7 @@ test("real HTTP preserves cookie signatures and does not silently carry bearer a
       res.end()
     } else {
       res.end(JSON.stringify({cookie:req.headers.cookie, authorization:req.headers.authorization ?? null,
-        key:req.headers["x-publishable-api-key"], body:undefined}))
+        key:req.headers["x-publishable-api-key"], customer:req.headers["x-customer-id"]}))
     }
   })
   await new Promise(resolve => server.listen(9000, "127.0.0.1", resolve))
@@ -34,10 +34,12 @@ test("real HTTP preserves cookie signatures and does not silently carry bearer a
     const merchant = {base:"http://127.0.0.1:9000", key:"synthetic-key"}
     const session = await request(merchant, "POST", "/session", {token:"synthetic-token"})
     assert.equal(session.cookie, "connect.sid=s%3Aone.signature; other=two")
-    const profile = await request(merchant, "GET", "/profile", {cookie:session.cookie, key:true})
+    const profile = await request(merchant, "GET", "/profile", {cookie:session.cookie, key:true,
+      headers:{"x-customer-id":"synthetic-foreign-id"}})
     assert.equal(profile.data.cookie, "connect.sid=s%3Aone.signature; other=two")
     assert.equal(profile.data.authorization, null)
     assert.equal(profile.data.key, "synthetic-key")
+    assert.equal(profile.data.customer, "synthetic-foreign-id")
     assert.equal((await request(merchant, "GET", "/redirect")).status, 302)
     await assert.rejects(request({...merchant,base:"https://example.invalid"}, "GET", "/profile"))
     await assert.rejects(request(merchant, "GET", "//example.invalid/profile"))

@@ -7,7 +7,7 @@ const ok = (res, context) => assert.equal(res.status, 200, context + ": expected
 
 async function snapshot(m) {
   const customer = await request(m,"GET","/admin/customers/" + m.customerId,{token:m.adminJwt})
-  const order = await request(m,"GET","/admin/orders/" + m.orderId,{token:m.adminJwt})
+  const order = await request(m,"GET","/admin/orders/" + m.orderId + "?fields=id,currency_code,total,metadata",{token:m.adminJwt})
   const inventory = await request(m,"GET","/admin/inventory-items/" + m.inventoryId + "?fields=id,title,*location_levels",{token:m.adminJwt})
   for (const res of [customer,order,inventory]) ok(res,"Snapshot read")
   assert.equal(customer.data.customer?.id,m.customerId,"Snapshot customer missing")
@@ -97,17 +97,25 @@ export async function verifyMutations(merchants) {
       }
     }
     // The customer ID comes from auth_context, never from client-supplied body fields.
-    const spoof = await request(m,"POST","/store/customers/me",{key:true,cookie:m.customerCookie,
-      body:{id:other.customerId,customer_id:other.customerId,first_name:"CI-SPOOF"}})
-    assert([200,400].includes(spoof.status),"Unexpected customer ID spoof response")
-    if (spoof.status===200) {
-      assert.equal(spoof.data.customer?.id,m.customerId,"Customer ID spoof switched actor")
-      const foreignIndex=merchants.indexOf(other)
-      unchanged(await snapshot(other),baseline[foreignIndex],"Spoof changed foreign tenant")
-      ok(await request(m,"POST","/store/customers/me",{key:true,cookie:m.customerCookie,
-        body:{first_name:baseline[merchants.indexOf(m)].customer.first_name}}),"Restore own synthetic profile")
+    for (const probe of [
+      {channel:"body",path:"/store/customers/me",body:{id:other.customerId,customer_id:other.customerId,first_name:"CI-SPOOF"}},
+      {channel:"query",path:"/store/customers/me?customer_id="+encodeURIComponent(other.customerId)+"&merchant_id="+other.id,
+        body:{first_name:"CI-SPOOF"}},
+      {channel:"header",path:"/store/customers/me",headers:{"x-customer-id":other.customerId,"x-merchant-id":other.id},
+        body:{first_name:"CI-SPOOF"}},
+    ]) {
+      const spoof = await request(m,"POST",probe.path,{key:true,cookie:m.customerCookie,body:probe.body,headers:probe.headers})
+      assert([200,400].includes(spoof.status),"Unexpected customer ID spoof response")
+      if (spoof.status===200) {
+        assert.equal(spoof.data.customer?.id,m.customerId,"Customer ID spoof switched actor")
+        const foreignIndex=merchants.indexOf(other)
+        unchanged(await snapshot(other),baseline[foreignIndex],"Spoof changed foreign tenant")
+        ok(await request(m,"POST","/store/customers/me",{key:true,cookie:m.customerCookie,
+          body:{first_name:baseline[merchants.indexOf(m)].customer.first_name}}),"Restore own synthetic profile")
+      }
+      await noSideEffects("Customer ID spoof "+probe.channel)
+      console.log("SHQIPSHOP_ID_SPOOF_PROBE_PASSED",JSON.stringify({merchant:m.id,channel:probe.channel,status:spoof.status}))
     }
-    await noSideEffects("Customer ID spoof")
     console.log("SHQIPSHOP_MERCHANT_"+m.id+"_NEGATIVE_MUTATIONS_NO_SIDE_EFFECTS_PASSED")
 
     // DELETE targets only a separately-created disposable customer, never the auth identity above.
