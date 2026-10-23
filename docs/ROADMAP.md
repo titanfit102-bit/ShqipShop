@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F02 native JWT logout — verified checkpoint 2026-10-23
+
+- **F02 local signout race:** implementuar në degën `feat/merchant-auth-boundary-ci`, code SHA [b3097a3](https://github.com/titanfit102-bit/ShqipShop/commit/b3097a3d9f8b78a7d60a5418ca565e82b66a1905), [native 40005009842](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40005009842) **PASS** (10/10 suites, 36/36 tests, ESLint, TypeScript). Pilot, Medusa smoke dhe parallel A/B **PASS** në të njëjtin SHA ([40005009867](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40005009867), [40005009885](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40005009885), [40005009829](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40005009829)).
+- **F02 mbyllet vetëm si local app CI gate**, jo JWT server-side revocation/expiry, iOS/Android device test ose certifikim prod. F01 native cache CI PASS; F06 guest/account receipt access dhe F03–F05 commerce correctness janë OPEN. G3 ende IN_PROGRESS.
+- **Next read-only:** analiza e kontratës F06 same-merchant order retrieval me account+guest, pastaj autorizim i posaçëm për implementim. PR #12 Draft, asnjë merge në main/Production.
+
+
 ## F01 implementation checkpoint — 2026-10-23
 
 - **F01 private cache native:** Implementuar në `feat/merchant-auth-boundary-ci`, code SHA [2219e65](https://github.com/titanfit102-bit/ShqipShop/commit/2219e65e5dff987ad5046bcf34f03fc253d9e714), [native CI 40001961028](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40001961028) **PASS**, ESLint/TS + 32/32 Jest. Address/order/order-detail query keys të izoluara, pastrim gjatë logout/login, in-flight stale guard, reset navigation dhe tests A→B/offline.
