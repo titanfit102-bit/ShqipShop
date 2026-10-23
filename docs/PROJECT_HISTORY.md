@@ -1,5 +1,28 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## Checkpoint P0 i verifikuar — 2026-10-23
+
+**Kodi:** [`06ea54a`](https://github.com/titanfit102-bit/ShqipShop/commit/06ea54a5f252ae367e3281c470cdc139729459bc). **PR #12 OPEN Draft**, mbi PR #11; main i pandryshuar `329e0381b0bc4ce39cf554a2b2888a047e1dd29e`. Nuk u bë merge/deploy ose pagesë reale.
+
+**CI në këtë code SHA:** [session/mutation PR run 39989746378](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989746378), [session/mutation push run 39989739659](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989739659), [backend smoke 39989746313](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989746313), [pilot 39989746410](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989746410): **4/4 SUCCESS**. Job logs u lexuan për run-in session/mutation PR dhe backend smoke; statusi i push-run u kontrollua veçmas.
+
+**E provuar me dy Medusa aktive A/B:**
+- Sesione cookie reale për customer dhe admin, profile me actor ID korrekt pa bearer, role separation, cookie e manipuluar/huaj dhe cookie mungesë refuzohen; logout shkatërron sesionin dhe replay i cookie-t origjinal refuzohet. Sesioni i tenant-it tjetër mbetet funksional.
+- POST /store/customers/me dhe POST Admin API për customer first_name, order metadata dhe inventory-item title: kontrolle pozitive; no-auth/customer-as-admin/foreign JWT/cookie refuzohen HTTP 401/403 me payload valid dhe ID që ekziston në target. Snapshot para/pas në të dy tenant-et ruan customer first_name/metadata, order ID/currency/total/metadata dhe inventory title/location-level stock/reservations.
+- Foreign customer/order/inventory IDs në backend-in e tjetrit me admin lokal valid: GET/POST HTTP 404. DELETE provohet vetëm mbi customer fixture të dedikuar; negative 401/403 dhe objekti ende ekziston; admin i vet fshin me sukses dhe leximi më pas është 404.
+- ID spoof: body dhe query refuzohen HTTP 400; headers injorohen HTTP 200 duke ruajtur actor ID të vet. Të dy tenant-et kontrollohen pas çdo probe. HTTP 400 këtu është validim input-i, **jo provë e refuzimit të autentikimit**.
+- Backend smoke: porosi 1510 ALL në PostgreSQL, rezervim +1 dhe stok fizik i pandryshuar; **18 assignments të sekreteve të gjeneruara shfaqen të maskuara, 0 assignments hex të pamaskuara** në log-un e verifikuar.
+
+**Finding i konfirmuar:** pas cookie logout, JWT origjinal i customer/admin vazhdon me HTTP 200 në **4/4 rastet** A/B. Testi e karakterizon këtë dhe nuk pretendon revokim JWT ose logout global. Revokimi/TTL/logout policy mbetet çështje përpara production.
+
+**Kontrolle lokale:** 3/3 Node tests; syntax JS, YAML dhe bash PASS; compileall PASS; pytest 10 PASS me 1 warning Starlette/AnyIO deprecated alias. Mutation-check lokal: heqja e auth-status assertion ose side-effect assertion shkakton RED, restaurimi GREEN. Nuk u riekzekutua Android sepse ndryshimet janë vetëm scripts/workflows/dokumentacion backend.
+
+**Rishikim i pavarur:** një P2 për mungesën e query/header spoof probes u korrigjua; header forwarding u provua RED→GREEN dhe suite 3/3. Pa blocker tjetër në increment-in e kufizuar. Run-i fillestar [39989352814](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989352814) ishte RED nga snapshot query që mungonte currency_code në default Admin Order fields; u konfirmua në source v2.22.0 dhe u korrigjua me fields eksplicite, pa dobësuar assertion-in. Historiku i dështimit ruhet.
+
+**G3 = IN_PROGRESS.** Prova është e kufizuar te endpoints/payloads e mësipërme, jo të gjitha mutations/refund/cancel/stock-level endpoints ose RBAC mes adminëve. Browser HTTPS/CSRF/domain cookie scope, JWT revocation, Redis provider/jobs, media, backup/restore, provisioning dhe production mbeten të hapura.
+
+**Next i saktë:** analizë read-only e konfigurimit real Medusa Redis/cache/event-bus/workflow engine dhe kontratës JWT TTL/revocation. Implementimi i provider-ëve, ndryshimi i politikës së autentikimit apo veçori të tjera nuk janë të autorizuara automatikisht nga ky increment. Dokumentacioni vazhdon të mirëmbahet në këtë degë.
+
 ## Autorizim dhe implementim P0 — 2026-10-23 (CI NË PRITJE)
 
 Përdoruesi autorizoi shprehimisht: «po te autorizoj, vazhdo permirsimin sipas planit», në përgjigje të kërkesës për testet cookie/session, mutation authorization dhe maskimin e sekreteve CI. **Leja e kësaj faze** përfshin scripts/workflows të këtij increment-i në `feat/merchant-auth-boundary-ci`, testim sintetik dhe dokumentacion; **pa merge/deploy/main/pagesa reale**. Ky autorizim plotëson kufirin e mëparshëm docs-only, nuk e zgjeron te faza të tjera.

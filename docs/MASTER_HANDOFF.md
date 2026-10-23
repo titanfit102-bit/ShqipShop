@@ -1,6 +1,29 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
-## Autorizim dhe implementim P0 — 2026-10-23 (CI NË PRITJE)
+## Checkpoint P0 i verifikuar — 2026-10-23
+
+**Kodi:** [`06ea54a`](https://github.com/titanfit102-bit/ShqipShop/commit/06ea54a5f252ae367e3281c470cdc139729459bc). **PR #12 OPEN Draft**, mbi PR #11; main i pandryshuar `329e0381b0bc4ce39cf554a2b2888a047e1dd29e`. Nuk u bë merge/deploy ose pagesë reale.
+
+**CI në këtë code SHA:** [session/mutation PR run 39989746378](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989746378), [session/mutation push run 39989739659](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989739659), [backend smoke 39989746313](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989746313), [pilot 39989746410](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989746410): **4/4 SUCCESS**. Job logs u lexuan për run-in session/mutation PR dhe backend smoke; statusi i push-run u kontrollua veçmas.
+
+**E provuar me dy Medusa aktive A/B:**
+- Sesione cookie reale për customer dhe admin, profile me actor ID korrekt pa bearer, role separation, cookie e manipuluar/huaj dhe cookie mungesë refuzohen; logout shkatërron sesionin dhe replay i cookie-t origjinal refuzohet. Sesioni i tenant-it tjetër mbetet funksional.
+- POST /store/customers/me dhe POST Admin API për customer first_name, order metadata dhe inventory-item title: kontrolle pozitive; no-auth/customer-as-admin/foreign JWT/cookie refuzohen HTTP 401/403 me payload valid dhe ID që ekziston në target. Snapshot para/pas në të dy tenant-et ruan customer first_name/metadata, order ID/currency/total/metadata dhe inventory title/location-level stock/reservations.
+- Foreign customer/order/inventory IDs në backend-in e tjetrit me admin lokal valid: GET/POST HTTP 404. DELETE provohet vetëm mbi customer fixture të dedikuar; negative 401/403 dhe objekti ende ekziston; admin i vet fshin me sukses dhe leximi më pas është 404.
+- ID spoof: body dhe query refuzohen HTTP 400; headers injorohen HTTP 200 duke ruajtur actor ID të vet. Të dy tenant-et kontrollohen pas çdo probe. HTTP 400 këtu është validim input-i, **jo provë e refuzimit të autentikimit**.
+- Backend smoke: porosi 1510 ALL në PostgreSQL, rezervim +1 dhe stok fizik i pandryshuar; **18 assignments të sekreteve të gjeneruara shfaqen të maskuara, 0 assignments hex të pamaskuara** në log-un e verifikuar.
+
+**Finding i konfirmuar:** pas cookie logout, JWT origjinal i customer/admin vazhdon me HTTP 200 në **4/4 rastet** A/B. Testi e karakterizon këtë dhe nuk pretendon revokim JWT ose logout global. Revokimi/TTL/logout policy mbetet çështje përpara production.
+
+**Kontrolle lokale:** 3/3 Node tests; syntax JS, YAML dhe bash PASS; compileall PASS; pytest 10 PASS me 1 warning Starlette/AnyIO deprecated alias. Mutation-check lokal: heqja e auth-status assertion ose side-effect assertion shkakton RED, restaurimi GREEN. Nuk u riekzekutua Android sepse ndryshimet janë vetëm scripts/workflows/dokumentacion backend.
+
+**Rishikim i pavarur:** një P2 për mungesën e query/header spoof probes u korrigjua; header forwarding u provua RED→GREEN dhe suite 3/3. Pa blocker tjetër në increment-in e kufizuar. Run-i fillestar [39989352814](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989352814) ishte RED nga snapshot query që mungonte currency_code në default Admin Order fields; u konfirmua në source v2.22.0 dhe u korrigjua me fields eksplicite, pa dobësuar assertion-in. Historiku i dështimit ruhet.
+
+**G3 = IN_PROGRESS.** Prova është e kufizuar te endpoints/payloads e mësipërme, jo të gjitha mutations/refund/cancel/stock-level endpoints ose RBAC mes adminëve. Browser HTTPS/CSRF/domain cookie scope, JWT revocation, Redis provider/jobs, media, backup/restore, provisioning dhe production mbeten të hapura.
+
+**Next i saktë:** analizë read-only e konfigurimit real Medusa Redis/cache/event-bus/workflow engine dhe kontratës JWT TTL/revocation. Implementimi i provider-ëve, ndryshimi i politikës së autentikimit apo veçori të tjera nuk janë të autorizuara automatikisht nga ky increment. Dokumentacioni vazhdon të mirëmbahet në këtë degë.
+
+## Autorizim dhe implementim P0 — snapshot para verifikimit (historik)
 
 Përdoruesi autorizoi shprehimisht: «po te autorizoj, vazhdo permirsimin sipas planit», në përgjigje të kërkesës për testet cookie/session, mutation authorization dhe maskimin e sekreteve CI. **Leja e kësaj faze** përfshin scripts/workflows të këtij increment-i në `feat/merchant-auth-boundary-ci`, testim sintetik dhe dokumentacion; **pa merge/deploy/main/pagesa reale**. Ky autorizim plotëson kufirin e mëparshëm docs-only, nuk e zgjeron te faza të tjera.
 
@@ -46,7 +69,7 @@ Përdoruesi autorizoi shprehimisht: «po te autorizoj, vazhdo permirsimin sipas 
 
 **Backend commerce:** medusa-backend-poc/ — Medusa v2 2.22.0, PostgreSQL 16, demo Albania region/ALL, produktet/variantet/shipping, Store API cart → shipping → payment manual sintetike → order 1.510 ALL dhe rezervim stoku. CI përdor Node 24 / pnpm pinned dhe fixtures sintetike. Kodet e testimit të izolimit ndodhen në medusa-backend-poc/scripts/ dhe .github/workflows/. Të gjitha këto janë development/ephemeral, jo deployment i një platforme live.
 
-**Izolimi i provuar aktual:** secili prej dy backend-eve Medusa mund të punojë njëkohësisht me PostgreSQL DB dhe role të ndara, çelësa, porosi, customer/admin JWT dhe JWT/cookie **secrets** të ndara. Rezultatet negative të porosive dhe token-eve janë GREEN në CI. Dy serverë Redis janë të arritshëm, por config aktual medusa-config.ts **nuk provon që provider-et Redis / event queues janë lidhur dhe izoluar**. Sesionet e vërteta cookie nuk janë testuar ende.
+**Izolimi i provuar aktual:** secili prej dy backend-eve Medusa mund të punojë njëkohësisht me PostgreSQL DB dhe role të ndara, çelësa, porosi, customer/admin JWT dhe JWT/cookie **secrets** të ndara. Rezultatet negative të porosive dhe token-eve janë GREEN në CI. Dy serverë Redis janë të arritshëm, por config aktual medusa-config.ts **nuk provon që provider-et Redis / event queues janë lidhur dhe izoluar**. Sesionet reale cookie dhe mutations e kufizuara u verifikuan në checkpoint-in P0 më sipër; kufijtë e tjerë mbeten të hapur.
 
 **Arkitekturë e synuar (PLAN):** një control plane ShqipShop (tenant registry, branding, domain, provisioning, billing plan, version/deployment, observability) i ndarë nga commerce data; për çdo merchant backend Medusa, databazë, IAM dhe storage të izoluara; PWA dhe opsionalisht app-i native lexojnë të njëjtin backend të atij tregtari. Provisioner, billing, domain routing, izolim storage dhe native apps për shumë tregtarë nuk janë implementuar.
 
@@ -109,7 +132,7 @@ Shih [ROADMAP.md](ROADMAP.md) për kriteret e daljes të secilës fazë.
 
 **P3 — klienti dhe operacionet e vërteta:** COD operational, payment PSP sandbox/settlement, ALL/EUR FX real me data freshness, logistics, GDPR/privacy/law review, accessible mobile UX, perf/load/device and security QA, 3–5 pilotë realë me marrëveshje dhe matje, rollout staged, opsionalisht app-e native të nënshkruara/publikuara sipas politikave për secilin merchant.
 
-**Next atomic technical step, as of this checkpoint:** pasi të lexosh CI të PR #12, projekto testin negativ cookie/session dhe mutation authorization me Medusa A/B në CI. Regjistro kriteret e pranimit përpara ndryshimit të kodit.
+**Next atomic technical step, as of the original v22 checkpoint (superseded by P0 above):** pasi të lexosh CI të PR #12, projekto testin negativ cookie/session dhe mutation authorization me Medusa A/B në CI. Regjistro kriteret e pranimit përpara ndryshimit të kodit.
 
 ## 8. MASTER CONTINUITY PROTOCOL — mekanizëm i detyrueshëm
 
@@ -141,7 +164,7 @@ Në fund të çdo pune: **(1) çfarë u përfundua; (2) çfarë mbetet; (3) hapi
 
 ## 10. Hapi pasues i përgatitur — cookie/session dhe negative mutations
 
-**Status: PLAN, NOT IMPLEMENTED / NOT RUN.** Kriteret rrjedhin nga P0 ekzistues dhe ADR-006; nuk shtojnë veçori produkti. Ekzekutim i synuar: inline, me fixtures sintetike, dy serverët ekzistues dhe pa varësi të reja. Para kodit duhet autorizim specifik për scripts/workflow në këtë degë; jo merge/deploy/main.
+**Status historik i planit: i implementuar dhe i verifikuar në checkpoint-in P0 më sipër.** Kriteret rrjedhin nga P0 ekzistues dhe ADR-006; nuk shtojnë veçori produkti. Ekzekutim i synuar: inline, me fixtures sintetike, dy serverët ekzistues dhe pa varësi të reja. Para kodit duhet autorizim specifik për scripts/workflow në këtë degë; jo merge/deploy/main.
 
 **Burim primar i inspektuar:** Medusa tag [v2.22.0 session route](https://github.com/medusajs/medusa/blob/v2.22.0/packages/medusa/src/api/auth/session/route.ts), [auth middleware routes](https://github.com/medusajs/medusa/blob/v2.22.0/packages/medusa/src/api/auth/middlewares.ts) dhe [authenticate middleware](https://github.com/medusajs/medusa/blob/v2.22.0/packages/core/framework/src/http/middlewares/authenticate-middleware.ts). POST /auth/session merr bearer dhe ruan auth_context; DELETE përdor session auth dhe shkatërron sesionin. **Inferencë nga kodi, jo provë runtime:** logout cookie nuk është vetvetiu revokim JWT. JWT replay dhe session replay duhen raportuar veçmas; mos vendos kriter të rremë që çdo bearer duhet të skadojë pas DELETE /auth/session.
 

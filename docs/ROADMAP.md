@@ -1,5 +1,13 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## Checkpoint aktiv P0 — 2026-10-23
+
+- Kodi i verifikuar: `06ea54a5f252ae367e3281c470cdc139729459bc`, PR #12 OPEN Draft, dega `feat/merchant-auth-boundary-ci`; main i pandryshuar.
+- [Session/mutation CI 39989746378](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989746378), push-run 39989739659, backend smoke 39989746313 dhe pilot 39989746410: **4/4 SUCCESS**. Cookie real customer/admin A/B, foreign/tampered/role denial, logout-cookie replay, negative POST/DELETE dhe snapshots e kufizuara kaluan. Scope dhe evidenca e plotë te CURRENT_STATE dhe MASTER_HANDOFF.
+- **Kufizim i konfirmuar:** cookie logout nuk revokon JWT-të; 4/4 bearer replay dhanë HTTP 200. G3 mbetet IN_PROGRESS për browser HTTPS/CSRF/domain scope, JWT revocation, admin RBAC, Redis/jobs, media/backup dhe endpoints e mbetura.
+- Përdoruesi autorizoi veçmas scripts/workflows të planit §10 dhe maskimin e sekreteve CI në këtë degë («po te autorizoj, vazhdo permirsimin sipas planit»). Ky increment është i verifikuar; nuk autorizon ndryshime të fazave/degëve të tjera, main, merge/deploy ose pagesa reale. Mirëmbajtja e pesë dokumenteve të vazhdimësisë vazhdon.
+- **Next:** analizë read-only e Redis provider wiring dhe JWT TTL/revocation; implementimet e reja kërkojnë scope të autorizuar. Mos përsërit testet e kaluara si punë e re.
+
 
 > **Statusi autoritativ i tanishëm:** [CURRENT_STATE.md](CURRENT_STATE.md) dhe [MASTER_HANDOFF.md](MASTER_HANDOFF.md) v22, në degën **feat/merchant-auth-boundary-ci** (jo main). Tabela historike më poshtë duhet lexuar së bashku me checkpoint-in e verifikuar. G3 është NË PROGRES, jo GREEN për sigurinë e plotë.
 
@@ -36,7 +44,7 @@ Një operator ShqipShop mund të krijojë e të menaxhojë shumë biznese shqipt
 | G0 · GitHub baseline | Kod, varësi, CI, dokumentacion, PR | `compileall`, `pytest`, CI i gjelbër | Po për pilot; 10/10 testet në run 39822589301 |
 | G1 · Pilot UX/Security | 3 demo shop flows + admin + izolim, përmasa mobile | Browser E2E, auth/CSRF/XSS, review manual | Jo i përfunduar |
 | G2 · Native feasibility | Upstream RN + locale sq-AL + Medusa dev server | `npm ci`, lint/TS/Jest, Android build, mobile checkout | Pjesërisht: RN dhe sq-AL, 17/17 testet, ARM64 APK build PASS, Android API35 x86_64 emulator install/start PASS (run 39842340691); Android↔Medusa UI katalogu PASS (39845817408); **Android checkout në emulator dhe receipt + PostgreSQL PASS** (39934984130, 39946022933); telefoni fizik dhe prod signing mungojnë |
-| G3 · Unified commerce backend | Një sistem inventory/order, multi-tenant i sigurt | Për 2 merchants teste pozitive/negative, migrations | Medusa/PostgreSQL dy backend-e aktive njëkohësisht, 2 porosi 1510 ALL, order-ID cross-tenant 404, admin/customer JWT cross-tenant negative PASS në [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12), [run 39981336521](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39981336521); cookie/session, mutation auth, Redis provider, media/backup, production izolimi MUNGOJNË |
+| G3 · Unified commerce backend | Një sistem inventory/order, multi-tenant i sigurt | Për 2 merchants teste pozitive/negative, migrations | Medusa/PostgreSQL dy backend-e aktive njëkohësisht, 2 porosi 1510 ALL, order-ID cross-tenant 404, admin/customer JWT cross-tenant negative PASS në [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12), [run 39981336521](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39981336521); cookie/session dhe mutation auth të kufizuara PASS në run 39989746378 / code 06ea54a; JWT revocation, browser cookie scope/CSRF, admin RBAC, Redis provider, media/backup dhe production izolimi MUNGOJNË |
 | G4 · Managed merchants | Signup/verifikim, branding, domain, panel, plan | Krijimi i 3 tenanteve pa komandë manuale | Jo |
 | G5 · Payments, delivery, privacy | COD operativ; provë PSP sandbox; logjistika dhe GDPR | Test porosi-refund-webhook, privacy/legal review | Jo |
 | G6 · Production QA | DB backup/restore, incident handling, metrics, load/security, HTTPS | Auditor + E2E + DR restore + staged rollout | Jo |

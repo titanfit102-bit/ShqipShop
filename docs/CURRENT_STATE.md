@@ -1,64 +1,52 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
-## Autorizim dhe implementim P0 — 2026-10-23 (CI NË PRITJE)
-
-Përdoruesi autorizoi shprehimisht: «po te autorizoj, vazhdo permirsimin sipas planit», në përgjigje të kërkesës për testet cookie/session, mutation authorization dhe maskimin e sekreteve CI. **Leja e kësaj faze** përfshin scripts/workflows të këtij increment-i në `feat/merchant-auth-boundary-ci`, testim sintetik dhe dokumentacion; **pa merge/deploy/main/pagesa reale**. Ky autorizim plotëson kufirin e mëparshëm docs-only, nuk e zgjeron te faza të tjera.
-
-**Implementuar, jo ende provuar në Medusa runtime:** helper HTTP/assertions fail-closed + 3 teste Node; cookie/session customer/admin A/B, role separation, tampering dhe logout/replay; mutations customer/order/inventory me snapshot para/pas për të dy tenant-et; DELETE vetëm në customer fixture të dedikuar; maskim i sekreteve të gjeneruara në backend smoke. Workflow dy-Medusa tani aktivizohet edhe për ndryshime script-esh në PR dhe ekzekuton testet e helper-it. JWT pas logout raportohet veçmas dhe nuk quhet i revokuar.
-
-**Lokalisht:** Node 24.19.0, `node --test medusa-backend-poc/scripts/boundary-http.test.mjs` **3/3 PASS**, syntax checks PASS; `compileall` PASS; pytest **10 PASS, 1 warning** nga Starlette/AnyIO deprecated alias. Medusa session/mutation proof **PENDING**, duhet lexuar CI në HEAD të ri përpara pretendimit të suksesit. G3 mbetet IN_PROGRESS.
-
-**Next:** verifiko CI real; diagnostiko dështime pa hequr checks, pastaj ruaj SHA/run dhe rezultatin e konfirmuar. Plani i detajuar mbetet MASTER_HANDOFF §10. Kufijtë: browser HTTPS/CSRF/domain cookie scope, JWT revocation, RBAC i kufizuar mes adminëve, Redis/jobs/media/backup/production ende të paprovuara.
-
-> Lexo këtë skedar të PARIN, pastaj [MASTER_HANDOFF.md](MASTER_HANDOFF.md) v22 dhe [AGENTS.md](../AGENTS.md). Ky është checkpoint-i i shpejtë, jo zëvendësim për verifikimin live të GitHub.
+> Lexo së pari këtë dokument, pastaj [MASTER_HANDOFF.md](MASTER_HANDOFF.md) v22, [AGENTS.md](../AGENTS.md), ROADMAP dhe ADR-të. Verifiko live SHA/PR/Actions; checkpoint-i nuk zëvendëson kontrollin real.
 >
-> **Vendndodhja e autorizuar:** repository publik [titanfit102-bit/ShqipShop](https://github.com/titanfit102-bit/ShqipShop), **vetëm** dega [feat/merchant-auth-boundary-ci](https://github.com/titanfit102-bit/ShqipShop/tree/feat/merchant-auth-boundary-ci); skedari [CURRENT_STATE.md](https://github.com/titanfit102-bit/ShqipShop/blob/feat/merchant-auth-boundary-ci/docs/CURRENT_STATE.md). **Nuk gjendet në main.** Mos kërko fillimisht në main dhe mos supozo se një PR i ri bart automatikisht dokumentacionin.
+> **Repository:** [titanfit102-bit/ShqipShop](https://github.com/titanfit102-bit/ShqipShop). **Dega e autorizuar:** [feat/merchant-auth-boundary-ci](https://github.com/titanfit102-bit/ShqipShop/tree/feat/merchant-auth-boundary-ci), [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12). **Këto dokumente nuk gjenden në main.**
 
-## Checkpoint i verifikuar — 2026-10-23
+**Misioni:** white-label ecommerce për biznese shqiptare, storefront/PWA dhe opsionalisht app native për çdo tregtar; jo APK store ose marketplace i përbashkët. FastAPI/SQLite pilot dhe Medusa/PostgreSQL POC mbeten dy sisteme të ndara; source-of-truth përfundimtar dhe migrimi PWA janë ende për t'u vendosur/zbatuar.
 
-| Elementi | E konfirmuar |
-| --- | --- |
-| Identiteti | ShqipShop, white-label ecommerce SaaS për biznese shqiptare; **jo** marketplace/APK app store |
-| Dega e dokumentacionit dhe zhvillimit të autorizuar | feat/merchant-auth-boundary-ci |
-| PR aktiv | [#12](https://github.com/titanfit102-bit/ShqipShop/pull/12), **OPEN Draft**, bazuar në [#11](https://github.com/titanfit102-bit/ShqipShop/pull/11) |
-| **Commit-i i kodit të verifikuar** | 3eab3c3fc0007c4b76aff9c51c80bae007290742 |
-| CI i verifikuar në atë SHA | [39981336521](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39981336521) (dy Medusa/izolim/auth), [39981336483](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39981336483) (Medusa smoke), [39981336440](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39981336440) (pilot): **3/3 SUCCESS** |
-| main në verifikim | 329e0381b0bc4ce39cf554a2b2888a047e1dd29e, pa merge të PR-ve |
-| Faza | **G3 — në progres, jo production-ready** |
-| Deploy/merge/pagesa reale | **Asnjë** prej këtyre veprimeve nuk është kryer për këtë fazë |
+## Checkpoint P0 i verifikuar — 2026-10-23
 
-**Evidenca konkrete e kufirit A/B:** dy procese Medusa njëkohësisht, PostgreSQL me DB/role të veçanta, dy porosi sintetike nga 1.510 ALL, vetë-porosia HTTP 200, porosia e dyqanit tjetër HTTP 404, publishable key i huaj HTTP 400. Admin/customer JWT të dy bizneseve provohen dhe token-et e huaja refuzohen në të dy drejtimet. Dy Redis serverë ishin të arritshëm në CI; **përdorimi real i tyre nga provider-et e Medusa/queues nuk është konfirmuar**. Checkout-et u bënë njëri pas tjetrit teksa **të dy serverët** ishin aktivë, jo si race/load test.
+**Kodi:** [`06ea54a`](https://github.com/titanfit102-bit/ShqipShop/commit/06ea54a5f252ae367e3281c470cdc139729459bc). **PR #12 OPEN Draft**, mbi PR #11; main i pandryshuar `329e0381b0bc4ce39cf554a2b2888a047e1dd29e`. Nuk u bë merge/deploy ose pagesë reale.
 
+**CI në këtë code SHA:** [session/mutation PR run 39989746378](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989746378), [session/mutation push run 39989739659](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989739659), [backend smoke 39989746313](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989746313), [pilot 39989746410](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989746410): **4/4 SUCCESS**. Job logs u lexuan për run-in session/mutation PR dhe backend smoke; statusi i push-run u kontrollua veçmas.
 
-## Rikuperim live — 2026-10-23, pas protokollit v22
+**E provuar me dy Medusa aktive A/B:**
+- Sesione cookie reale për customer dhe admin, profile me actor ID korrekt pa bearer, role separation, cookie e manipuluar/huaj dhe cookie mungesë refuzohen; logout shkatërron sesionin dhe replay i cookie-t origjinal refuzohet. Sesioni i tenant-it tjetër mbetet funksional.
+- POST /store/customers/me dhe POST Admin API për customer first_name, order metadata dhe inventory-item title: kontrolle pozitive; no-auth/customer-as-admin/foreign JWT/cookie refuzohen HTTP 401/403 me payload valid dhe ID që ekziston në target. Snapshot para/pas në të dy tenant-et ruan customer first_name/metadata, order ID/currency/total/metadata dhe inventory title/location-level stock/reservations.
+- Foreign customer/order/inventory IDs në backend-in e tjetrit me admin lokal valid: GET/POST HTTP 404. DELETE provohet vetëm mbi customer fixture të dedikuar; negative 401/403 dhe objekti ende ekziston; admin i vet fshin me sukses dhe leximi më pas është 404.
+- ID spoof: body dhe query refuzohen HTTP 400; headers injorohen HTTP 200 duke ruajtur actor ID të vet. Të dy tenant-et kontrollohen pas çdo probe. HTTP 400 këtu është validim input-i, **jo provë e refuzimit të autentikimit**.
+- Backend smoke: porosi 1510 ALL në PostgreSQL, rezervim +1 dhe stok fizik i pandryshuar; **18 assignments të sekreteve të gjeneruara shfaqen të maskuara, 0 assignments hex të pamaskuara** në log-un e verifikuar.
 
-- **HEAD i inspektuar:** `b3f759a2e363b70664ce74e17ef742964e6e6922`. Krahasimi nga code SHA `3eab3c3` përmban **vetëm** AGENTS.md, CURRENT_STATE, MASTER_HANDOFF, PROJECT_HISTORY dhe ROADMAP; asnjë ndryshim kodi.
-- **CI në këtë HEAD:** [parallel/auth 39985437241](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39985437241), [Medusa smoke 39985437127](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39985437127), [pilot 39985437135](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39985437135): **3/3 SUCCESS**, job steps dhe log-et u lexuan. Pilot: **10 passed**; Medusa: porosi PostgreSQL dhe rezervim +1 me stok fizik të pandryshuar; dy-backend: marker-at order boundary A/B dhe admin/customer JWT isolation.
-- **PR #1–#12:** ende OPEN Draft; #12 bazohet në #11, #11 në #10; #9 dhe #10 janë degë motra mbi #8. `main` mbetet `329e0381b0bc4ce39cf554a2b2888a047e1dd29e`.
-- **Gjetje e re e verifikuar:** log-u i backend smoke shfaq vlera JWT_SECRET/COOKIE_SECRET të gjeneruara për runner-in, pa maskim; workflow i shkruan në GITHUB_ENV pa add-mask. Janë sekrete CI të përkohshme, jo provë ekspozimi kredencialesh production. **Mos kopjo vlerat** në docs/raporte. Korrigjimi i workflow-t kërkon leje kodi.
-- **Gjendja:** G3 IN_PROGRESS. Analiza dhe kriteret më poshtë janë përgatitur; **testet e reja nuk janë implementuar/ekzekutuar**. Autorizimi i konfirmuar mbulon vetëm pesë dokumentet në këtë degë. Hapi teknik pret leje të shprehur për scripts/workflow; nuk është dështim i testit.
+**Finding i konfirmuar:** pas cookie logout, JWT origjinal i customer/admin vazhdon me HTTP 200 në **4/4 rastet** A/B. Testi e karakterizon këtë dhe nuk pretendon revokim JWT ose logout global. Revokimi/TTL/logout policy mbetet çështje përpara production.
 
-## Kufijtë e provës dhe punët e hapura
+**Kontrolle lokale:** 3/3 Node tests; syntax JS, YAML dhe bash PASS; compileall PASS; pytest 10 PASS me 1 warning Starlette/AnyIO deprecated alias. Mutation-check lokal: heqja e auth-status assertion ose side-effect assertion shkakton RED, restaurimi GREEN. Nuk u riekzekutua Android sepse ndryshimet janë vetëm scripts/workflows/dokumentacion backend.
 
-- **P0 (pasues):** teste negative të sesioneve cookie, logout/replay/cross-tenant, autorizimet e ndryshimeve (order/customer/inventory/admin), ID spoofing dhe RBAC; ndalo çdo pretendim production/security pa rezultate.
-- **P1:** të verifikohet konfigurimi konkret i Medusa Redis/cache/event-bus/workers dhe izolimi real i jobs; backup/restore dhe rotacioni i kredencialeve.
-- **P2:** të zgjidhet një burim i vetëm commerce truth për PWA dhe native, onboarding/branding/domain dhe tenant provisioning/deprovisioning idempotent; krahasim kosto 5/50/500 biznese.
-- **P3:** pagesa/cash-on-delivery reale dhe PSP sandbox, kurs ALL/EUR real me kontroll vlefshmërie, dërgesa, GDPR/siguri, test në pajisje, pilotë biznesesh dhe publikim vetëm pas aprovimeve.
-- **UI i hapur:** titulli Android «Detajet e porosisë» shfaqet shumë i vogël; duhet test vizual i ri. Sekondarja EUR është vetëm **orientuese**, me FX sintetik në CI, jo pagesë në dy monedha.
-- **Dokumentacioni:** shënimet e vjetra në README/ADR/ROADMAP mund të pasqyrojnë gjendje historike; për gjendjen aktuale, krahaso gjithmonë kodin dhe Actions.
+**Rishikim i pavarur:** një P2 për mungesën e query/header spoof probes u korrigjua; header forwarding u provua RED→GREEN dhe suite 3/3. Pa blocker tjetër në increment-in e kufizuar. Run-i fillestar [39989352814](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39989352814) ishte RED nga snapshot query që mungonte currency_code në default Admin Order fields; u konfirmua në source v2.22.0 dhe u korrigjua me fields eksplicite, pa dobësuar assertion-in. Historiku i dështimit ruhet.
 
-## Veprimi i saktë i ardhshëm
+**G3 = IN_PROGRESS.** Prova është e kufizuar te endpoints/payloads e mësipërme, jo të gjitha mutations/refund/cancel/stock-level endpoints ose RBAC mes adminëve. Browser HTTPS/CSRF/domain cookie scope, JWT revocation, Redis provider/jobs, media, backup/restore, provisioning dhe production mbeten të hapura.
 
-1. Verifiko live degën, SHA, PR #12, GitHub Actions dhe nëse ka ndryshime **pas checkpoint-it të kodit** 3eab3c3. Verifiko në mënyrë të veçantë testet e HEAD-it të dokumentacionit; mos supozo që statusi GREEN i kodit vlen për SHA-të e ardhshme.
-2. Analiza dhe kriteret e testit cookie/session dhe negative mutations janë ruajtur në MASTER_HANDOFF §10; zbato testin CI të kufizuar sipas tyre, **vetëm nëse ka autorizim të shprehur për ndryshime kodi**. Autorizimi i protokollit vetë nuk jep leje për kod/degë të tjera.
-3. Pas çdo rezultati material të verifikuar, përditëso CURRENT_STATE.md, MASTER_HANDOFF.md dhe, kur nevojitet, PROJECT_HISTORY.md/ROADMAP.md/AGENTS.md, **vetëm në këtë degë**.
+**Next i saktë:** analizë read-only e konfigurimit real Medusa Redis/cache/event-bus/workflow engine dhe kontratës JWT TTL/revocation. Implementimi i provider-ëve, ndryshimi i politikës së autentikimit apo veçori të tjera nuk janë të autorizuara automatikisht nga ky increment. Dokumentacioni vazhdon të mirëmbahet në këtë degë.
 
-## Protokolli i autorizimeve dhe handoff-it
+## Autorizimet aktive dhe kufijtë
 
-**Autorizim i vazhdueshëm, i kufizuar:** përdoruesi autorizoi krijimin dhe mirëmbajtjen e dokumenteve docs/CURRENT_STATE.md, docs/MASTER_HANDOFF.md, docs/PROJECT_HISTORY.md, docs/ROADMAP.md, AGENTS.md, pas çdo ndryshimi material dhe të verifikuar, **vetëm në degën feat/merchant-auth-boundary-ci**. Dokumento fazën IN_PROGRESS, FAILED ose BLOCKED pa e quajtur completed. **Pa leje të veçantë:** mos modifiko kodin për këtë detyrë, mos prek degët e tjera/main, mos bëj merge/deploy, shpenzime, pagesa reale, secrets ose të dhëna reale.
+- Përdoruesi autorizoi mirëmbajtjen e docs/CURRENT_STATE.md, docs/MASTER_HANDOFF.md, docs/PROJECT_HISTORY.md, docs/ROADMAP.md dhe AGENTS.md pas çdo progresi material të verifikuar, **vetëm në feat/merchant-auth-boundary-ci**.
+- Më pas autorizoi shprehimisht increment-in e planit §10: scripts/workflows për cookie/session, negative mutations dhe maskim sekretesh CI, duke thënë «po te autorizoj, vazhdo permirsimin sipas planit». Ky increment është tani i verifikuar; leja nuk transferohet në faza/degë të tjera.
+- Pa leje për main, merge/deploy, shpenzime, pagesa reale, sekretet ose të dhënat production. Përdor vetëm fixtures sintetike.
+- Ruaj historikun në MASTER/HISTORY/git; mos rishkruaj ADR-të historike. Dallo IMPLEMENTED, VERIFIED, FAILED, PENDING. Code SHA sipër është evidenca e testuar; documentation HEAD ndryshon gjatë ruajtjes së vet dhe duhet lexuar live.
 
-**Vazhdimësia ndërmjet degëve — E PAZGJIDHUR:** dokumentet jetojnë sot vetëm në PR #12. Kur puna kalon në një degë tjetër, mos supozo se ky checkpoint do të sinkronizohet vetvetiu. Propozimi i sigurt është një **degë/PR e dedikuar vetëm dokumentacionit, me pikë hyrjeje të qëndrueshme**, ose një PR dokumentacioni te main, vetëm **pas autorizimit të ri** për degën e destinacionit. Deri atëherë, mbaje këtë degë si checkpoint autoritativ, rifreskoje pas çdo progresi të verifikuar dhe shëno SHA/PR të degës së punës në këtë skedar. Nëse dega është mbyllur/fshirë ose dokumentacioni s'është i aksesueshëm, kontrollo PR #12/commit-et historike dhe kërko autorizim për rikuperim në degë tjetër; mos shkruaj pa leje.
+## Punët e hapura pas këtij increment-i
 
-**Limit rikuperimi:** nuk disponohet garanci për transkriptet e plota të të gjitha bisedave të mëparshme. Ky checkpoint rrjedh nga dokumentacioni, kodi, PR-të dhe log-et e verifikuara; pasiguria duhet të raportohet.
+1. Redis/cache/event-bus/workflow engine: dy Redis endpoints janë të arritshme, **binding real i provider-ëve dhe izolimi i jobs nuk janë provuar**.
+2. Politika JWT TTL/revocation/logout global; browser session cookie attributes, HTTPS, CSRF/CORS dhe domain separation; RBAC i kufizuar mes administratorëve dhe mutation endpoints të mbetura.
+3. Media/storage, backup/restore dhe rotacioni i kredencialeve; race/load tests, provisioning idempotent dhe kostot 5/50/500 biznese.
+4. Commerce source-of-truth i vetëm për PWA/native, onboarding/branding/domain/control plane/billing sandbox.
+5. FX real ALL/EUR, pagesa/PSP/COD e logjistikë reale, privatësi/GDPR, pajisje fizike/signing, pilotë biznesesh dhe release gates. Hint EUR mbetet vetëm orientues; kursi 100 në CI është sintetik.
+6. Titulli Android «Detajet e porosisë» është tepër i vogël; kërkon ndryshim të autorizuar UI dhe screenshot të ri.
 
-**Checkpoint code SHA** është i fiksuar qëllimisht. **SHA aktual i dokumentacionit është HEAD-i live i kësaj dege**, i cili ndryshon gjatë ruajtjes së vet: verifikoje në GitHub, mos pretendo se një SHA statik brenda skedarit është commit-i final i atij skedari.
+## Rikuperimi në bisedën tjetër
+
+Verifiko branch HEAD dhe PR #12/base #11, krahaso ndryshimet pas code SHA 06ea54a5f252ae367e3281c470cdc139729459bc, lexo testet/Actions dhe dokumentet. Mos përsërit increment-in cookie/session/mutations të kaluar. Fillimisht analizo read-only hapin pasues më sipër; mos konverto këtë rezultat në pretendim production-ready.
+
+Dokumentacioni mbetet në këtë degë edhe nëse zhvillimi kalon diku tjetër; mos e kopjo ose krijo degë tjetër pa autorizim. Nëse dega s'është e aksesueshme, rikupero nga PR #12/git history dhe raporto bllokimin. GitHub nuk përditësohet vetvetiu kur biseda është e mbyllur. Transkriptet e plota të bisedave të mëparshme nuk garantohen.
