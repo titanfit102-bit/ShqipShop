@@ -74,6 +74,29 @@ for (const m of merchants) {
   console.log("SHQIPSHOP_MERCHANT_"+m.id+"_OWN_AUTH_PASSED")
 }
 
+// F06: a registered customer must not read a different guest's order, even
+// if a cart possession credential happens to be supplied with the JWT.
+for (const m of merchants) {
+  const orderPath = process.env["SHQIPSHOP_" + m.id + "_ORDER_FILE"]
+  const cartPath = process.env["SHQIPSHOP_" + m.id + "_CART_FILE"]
+  assert(orderPath && cartPath, "Missing ephemeral receipt proof files")
+  const orderId = readFileSync(orderPath, "utf8").trim()
+  const cartId = readFileSync(cartPath, "utf8").trim()
+  const uri = "/store/orders/" + encodeURIComponent(orderId)
+  const stranger = await request(m, "GET", uri, {key:true,token:m.customerJwt})
+  assert([401,403,404].includes(stranger.status),
+    m.id + ": registered stranger read another shopper's order")
+  const wrongRole = await request(m, "GET", uri, {key:true,token:m.adminJwt})
+  assert([401,403,404].includes(wrongRole.status),
+    m.id + ": admin JWT used as customer receipt reader")
+  const bypass = await request(m, "GET", uri, {
+    key:true,token:m.customerJwt,headers:{"x-shqipshop-cart-proof":cartId}
+  })
+  assert([401,403,404].includes(bypass.status),
+    m.id + ": registered stranger fell back to guest proof")
+  console.log("SHQIPSHOP_F06_SAME_MERCHANT_STRANGER_DENIED_" + m.id)
+}
+
 assert.notEqual(merchants[0].customerId,merchants[1].customerId)
 assert.notEqual(merchants[0].adminId,merchants[1].adminId)
 for (const target of merchants) {
