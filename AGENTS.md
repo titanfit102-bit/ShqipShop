@@ -1,5 +1,12 @@
 # Working on ShqipShop — repository instructions
 
+## RegionProvider native recovery checkpoint — 2026-10-23
+
+**Code [77de0869](https://github.com/titanfit102-bit/ShqipShop/commit/77de0869a4f072eeb3dcbd047c21dd5a0f525909)** on authorized branch `feat/merchant-auth-boundary-ci`, PR #12 Draft: region restore has 404/410 fallback, offline/401/5xx preserved ID, epoch-stale-response protection, sequential storage writes B→C, Home/RegionSelect error+Retry. Tests `region-recovery.test.ts`, `region-provider.test.tsx`. [Native 40014816829](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40014816829) SUCCESS: lint/typecheck, 15/15 suites, 71/71 Jest on f4a43d6. Final code SHA native [40015015192](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40015015192) pending in initial snapshot; check current GitHub CI and SHA. No merge/deploy/main.
+**Remaining:** untested physical device, retry UI l10n, server-side cart-region update race after rapid changes, F07 Redis/provider/workers, F09 unified commerce truth, G3/G5 release. Do not mark those complete.
+**Recovery:** [CURRENT_STATE](docs/CURRENT_STATE.md) then [MASTER_HANDOFF §17](docs/MASTER_HANDOFF.md); these live on feature branch **not main**. Only maintenance of the five known docs is continuously authorized on this branch; code changes outside region scope require approval.
+
+
 ## F03–F05 verified checkout reliability — current checkpoint (2026-10-23)
 
 **Newest code checkpoint [7ea5153](https://github.com/titanfit102-bit/ShqipShop/commit/7ea515388d70ce45517ed667ab0275ff86cc9040):** authorized F03–F05 scope on `feat/merchant-auth-boundary-ci`, no main/merge/deploy. Native 13/13 Jest suites, 56/56 tests + lint/TS [40012363697](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40012363697) SUCCESS; Medusa HTTP real pending/authorized session probe `SHQIPSHOP_F05_CART_PAYMENT_SESSION_VERIFIED` in [40012363691](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40012363691) SUCCESS; pilot [40012363683](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40012363683) and parallel [40012363695](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40012363695) SUCCESS; two-isolated [40012363718](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40012363718) **SUCCESS**; 5/5 workflow-t në code SHA GREEN.
