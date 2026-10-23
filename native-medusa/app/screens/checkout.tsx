@@ -211,7 +211,7 @@ const Checkout = () => {
             },
             {
               name: 'OrderDetail',
-              params: { orderId: response.order.id },
+              params: { orderId: response.order.id, cartProof: cart.id },
             },
           ],
         }),
