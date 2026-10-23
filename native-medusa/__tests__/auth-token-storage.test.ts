@@ -92,8 +92,10 @@ test('failed token removal reports error and never sends stale JWT', async () =>
 test('a token read started before logout cannot return the old JWT afterward', async () => {
   await establishLogin('old-A-jwt');
   let releaseRead: (() => void) | undefined;
+  let delayedFirstRead = true;
   getItem.mockImplementation(async (key: string) => {
-    if (key === AUTH_TOKEN_KEY) {
+    if (key === AUTH_TOKEN_KEY && delayedFirstRead) {
+      delayedFirstRead = false;
       await new Promise<void>(resolve => { releaseRead = resolve; });
     }
     return mockDisk.get(key) ?? null;
