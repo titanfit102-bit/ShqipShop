@@ -7,6 +7,11 @@ loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 // are activated only when the operator supplies REDIS_URL.
 // The CI proof sets SHQIPSHOP_REQUIRE_REDIS=true to fail closed.
 const redisUrl = process.env.REDIS_URL
+// Explicitly split API and background-event processing when deploying both.
+const workerMode = process.env.WORKER_MODE || "shared"
+if (!["server", "worker", "shared"].includes(workerMode)) {
+  throw new Error("Invalid Medusa WORKER_MODE; expected server, worker, or shared")
+}
 if (process.env.SHQIPSHOP_REQUIRE_REDIS === 'true' && !redisUrl) {
   throw new Error('ShqipShop Redis is required but REDIS_URL is missing')
 }
@@ -16,6 +21,7 @@ module.exports = defineConfig({
     databaseUrl: process.env.DATABASE_URL,
     // Medusa session store: without this it silently falls back to memory.
     redisUrl,
+    workerMode: workerMode as "server" | "worker" | "shared",
     http: {
       storeCors: process.env.STORE_CORS!,
       adminCors: process.env.ADMIN_CORS!,
