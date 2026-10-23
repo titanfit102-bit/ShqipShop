@@ -103,6 +103,7 @@ jobs:
           SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
           SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE: ${{ runner.temp }}/shqipshop-empty-channel-key.txt
           SHQIPSHOP_CI_ORDER_ID_FILE: ${{ runner.temp }}/shqipshop-order-id.txt
+          SHQIPSHOP_CI_CART_ID_FILE: ${{ runner.temp }}/shqipshop-cart-id.txt
         run: |
           set -euo pipefail
           pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/medusa-backend.log" 2>&1 &
