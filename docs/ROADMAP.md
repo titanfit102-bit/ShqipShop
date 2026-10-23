@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F07d product title Query cache invalidation — CI validated (2026-10-24)
+
+**DONE as scoped CI proof (not release gate):** [code bc682a9a](https://github.com/titanfit102-bit/ShqipShop/commit/bc682a9a4d8546e76504857594ab1f603caaee78); 7/7 PR and 2/2 push CI PASS, [F07d PR](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40034143183). Discovered initial stale cache in server-only setup with no workers (code 6e04f522, [failed run 40033739068](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40033739068)); fixed testing architecture by starting isolated A/B Medusa dedicated workers. Real seeded product title changes through Medusa update workflow invalidate cached Query result across fresh processes within bounded wait, without manual clear; repeated for both merchants. Existing synthetic Redis cache isolation preserved. Docs HEAD requires separate CI verification.
+
+**OPEN:** F07e price sets/variants and cart changes invalidation and real HTTP checkout data; PWA Next.js/browsers revalidation, event lag/outage/error handling and worker monitoring; production fail-closed/TLS/ACL/HA/backups/restore; F08 server-side JWT lifecycle; F09 single Medusa commerce authority. F07 PARTIAL and G3/G5 IN PROGRESS; no merge/deploy.
+
+
 ## F07d — Redis cache explicit provider, pinned dependency, isolation proof (2026-10-24)
 
 **CI-VERIFIED:** [cd300404](https://github.com/titanfit102-bit/ShqipShop/commit/cd3004040f80aabf3fa0f541e20fc55d66649323), **7/7 PR + 3/3 push checks SUCCESS**. `@medusajs/caching-redis@2.22.0` explicit backend dep+existing lock snapshot; frozen pnpm install passed. Opt-in Caching Module plus Redis default provider, fail closed when opt-in enabled without Redis. Synthetic 13 independent Medusa processes, separate DB/Redis A/B, cross-process cache sharing within tenant, denial of foreign-tenant reads, key invalidation contained within tenant. [F07d PR](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40032304599) / [push](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40032297123).
