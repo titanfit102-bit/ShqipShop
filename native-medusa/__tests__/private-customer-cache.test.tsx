@@ -74,6 +74,10 @@ test('logout clears scoped and legacy private data without clearing public catal
 
 test('A to B account switch never renders A address when B fetch fails', async () => {
   const client = newClient();
+  // A has already visited the addresses screen: model the real cached-data risk.
+  client.setQueryData(privateCustomerQueryKey('A', 'addresses'), [
+    { address_1: 'A PRIVATE STREET' },
+  ]);
   const load = jest.fn(async (principal: string): Promise<Address[]> => {
     if (principal === 'A') return [{ address_1: 'A PRIVATE STREET' }];
     throw new Error('B offline');
