@@ -41,7 +41,6 @@ jobs:
       STORE_CORS: http://localhost:8000
       ADMIN_CORS: http://localhost:9010
       AUTH_CORS: http://localhost:9010
-      SHQIPSHOP_F07C_PROOF_DIR: ${{ runner.temp }}
     services:
       postgres:
         image: postgres:16-alpine
@@ -86,6 +85,8 @@ jobs:
           export JWT_SECRET COOKIE_SECRET
           pnpm --filter @dtc/backend exec medusa db:migrate
       - name: Prove queued event, retry and worker process restart
+        env:
+          SHQIPSHOP_F07C_PROOF_DIR: ${{ runner.temp }}
         run: |
           set -euo pipefail
           JWT_SECRET="$(openssl rand -hex 32)"
