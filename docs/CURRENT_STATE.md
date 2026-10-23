@@ -1,5 +1,18 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## Checkpoint F01 — privacy cache native, 2026-10-23
+
+**Implementuar dhe testuar në kod SHA `2219e65e5dff987ad5046bcf34f03fc253d9e714`**: [Native verification 40001961028](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40001961028) **SUCCESS**, 9/9 suites, 32/32 Jest, ESLint & TypeScript PASS; [pilot 40001960999](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40001960999) **SUCCESS**; [Medusa smoke 40001960998](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40001960998) **SUCCESS**. [Parallel isolation 40001960997](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40001960997) ishte ende IN_PROGRESS në checkpoint; kontrollo rezultatin live. Këto janë prova të SHA-së së kodit, jo automatikisht të HEAD-it të dokumentacionit që vjen pas.
+
+**F01 në këtë increment:** query keys të adresave, orders dhe order-detail janë `private-customer + apiUrl + customer.id/guest`; legacy keys të pastruar; `CustomerProvider` cancel/remove queries në login/logout/identity transition dhe injoron late profile refresh me epoch; QueryClientProvider është mbi CustomerProvider; logout reset navigimi, order-detail i montuar nën një identitet nuk rishfaqet nën një tjetër. Testet përdorin React Query real dhe CustomerProvider real me fixtures sintetike: A→B kur B është offline, stale A response, local logout cache purge/legacy keys. **Nuk ka test të ri Android emulator/telefon fizik ose browser të këtij increment-i**, prandaj F01 është i mbyllur në nivel source/unit/CI, **jo** i certifikuar në pajisje/release.
+
+**F02 dhe F06 MBETEN TË HAPURA:** Medusa SDK logout me JWT/AsyncStorage (F02) nuk është ndryshuar; GET receipt me ID (F06) mbetet kontratë server-side guest access. Ndryshimi F01 nuk certifikon as server-owned receipts, as JWT revocation. F03–F05, F07–F16 mbeten si auditimi §12. **G3 = IN_PROGRESS**, target native real accounts = HOLD deri te prova e sigurisë/release sipas target-it.
+
+**Autorizim i kësaj faze:** përdoruesi tha «okej vazhdo» menjëherë pas rekomandimit për të filluar F01 dhe kërkesës për autorizim të veçantë të atij korrigjimi; autorizimi u përdor vetëm për kodin/testet e F01 **në degën ekzistuese**. Nuk përfshin F02, F03–F16, degë të tjera, merge/deploy/main/Production. Autorizimi i vazhdueshëm për 5 dokumentet mbetet në këtë degë.
+
+**Hapi i radhës:** verifiko HEAD/CI dhe vlerëso F02 (logout JWT storage race) ose F06 (same-merchant receipt privacy), sipas target-it pilot, dhe kërko scope të ri kodi për increment të ri. Mos përsërit implementimin F01. Mos shpall release-ready.
+
+
 ## Review i auditimit të pavarur — 2026-10-23
 
 **Audit i marrë:** SHQIPSHOP_INDEPENDENT_DEEP_AUDIT_2026-10-23.md, 16 gjetje F01–F16. Audituesi raporton eksperimente lokale sintetike; kjo seancë kontrolloi të njëjtin GitHub HEAD, kodin relevant, Medusa SDK/Store Order upstream dhe Actions, por NUK e riekzekutoi në mënyrë të pavarur të gjithë reproduksionin React Native/npm audit. **Baseline i verifikuar:** code HEAD e22bb13cd364e785c324e9daabd3af5f3ee2b34d, [parallel/auth 39991716155](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991716155), [Medusa 39991715755](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991715755), [pilot 39991715961](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991715961) — 3/3 SUCCESS. Nuk ka merge/deploy.
