@@ -87,7 +87,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
       setCart(updatedCart);
       return updatedCart;
     },
-    [cart?.id],
+    [cart?.id, additionalFields],
   );
 
   // Recover from a deleted/completed cart without treating an offline network as
@@ -97,7 +97,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     let active = true;
     setCartLoading(true);
     setCartError(undefined);
-    void (async () => {
+    (async () => {
       try {
         const nextCart = await restoreOrCreateCart(region.id, AsyncStorage, apiClient.store.cart);
         if (active) setCart(nextCart);
