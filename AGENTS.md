@@ -1,5 +1,12 @@
 # Working on ShqipShop — repository instructions
 
+## Authorized F01 native increment — checkpoint 2026-10-23
+
+**Kontekst më i ri se auditimi i mëposhtëm:** përdoruesi tha «okej vazhdo» pas kërkesës specifike për korrigjimin F01. U autorizua dhe u implementua vetëm F01 native privacy cache në degën ekzistuese `feat/merchant-auth-boundary-ci` (PR #12 Draft), pa ndryshuar main/production. Code checkpoint [2219e65](https://github.com/titanfit102-bit/ShqipShop/commit/2219e65e5dff987ad5046bcf34f03fc253d9e714), [native test run 40001961028](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40001961028) SUCCESS (32/32 tests, lint/typecheck). Ky autorizim nuk shtrihet te F02–F16. Hapi teknik i radhës kërkon leje të re për kod.
+
+**Rikuperimi:** shko fillimisht te [CURRENT_STATE](docs/CURRENT_STATE.md) pastaj [MASTER_HANDOFF §13](docs/MASTER_HANDOFF.md), verifiko CI/HEAD, mos përsërit F01. Kjo shënim korrigjon rreshtat historikë më poshtë që e quajnë ende F01 të paautorizuar. Mirëmbajtja automatike e pesë dokumenteve mbetet e lejuar vetëm në këtë degë.
+
+
 ## ShqipShop independent audit F01–F16 review — 2026-10-23
 
 **Evidenca:** raport i pavarur për commit e22bb13 (F01–F16), rishikuar kundrejt source GitHub, upstream Medusa 2.21.2/2.22.0 dhe [CI 39991716155](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991716155), [39991715755](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991715755), [39991715961](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39991715961): 3/3 SUCCESS. Verifikimi i Work për komponentet native dhe numri i package advisories nuk u riprodhuan veçmas nga ky reviewer; shumica e mekanizmave defektozë u konfirmuan nga source. Detajet dhe caveats: CURRENT_STATE dhe MASTER_HANDOFF §12 në këtë branch (jo main).
