@@ -19,6 +19,15 @@
 
 **Evidenca konkrete e kufirit A/B:** dy procese Medusa njëkohësisht, PostgreSQL me DB/role të veçanta, dy porosi sintetike nga 1.510 ALL, vetë-porosia HTTP 200, porosia e dyqanit tjetër HTTP 404, publishable key i huaj HTTP 400. Admin/customer JWT të dy bizneseve provohen dhe token-et e huaja refuzohen në të dy drejtimet. Dy Redis serverë ishin të arritshëm në CI; **përdorimi real i tyre nga provider-et e Medusa/queues nuk është konfirmuar**. Checkout-et u bënë njëri pas tjetrit teksa **të dy serverët** ishin aktivë, jo si race/load test.
 
+
+## Rikuperim live — 2026-10-23, pas protokollit v22
+
+- **HEAD i inspektuar:** `b3f759a2e363b70664ce74e17ef742964e6e6922`. Krahasimi nga code SHA `3eab3c3` përmban **vetëm** AGENTS.md, CURRENT_STATE, MASTER_HANDOFF, PROJECT_HISTORY dhe ROADMAP; asnjë ndryshim kodi.
+- **CI në këtë HEAD:** [parallel/auth 39985437241](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39985437241), [Medusa smoke 39985437127](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39985437127), [pilot 39985437135](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39985437135): **3/3 SUCCESS**, job steps dhe log-et u lexuan. Pilot: **10 passed**; Medusa: porosi PostgreSQL dhe rezervim +1 me stok fizik të pandryshuar; dy-backend: marker-at order boundary A/B dhe admin/customer JWT isolation.
+- **PR #1–#12:** ende OPEN Draft; #12 bazohet në #11, #11 në #10; #9 dhe #10 janë degë motra mbi #8. `main` mbetet `329e0381b0bc4ce39cf554a2b2888a047e1dd29e`.
+- **Gjetje e re e verifikuar:** log-u i backend smoke shfaq vlera JWT_SECRET/COOKIE_SECRET të gjeneruara për runner-in, pa maskim; workflow i shkruan në GITHUB_ENV pa add-mask. Janë sekrete CI të përkohshme, jo provë ekspozimi kredencialesh production. **Mos kopjo vlerat** në docs/raporte. Korrigjimi i workflow-t kërkon leje kodi.
+- **Gjendja:** G3 IN_PROGRESS. Analiza dhe kriteret më poshtë janë përgatitur; **testet e reja nuk janë implementuar/ekzekutuar**. Autorizimi i konfirmuar mbulon vetëm pesë dokumentet në këtë degë. Hapi teknik pret leje të shprehur për scripts/workflow; nuk është dështim i testit.
+
 ## Kufijtë e provës dhe punët e hapura
 
 - **P0 (pasues):** teste negative të sesioneve cookie, logout/replay/cross-tenant, autorizimet e ndryshimeve (order/customer/inventory/admin), ID spoofing dhe RBAC; ndalo çdo pretendim production/security pa rezultate.
@@ -31,7 +40,7 @@
 ## Veprimi i saktë i ardhshëm
 
 1. Verifiko live degën, SHA, PR #12, GitHub Actions dhe nëse ka ndryshime **pas checkpoint-it të kodit** 3eab3c3. Verifiko në mënyrë të veçantë testet e HEAD-it të dokumentacionit; mos supozo që statusi GREEN i kodit vlen për SHA-të e ardhshme.
-2. Vazhdo analizën e autentikimit të Medusa-s dhe përgatit një test CI të kufizuar për cookie/session dhe negative mutations, **vetëm nëse ka autorizim të shprehur për ndryshime kodi**. Autorizimi i protokollit vetë nuk jep leje për kod/degë të tjera.
+2. Analiza dhe kriteret e testit cookie/session dhe negative mutations janë ruajtur në MASTER_HANDOFF §10; zbato testin CI të kufizuar sipas tyre, **vetëm nëse ka autorizim të shprehur për ndryshime kodi**. Autorizimi i protokollit vetë nuk jep leje për kod/degë të tjera.
 3. Pas çdo rezultati material të verifikuar, përditëso CURRENT_STATE.md, MASTER_HANDOFF.md dhe, kur nevojitet, PROJECT_HISTORY.md/ROADMAP.md/AGENTS.md, **vetëm në këtë degë**.
 
 ## Protokolli i autorizimeve dhe handoff-it

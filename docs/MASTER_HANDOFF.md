@@ -120,3 +120,57 @@ Shih [ROADMAP.md](ROADMAP.md) për kriteret e daljes të secilës fazë.
 ## 9. Politika e raportimit dhe sigurisë
 
 Në fund të çdo pune: **(1) çfarë u përfundua; (2) çfarë mbetet; (3) hapi i ardhshëm; (4) handoff: përditësuar/i pandryshuar/ruajtja dështoi.** Ruaj vendimet si të konfirmuara, planet si të propozuara, supozimet si hipoteza dhe evidencën si verifikim konkret. Mos ndaj secrets/PII; jo force push, jo fshirje historie, jo merge në main ose deploy pa autorizim. Respekto license MIT/upstream dhe projektet e tjera të pavarura.
+
+## Rikuperim live — 2026-10-23, pas protokollit v22
+
+- **HEAD i inspektuar:** `b3f759a2e363b70664ce74e17ef742964e6e6922`. Krahasimi nga code SHA `3eab3c3` përmban **vetëm** AGENTS.md, CURRENT_STATE, MASTER_HANDOFF, PROJECT_HISTORY dhe ROADMAP; asnjë ndryshim kodi.
+- **CI në këtë HEAD:** [parallel/auth 39985437241](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39985437241), [Medusa smoke 39985437127](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39985437127), [pilot 39985437135](https://github.com/titanfit102-bit/ShqipShop/actions/runs/39985437135): **3/3 SUCCESS**, job steps dhe log-et u lexuan. Pilot: **10 passed**; Medusa: porosi PostgreSQL dhe rezervim +1 me stok fizik të pandryshuar; dy-backend: marker-at order boundary A/B dhe admin/customer JWT isolation.
+- **PR #1–#12:** ende OPEN Draft; #12 bazohet në #11, #11 në #10; #9 dhe #10 janë degë motra mbi #8. `main` mbetet `329e0381b0bc4ce39cf554a2b2888a047e1dd29e`.
+- **Gjetje e re e verifikuar:** log-u i backend smoke shfaq vlera JWT_SECRET/COOKIE_SECRET të gjeneruara për runner-in, pa maskim; workflow i shkruan në GITHUB_ENV pa add-mask. Janë sekrete CI të përkohshme, jo provë ekspozimi kredencialesh production. **Mos kopjo vlerat** në docs/raporte. Korrigjimi i workflow-t kërkon leje kodi.
+- **Gjendja:** G3 IN_PROGRESS. Analiza dhe kriteret më poshtë janë përgatitur; **testet e reja nuk janë implementuar/ekzekutuar**. Autorizimi i konfirmuar mbulon vetëm pesë dokumentet në këtë degë. Hapi teknik pret leje të shprehur për scripts/workflow; nuk është dështim i testit.
+
+## 10. Hapi pasues i përgatitur — cookie/session dhe negative mutations
+
+**Status: PLAN, NOT IMPLEMENTED / NOT RUN.** Kriteret rrjedhin nga P0 ekzistues dhe ADR-006; nuk shtojnë veçori produkti. Ekzekutim i synuar: inline, me fixtures sintetike, dy serverët ekzistues dhe pa varësi të reja. Para kodit duhet autorizim specifik për scripts/workflow në këtë degë; jo merge/deploy/main.
+
+**Burim primar i inspektuar:** Medusa tag [v2.22.0 session route](https://github.com/medusajs/medusa/blob/v2.22.0/packages/medusa/src/api/auth/session/route.ts), [auth middleware routes](https://github.com/medusajs/medusa/blob/v2.22.0/packages/medusa/src/api/auth/middlewares.ts) dhe [authenticate middleware](https://github.com/medusajs/medusa/blob/v2.22.0/packages/core/framework/src/http/middlewares/authenticate-middleware.ts). POST /auth/session merr bearer dhe ruan auth_context; DELETE përdor session auth dhe shkatërron sesionin. **Inferencë nga kodi, jo provë runtime:** logout cookie nuk është vetvetiu revokim JWT. JWT replay dhe session replay duhen raportuar veçmas; mos vendos kriter të rremë që çdo bearer duhet të skadojë pas DELETE /auth/session.
+
+**Skedarët e propozuar, ende të pamodifikuar:** zgjerim i `medusa-backend-poc/scripts/parallel-auth-boundary.mjs` për request/cookies/identitete dhe kontrollet session; script i fokusuar `medusa-backend-poc/scripts/parallel-mutation-boundary.mjs` vetëm nëse ndarja e përgjegjësive justifikohet; lidhje e tyre në `.github/workflows/parallel-medusa-isolation-ci.yml`; maskimi i sekreteve ephemeral në `.github/workflows/medusa-backend-smoke.yml`. Mos ndrysho Medusa core, lockfiles ose native UI në këtë hap.
+
+### Detyra 1 — sesione reale A/B, customer/admin
+
+- [ ] Zgjero request helper-in ekzistues me cookie input dhe Set-Cookie output në memorie, pa log token/cookie/body. Inputet mbeten localhost :9000/:9001, CI=true dhe NODE_ENV=development.
+- [ ] Për customer dhe admin të secilit tenant: login JWT → POST /auth/session → ruaj cookie-n → GET profili **vetëm me cookie**, pa Authorization. Kërko HTTP 200 dhe actor ID të saktë.
+- [ ] Cookie A në B dhe B në A; cookie e manipuluar; customer cookie në Admin API dhe admin cookie në customer profile: HTTP 401/403; pa cookie: HTTP 401/403. Përdor publishable key korrekt të serverit target që gabimi i key-t të mos maskojë testin e sesionit.
+- [ ] DELETE /auth/session me cookie: HTTP 200, success=true, Set-Cookie për pastrim; replay i cookie-t origjinal duhet të japë HTTP 401/403. Krijo sesion të ri dhe verifiko që logout A nuk çaktivizon sesionin B.
+- [ ] Provo bearer-in origjinal pas logout dhe regjistro vetëm statusin; kjo mat kontratën aktuale JWT, jo revokim të implementuar. Nëse bearer mbetet valid, dokumento gap-in e revokimit sipas kërkesave production.
+- [ ] Cookie jar duhet menaxhuar shprehimisht: Node fetch nuk siguron jar automatik. Dy porta në 127.0.0.1 **nuk provojnë izolim cookie sipas domain-it të browser-it**; Secure/SameSite/HttpOnly, CORS/CSRF dhe HTTPS kërkojnë gate browser të veçantë.
+
+### Detyra 2 — kërkesat që ndryshojnë të dhënat
+
+Rrugët POST më poshtë janë lexuar në source v2.22.0; mos shpik PATCH/PUT ose endpoint që s'ekziston. Krijo fixtures sintetike dhe merr IDs përmes API-ve të tenant-it të vet.
+
+| Kontrolli | Kriteri |
+| --- | --- |
+| POST /store/customers/me, first_name sintetike | Customer i vet: 200 + actor ID/vlerë korrekte; pa auth, foreign JWT/cookie: 401/403. |
+| POST /admin/customers/{id}, first_name | Admin i vet: 200 dhe lexim pasues; pa auth, customer actor, foreign admin JWT/cookie: 401/403. |
+| POST /admin/orders/{id}, metadata marker | Kontroll pozitiv me admin të vet; të njëjtat negative 401/403, pa ndryshim të order ID/currency/total/metadata në tenant-et A/B. |
+| POST /admin/inventory-items/{id}, title | Kontroll pozitiv me admin të vet; negative 401/403 dhe verifikim se stock/reservations/title nuk ndryshuan. |
+| ID i B dërguar në backend A me admin valid A | Asnjë objekt i B i kthyer/modifikuar; për customer/order/inventory GET/POST kërko 404 sipas rrugës së konfirmuar dhe lexo sërish objektin B. Çdo rezultat tjetër është finding, jo sukses i supozuar. |
+| DELETE /admin/customers/{id} | Vetëm fixture sintetike e dedikuar për fshirje dhe kontroll pozitiv; pa auth/customer/foreign admin JWT ose cookie refuzohet 401/403 dhe fixture ekziston ende. |
+
+- [ ] Për çdo negative përdor payload të vlefshëm dhe ID ekzistuese në serverin target; HTTP 400/404 nga validimi/rruga e gabuar **nuk vërteton** refuzim autentikimi.
+- [ ] Ruaj snapshot para/pas për objektet A/B përmes leximit me admin të vet dhe verifiko mungesë side effects; mos u mbështet vetëm në status HTTP.
+- [ ] ID spoofing në customer body/query/header nuk duhet të ndryshojë actor-in server-side; pranimi/refuzimi i fushës shtesë raportohet veçmas nga prova se objekti i tjetrit mbeti i paprekur.
+- [ ] Admin/customer role separation **nuk është** provë RBAC me role të kufizuara mes administratorëve. RBAC i tillë mbetet i hapur; refund/cancel, media, Redis/jobs dhe load nuk certifikohen nga ky increment.
+
+### Detyra 3 — CI dhe evidenca
+
+- [ ] Për sekretet CI të gjeneruara, regjistro add-mask përpara eksportimit në GITHUB_ENV; mos printo token/cookie/PII dhe mos ngarko jar/response objects në artifacts.
+- [ ] `node --check medusa-backend-poc/scripts/parallel-auth-boundary.mjs` (dhe script-in e ri nëse krijohet), pastaj workflow ekzistues dy-Medusa me të dy serverët aktivë; endpoint-et e paarritshme/5xx janë FAIL, jo auth denied.
+- [ ] Kërko marker-a të veçantë për own-cookie, cross-cookie denial, logout replay denial dhe negative mutation side-effects; një marker total vetëm pas kalimit të të dy drejtimeve A↔B.
+- [ ] Përdor kontroll pozitiv dhe prove të kontrolluar se heqja e një assertion-i/refuzimi zbulohet nga testi; mos dobëso kontrollet për ta bërë CI green.
+- [ ] Kontrollo backend smoke + pilot regression në SHA e re. Mos riekzekuto Android build për ndryshime vetëm testesh backend; native proof mbetet historik dhe i lidhur me SHA/run e vet.
+- [ ] Lexo job logs të redaktuara, diff dhe branch HEAD; përditëso CURRENT_STATE/MASTER/HISTORY me SHA/run/rezultatet reale. Nëse cookie/logout dështon, ruaj finding-un dhe mos anashkalo kontrollin.
+
+**Pranim i këtij increment-i:** vetëm nëse session/mutation kontrolli dhe regresionet kalojnë në SHA e re; G3 prapë mbetet IN_PROGRESS për Redis/providers, browser security, RBAC, media, backup/restore dhe production.
