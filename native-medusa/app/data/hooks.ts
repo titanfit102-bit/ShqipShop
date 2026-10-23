@@ -2,6 +2,7 @@ import { useCart } from './cart-context';
 import { useRegion } from './region-context';
 import { CheckoutStep } from '../types/checkout';
 import { useCustomer } from './customer-context';
+import { activeCheckoutPaymentSession, checkoutResumeStep } from './checkout-progress';
 
 export const useProductQuantity = (productId: string) => {
   const { cart } = useCart();
@@ -61,25 +62,12 @@ export const useCountries = (): Country[] => {
 
 export const useCurrentCheckoutStep = (): CheckoutStep => {
   const { cart } = useCart();
-
-  if (!cart?.shipping_address?.address_1 || !cart?.email) {
-    return 'address';
-  }
-  if (!cart?.shipping_methods?.[0]?.shipping_option_id) {
-    return 'delivery';
-  }
-  if (cart?.total === 0) {
-    return 'payment';
-  }
-  return 'review';
+  return checkoutResumeStep(cart);
 };
 
 export const useActivePaymentSession = () => {
   const { cart } = useCart();
-
-  return cart?.payment_collection?.payment_sessions?.find(
-    session => session.status === 'pending',
-  );
+  return activeCheckoutPaymentSession(cart);
 };
 
 export const useLoggedIn = () => {
