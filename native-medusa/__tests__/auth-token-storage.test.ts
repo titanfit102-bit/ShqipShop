@@ -105,11 +105,14 @@ test('a token read started before logout cannot return the old JWT afterward', a
   }
   expect(releaseRead).toBeDefined();
 
-  await clearNativeCustomerToken({
+  // Start logout, then release the deliberately delayed read. Awaiting
+  // logout first would also delay its verification read and deadlock the test.
+  const logout = clearNativeCustomerToken({
     clearToken: () => authTokenStorage.removeItem(AUTH_TOKEN_KEY),
   });
   releaseRead?.();
   expect(await pendingRead).toBeNull();
+  await logout;
 });
 
 test('new login remains blocked until verified storage write and marker removal', async () => {
