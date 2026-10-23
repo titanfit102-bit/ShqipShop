@@ -18,7 +18,7 @@ export default async function verifySeparatedWorker({
     throw new Error("F07c synthetic event processed outside a dedicated worker")
   }
   const id = event.data?.id
-  if (id !== "first" && id !== "second") {
+  if (id !== "first" && id !== "second" && id !== "outage") {
     throw new Error("Invalid synthetic F07c probe identifier")
   }
   const dir = process.env.SHQIPSHOP_F07C_PROOF_DIR

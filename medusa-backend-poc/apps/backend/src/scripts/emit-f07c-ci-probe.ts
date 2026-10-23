@@ -12,7 +12,7 @@ export default async function emitF07c({ container, args }: ExecArgs) {
   ) throw new Error("F07c emission is restricted to CI server-only Redis mode")
 
   const id = args?.[0]
-  if (id !== "first" && id !== "second") {
+  if (id !== "first" && id !== "second" && id !== "outage") {
     throw new Error("Invalid F07c synthetic event")
   }
   const eventBus = container.resolve<IEventBusModuleService>(Modules.EVENT_BUS)
