@@ -2,7 +2,7 @@ import Button from '@components/common/button';
 import Text from '@components/common/text';
 import React, { useEffect, useRef } from 'react';
 import Icon from '@react-native-vector-icons/ant-design';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -55,8 +55,16 @@ const AnimatedCartButton = ({
       return;
     }
     setAdding(true);
-    await addToCart(selectedVariantId, 1);
-    setAdding(false);
+    try {
+      await addToCart(selectedVariantId, 1);
+    } catch (error) {
+      Alert.alert(
+        l10n.getString('error'),
+        error instanceof Error ? error.message : l10n.getString('an-error-occurred'),
+      );
+    } finally {
+      setAdding(false);
+    }
   };
 
   return (
