@@ -13,12 +13,12 @@ jest.mock('../app/api/client', () => ({
     store: { customer: { retrieve: jest.fn() } },
   },
 }));
-const linkCartToCustomer = jest.fn(async () => undefined);
-const resetCart = jest.fn(async () => undefined);
+const mockLinkCartToCustomer = jest.fn(async () => undefined);
+const mockResetCart = jest.fn(async () => undefined);
 jest.mock('../app/data/cart-context', () => ({
   useCart: () => ({
-    linkCartToCustomer,
-    resetCart,
+    mockLinkCartToCustomer,
+    mockResetCart,
   }),
 }));
 
@@ -45,8 +45,8 @@ beforeEach(() => {
   retrieve.mockReset();
   login.mockReset();
   logout.mockReset();
-  linkCartToCustomer.mockClear();
-  resetCart.mockClear();
+  mockLinkCartToCustomer.mockClear();
+  mockResetCart.mockClear();
   actions = undefined;
 });
 afterEach(async () => {
@@ -75,7 +75,7 @@ test('real CustomerProvider clears cached PII before B login', async () => {
   });
   expect(actions?.customer).toBeUndefined();
   expect(client.getQueryData(oldKey)).toBeUndefined();
-  expect(resetCart).toHaveBeenCalledTimes(1);
+  expect(mockResetCart).toHaveBeenCalledTimes(1);
 
   identity = 'cust_B';
   await ReactTestRenderer.act(async () => {
@@ -83,7 +83,7 @@ test('real CustomerProvider clears cached PII before B login', async () => {
   });
   expect(actions?.customer?.id).toBe('cust_B');
   expect(client.getQueryData(oldKey)).toBeUndefined();
-  expect(linkCartToCustomer).toHaveBeenCalledTimes(1);
+  expect(mockLinkCartToCustomer).toHaveBeenCalledTimes(1);
 });
 
 test('old account refresh response cannot replace a newer identity', async () => {
