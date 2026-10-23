@@ -6,7 +6,10 @@ import {
   isUsableFxQuote,
 } from '@utils/dual-currency';
 
-const fxEndpoint = `${apiUrl.replace(/\/$/, '')}/store/shqipshop/indicative-fx`;
+const backendUrl = typeof apiUrl === 'string' && apiUrl.length > 0
+  ? apiUrl
+  : 'http://localhost:9000';
+const fxEndpoint = `${backendUrl.replace(/\/$/, '')}/store/shqipshop/indicative-fx`;
 
 /**
  * Same query/cache for every product card; never falls back to an invented rate.
