@@ -1,5 +1,12 @@
 # Working on ShqipShop — repository instructions
 
+## F07b Redis session portability — latest verified checkpoint (2026-10-23)
+
+**Code SHA [5cf17af](https://github.com/titanfit102-bit/ShqipShop/commit/5cf17af77d807ce57a7054358d447704ec12a307)** [parallel CI 40021889093](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021889093) SUCCESS: independent A:9002 process accepts A:9000 customer's and admin's cookie without bearer JWT, rejects B cookies/anonymous; marker `SHQIPSHOP_REDIS_SAME_MERCHANT_COOKIE_CROSS_PROCESS_PASSED`. A/B Redis events proof remains PASS. Other CI: two isolated 40021895454, Medusa 40021895280, native 40021895384, pilot 40021895506 — all SUCCESS. F07 PARTIAL because session cross-process is not Redis outage restart or worker retry; Redis Caching Module Provider not installed, no production/HTTPS/TLS/HA proof.
+
+**Recovery instructions:** read [CURRENT_STATE](docs/CURRENT_STATE.md) then [MASTER_HANDOFF §19](docs/MASTER_HANDOFF.md) on branch `feat/merchant-auth-boundary-ci`, NOT main. Verify HEAD/Actions. Only F07-related CI code + five docs updated with authorization «vazhdo»; no main/merge/deploy. Future code outside scope requires approval.
+
+
 ## F07 Redis integration verified — latest technical checkpoint (2026-10-23)
 
 **Code checkpoint [ad7a86dc](https://github.com/titanfit102-bit/ShqipShop/commit/ad7a86dc82778fe1658c51152210298a03ece6be), PR #12 Draft in `feat/merchant-auth-boundary-ci`:** Medusa sessions now receive `projectConfig.redisUrl`, and explicit Redis event/workflow/locking providers are registered when URL present. Parallel CI enforces `SHQIPSHOP_REQUIRE_REDIS=true`. **5/5 CI success**: [parallel runtime 40021073660](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073660) proves two separate Redis A/B keyspaces with events (17 total, 2 event, 4 workflow-named keys EACH), [two isolated 40021073589](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073589), [Medusa 40021073486](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073486), [native 40021073350](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073350), [pilot 40021073534](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021073534).

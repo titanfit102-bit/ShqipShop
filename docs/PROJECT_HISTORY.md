@@ -341,3 +341,7 @@ Përdoruesi autorizoi vazhdimin e F07 («vazhdo»). Në `feat/merchant-auth-boun
 
 **NOT YET CERTIFIED:** session cookie persisted through restart, worker/server split, retries/HA, locking under contention, Redis caching provider (not installed), TLS/ACL and production. F07 stays PARTIAL. Docs CURRENT_STATE and MASTER_HANDOFF §18 are the newest recovery point on this feature branch only, not main. Future code changes need new scope authorization.
 
+## 2026-10-23 — F07b session transport between independent Medusa instances
+
+Code [5cf17af](https://github.com/titanfit102-bit/ShqipShop/commit/5cf17af77d807ce57a7054358d447704ec12a307) shtoi testim cross-process të session cookies: serveri A:9000 krijon cookie customer/admin, një server i ri A:9002 me të njëjtat Redis/DB/secrets autentikon të dy pa JWT; cookie B refuzohet, pa cookie refuzohet. Testi përdor vetëm skedar përkohshëm 0600 dhe nuk printon kredencialet. [Parallel 40021889093](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021889093) **SUCCESS**, marker `SHQIPSHOP_REDIS_SAME_MERCHANT_COOKIE_CROSS_PROCESS_PASSED`, edhe event Redis A/B marker PASS. Katër workflow-t e tjerë për të njëjtin SHA gjithashtu SUCCESS: two isolated 40021895454, Medusa 40021895280, native 40021895384, pilot 40021895506. **F07 PARTIAL**: nuk u testua Redis outage/restart, caching provider, worker retry ose prod; pa main/merge/deploy. Vazhdimësia: CURRENT_STATE dhe MASTER_HANDOFF §19 në feature branch.
+

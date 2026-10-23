@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F07b — session sharing cross-process (CI VERIFIED; 2026-10-23)
+
+- **Code [5cf17af](https://github.com/titanfit102-bit/ShqipShop/commit/5cf17af77d807ce57a7054358d447704ec12a307) + [parallel session handoff 40021889093](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40021889093) SUCCESS**: sesionet customer/admin nga A:9000 pranohen në A:9002 pa JWT, cookie B refuzohet. Redis event keyspaces A/B provohen, 5/5 distinct CI workflows green në code SHA.
+- **F07 mbetet PARTIAL**: sesione cross-process dhe event activity u provuan; mbeten Redis restart/failover, server-vs-worker queues/retry, locking under contention, caching-redis provider/lockfile, Redis auth/TLS/ACL/backup, prod HA, fizik/browser HTTPS. Mos deklaro F07 closed, G3/G5 production.
+- **Next:** test restart+worker processing në izolim sintetik dhe planifiko caching provider me lockfile; kërko scope të ri për kodin e mëtejshëm. PR #12 Draft, handoff në `feat/merchant-auth-boundary-ci` vetëm.
+
+
 ## F07 — real Medusa Redis modules (PARTIAL, 2026-10-23)
 
 - **Implemented in [ad7a86dc](https://github.com/titanfit102-bit/ShqipShop/commit/ad7a86dc82778fe1658c51152210298a03ece6be):** Medusa `projectConfig.redisUrl` for sessions and explicit Redis event-bus, workflow-engine and locking provider registrations. `SHQIPSHOP_REQUIRE_REDIS=true` in parallel CI rejects absent Redis URL. Two physically separate Redis services A/B.
