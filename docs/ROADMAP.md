@@ -1,5 +1,13 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## RegionProvider recovery checkpoint — 2026-10-23
+
+- **Implemented native, code [77de0869](https://github.com/titanfit102-bit/ShqipShop/commit/77de0869a4f072eeb3dcbd047c21dd5a0f525909):** saved `region_id` valid reuse, expired 404/410 fallback after successful list, offline/401/5xx preserve; epoch ignores outdated responses; serial AsyncStorage writes for rapid B→C selection; Home and RegionSelect error/retry states.
+- **Evidence:** [native 40014816829](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40014816829) SUCCESS (15/15 suites, 71/71 Jest, TypeScript/lint) on f4a43d6; final code [native 40015015192](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40015015192) initially pending, [pilot 40015015190](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40015015190) success. Recheck the latest SHA and CI.
+- **Open:** real mobile E2E and l10n, React CartProvider rapid region update race **in the server**, checkout idempotency, F07 Redis jobs, F09 PWA/Medusa unified backend, production controls. This native increment does not close G3/G5.
+- **Next (proposal):** read-only inspection of Redis runtime configuration and CartProvider server-side region race. Changes to other code require scope-specific authorization. Docs checkpoint on `feat/merchant-auth-boundary-ci`, not main.
+
+
 ## F03–F05 — native cart/checkout resilience (2026-10-23)
 
 - **Implementuar (CI-verified në code SHA [7ea5153](https://github.com/titanfit102-bit/ShqipShop/commit/7ea515388d70ce45517ed667ab0275ff86cc9040)):** F03 cart 404/410 recreate; offline/401/5xx preserve + UI retry. F04 add/update mutation error propagation, alerts dhe finally/loading. F05 payment status pending/authorized para review/complete, pas GET Store cart. Testet [native 40012363697](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40012363697) 56/56 PASS, [Medusa HTTP 40012363691](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40012363691) marker `SHQIPSHOP_F05_CART_PAYMENT_SESSION_VERIFIED` PASS, pilot dhe parallel CI GREEN; two isolated run [40012363718](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40012363718) **SUCCESS**, pra **5/5 GREEN** në code SHA.
