@@ -353,6 +353,9 @@ Rrugët POST më poshtë janë lexuar në source v2.22.0; mos shpik PATCH/PUT os
 
 ## 17. RegionProvider — saved region recovery and asynchronous race hardening (2026-10-23)
 
+**CI final i verifikuar (pas dokumentacionit fillestar):** GitHub HEAD `fa1507dbb536890e757cb6229b82f7c6c00ffbfb` **5/5 GitHub Actions SUCCESS**: [native 40015559334](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40015559334), [pilot 40015559465](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40015559465), [Medusa smoke 40015559348](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40015559348), [parallel A/B 40015559370](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40015559370), [two isolated 40015559411](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40015559411). Verifikuar në GitHub; çdo commit dokumentacioni që vjen më pas ka HEAD tjetër dhe kontrollet e veta.
+
+
 **Authorization, branch and evidence:** User continued the explicitly proposed RegionProvider work («vazhdojm»); only region storage/recovery, mobile UI and associated Jest tests were edited in `feat/merchant-auth-boundary-ci` (PR #12 Draft). [Code commit 77de0869](https://github.com/titanfit102-bit/ShqipShop/commit/77de0869a4f072eeb3dcbd047c21dd5a0f525909). No change to main, Production, backend or real payment credentials. This scope does not authorize Redis F07 or other architecture changes.
 
 **F03 region follow-up root cause:** The original `RegionProvider` read `AsyncStorage.getItem('region_id')` then `region.retrieve`/`region.list` with unhandled promise rejections. It also did `AsyncStorage.setItem` unawaited after any region state change. With delayed storage/network or quick selection B→C, an old bootstrap response or late write could overwrite the intended region. A missing/invalid region ID could leave the storefront without region and without recovery UI.
