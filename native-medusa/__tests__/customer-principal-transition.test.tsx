@@ -17,8 +17,8 @@ const mockLinkCartToCustomer = jest.fn(async () => undefined);
 const mockResetCart = jest.fn(async () => undefined);
 jest.mock('../app/data/cart-context', () => ({
   useCart: () => ({
-    mockLinkCartToCustomer,
-    mockResetCart,
+    linkCartToCustomer: mockLinkCartToCustomer,
+    resetCart: mockResetCart,
   }),
 }));
 
