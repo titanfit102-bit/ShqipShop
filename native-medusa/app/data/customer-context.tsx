@@ -2,6 +2,11 @@ import React, { createContext, useContext, useEffect, useRef, useState, useCallb
 import { useQueryClient } from '@tanstack/react-query';
 import { HttpTypes } from '@medusajs/types';
 import apiClient from '@api/client';
+import {
+  blockAuthForLogin,
+  clearNativeCustomerToken,
+  confirmNewLoginToken,
+} from '@api/auth-token-storage';
 import { useCart } from './cart-context';
 import { clearPrivateCustomerQueries } from './private-customer-queries';
 
@@ -69,12 +74,14 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
     currentPrincipalId.current = undefined;
     await clearPrivateCustomerQueries(queryClient);
 
+    blockAuthForLogin();
     const response = await apiClient.auth.login('customer', 'emailpass', {
       email,
       password,
     });
 
     if (typeof response === 'string') {
+      await confirmNewLoginToken(response);
       await Promise.all([refreshCustomer(), linkCartToCustomer()]);
     } else {
       // Third-party authentication is not completed here.
@@ -89,11 +96,16 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
     currentPrincipalId.current = undefined;
     await clearPrivateCustomerQueries(queryClient);
     try {
-      await apiClient.auth.logout();
-      await resetCart();
+      // This JWT-specific SDK client operation is awaited; auth.logout()
+      // does not await its custom-storage remove in SDK v2.21.2.
+      await clearNativeCustomerToken(apiClient.client);
     } finally {
-      await clearPrivateCustomerQueries(queryClient);
-      setCustomer(undefined);
+      try {
+        await resetCart();
+      } finally {
+        await clearPrivateCustomerQueries(queryClient);
+        setCustomer(undefined);
+      }
     }
   };
 
