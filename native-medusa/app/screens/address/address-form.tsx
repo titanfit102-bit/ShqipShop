@@ -12,6 +12,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { HttpTypes } from '@medusajs/types';
 import { addressSchema, createEmptyAddress } from '../../types/checkout';
+import { useCustomer } from '@data/customer-context';
+import { privateCustomerQueryKey } from '@data/private-customer-queries';
 
 type AddressFormData = z.infer<typeof addressSchema>;
 
@@ -48,6 +50,7 @@ const AddressForm = ({ route }: Props) => {
   const isEditing = !!address;
   const navigation = useNavigation();
   const queryClient = useQueryClient();
+  const { customer } = useCustomer();
 
   const defaultValues = isEditing
     ? { ...createEmptyAddress(), ...address }
@@ -81,7 +84,7 @@ const AddressForm = ({ route }: Props) => {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['address-list'] });
+      queryClient.invalidateQueries({ queryKey: privateCustomerQueryKey(customer?.id, 'addresses') });
       navigation.goBack();
     },
   });

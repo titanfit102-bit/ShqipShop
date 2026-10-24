@@ -1,0 +1,302 @@
+name: F07c Redis dedicated worker and retry (synthetic CI)
+
+on:
+  push:
+    branches: [feat/merchant-auth-boundary-ci]
+    paths:
+      - .github/workflows/f07c-redis-worker-ci.yml
+      - medusa-backend-poc/apps/backend/medusa-config.ts
+      - medusa-backend-poc/apps/backend/src/subscribers/shqipshop-f07c-ci-probe.ts
+      - medusa-backend-poc/apps/backend/src/scripts/emit-f07c-ci-probe.ts
+      - medusa-backend-poc/apps/backend/src/scripts/f07c-lock-contention-ci.ts
+  pull_request:
+    paths:
+      - .github/workflows/f07c-redis-worker-ci.yml
+      - medusa-backend-poc/apps/backend/medusa-config.ts
+      - medusa-backend-poc/apps/backend/src/subscribers/shqipshop-f07c-ci-probe.ts
+      - medusa-backend-poc/apps/backend/src/scripts/emit-f07c-ci-probe.ts
+      - medusa-backend-poc/apps/backend/src/scripts/f07c-lock-contention-ci.ts
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shqipshop-f07c-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: medusa-backend-poc
+    env:
+      CI: "true"
+      NODE_ENV: development
+      SHQIPSHOP_REQUIRE_REDIS: "true"
+      SHQIPSHOP_F07C_PROBE: "true"
+      WORKER_MODE: server
+      REDIS_URL: redis://127.0.0.1:6379
+      DATABASE_URL: postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci
+      STORE_CORS: http://localhost:8000
+      ADMIN_CORS: http://localhost:9010
+      AUTH_CORS: http://localhost:9010
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: medusa_ci
+          POSTGRES_PASSWORD: disposable_ci_password
+          POSTGRES_DB: medusa_ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U medusa_ci -d medusa_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: [6379:6379]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout read-only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: "24"
+      - name: Frozen Medusa dependencies
+        run: |
+          npm install -g pnpm@10.11.1
+          pnpm install --frozen-lockfile --filter '@dtc/backend...'
+      - name: Migrate disposable database
+        run: |
+          set -euo pipefail
+          JWT_SECRET="$(openssl rand -hex 32)"
+          COOKIE_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$JWT_SECRET"
+          echo "::add-mask::$COOKIE_SECRET"
+          export JWT_SECRET COOKIE_SECRET
+          pnpm --filter @dtc/backend exec medusa db:migrate
+      - name: Prove queued event, retry and worker process restart
+        env:
+          SHQIPSHOP_F07C_PROOF_DIR: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          JWT_SECRET="$(openssl rand -hex 32)"
+          COOKIE_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$JWT_SECRET"
+          echo "::add-mask::$COOKIE_SECRET"
+          export JWT_SECRET COOKIE_SECRET
+          server_pid=""
+          worker_pid=""
+          cleanup() {
+            for pid in "$worker_pid" "$server_pid"; do
+              if [ -n "$pid" ]; then kill -TERM -- "-$pid" 2>/dev/null || true; fi
+            done
+          }
+          trap cleanup EXIT
+
+          # A real HTTP instance is alive in server-only mode.
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9010 > "$RUNNER_TEMP/f07c-server.log" 2>&1 &
+          server_pid=$!
+          ready=0
+          for i in $(seq 1 100); do
+            if curl -fsS --max-time 3 http://127.0.0.1:9010/health >/dev/null 2>&1; then ready=1; break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+            sleep 3
+          done
+          if [ "$ready" != 1 ]; then
+            tail -80 "$RUNNER_TEMP/f07c-server.log" || true
+            echo "::error::F07c server mode failed to start"; exit 1
+          fi
+
+          # Queue an event while NO dedicated worker exists. It must not
+          # be consumed by the HTTP server or a Medusa CLI producer.
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/emit-f07c-ci-probe.ts first
+          sleep 3
+          test ! -e "$RUNNER_TEMP/f07c-first-failure"
+          test ! -e "$RUNNER_TEMP/f07c-first-success"
+          echo SHQIPSHOP_F07C_SERVER_ONLY_DID_NOT_CONSUME
+
+          WORKER_MODE=worker setsid pnpm --filter @dtc/backend exec medusa develop --port 9011 > "$RUNNER_TEMP/f07c-worker-1.log" 2>&1 &
+          worker_pid=$!
+          finished=0
+          for i in $(seq 1 100); do
+            if [ -f "$RUNNER_TEMP/f07c-first-failure" ] && [ -f "$RUNNER_TEMP/f07c-first-success" ]; then finished=1; break; fi
+            if ! kill -0 "$worker_pid" 2>/dev/null; then break; fi
+            sleep 3
+          done
+          if [ "$finished" != 1 ]; then
+            tail -80 "$RUNNER_TEMP/f07c-worker-1.log" || true
+            echo "::error::F07c dedicated worker retry not proven"; exit 1
+          fi
+          first_pid="$(cat "$RUNNER_TEMP/f07c-first-success")"
+          test -n "$first_pid"
+          echo SHQIPSHOP_F07C_WORKER_RETRY_PASSED
+
+          # Stop the ENTIRE first worker process group, then queue again.
+          kill -TERM -- "-$worker_pid"
+          for i in $(seq 1 30); do
+            if ! kill -0 "$first_pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if kill -0 "$first_pid" 2>/dev/null; then
+            echo "::error::First F07c worker still alive; cannot prove restart"; exit 1
+          fi
+          worker_pid=""
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/emit-f07c-ci-probe.ts second
+          test ! -e "$RUNNER_TEMP/f07c-second-success"
+          WORKER_MODE=worker setsid pnpm --filter @dtc/backend exec medusa develop --port 9012 > "$RUNNER_TEMP/f07c-worker-2.log" 2>&1 &
+          worker_pid=$!
+          finished=0
+          for i in $(seq 1 100); do
+            if [ -f "$RUNNER_TEMP/f07c-second-success" ]; then finished=1; break; fi
+            if ! kill -0 "$worker_pid" 2>/dev/null; then break; fi
+            sleep 3
+          done
+          if [ "$finished" != 1 ]; then
+            tail -80 "$RUNNER_TEMP/f07c-worker-2.log" || true
+            echo "::error::F07c restarted worker failed to consume"; exit 1
+          fi
+          second_pid="$(cat "$RUNNER_TEMP/f07c-second-success")"
+          test -n "$second_pid" && test "$first_pid" != "$second_pid"
+          kill -0 "$server_pid"
+          echo SHQIPSHOP_F07C_WORKER_RESTART_CONSUMED_PASSED
+      - name: Verify queued event survives disposable Redis AOF process restart
+        env:
+          SHQIPSHOP_F07C_PROOF_DIR: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          export JWT_SECRET="$(openssl rand -hex 32)" COOKIE_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$JWT_SECRET"
+          echo "::add-mask::$COOKIE_SECRET"
+          export REDIS_URL=redis://127.0.0.1:6382 WORKER_MODE=server
+          redis_name="shqipshop-f07c-aof-${GITHUB_RUN_ID}"
+          worker_pid=""
+          cleanup() {
+            if [ -n "$worker_pid" ]; then kill -TERM -- "-$worker_pid" 2>/dev/null || true; fi
+            docker rm -f "$redis_name" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker run -d --name "$redis_name" -p 127.0.0.1:6382:6379 \
+            redis:7-alpine redis-server --appendonly yes --appendfsync always >/dev/null
+          for i in $(seq 1 40); do
+            if docker exec "$redis_name" redis-cli ping 2>/dev/null | grep -qx PONG; then break; fi
+            sleep 1
+          done
+          docker exec "$redis_name" redis-cli ping | grep -qx PONG
+          docker exec "$redis_name" redis-cli --raw INFO persistence | grep -q '^aof_enabled:1'
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/emit-f07c-ci-probe.ts outage
+          test ! -e "$RUNNER_TEMP/f07c-outage-success"
+          docker exec "$redis_name" redis-cli --scan --pattern '*events-queue*' | grep -q .
+          echo SHQIPSHOP_F07C_AOF_QUEUED_BEFORE_RESTART
+          docker stop "$redis_name" >/dev/null
+          python3 - <<'PY'
+          import socket
+          try:
+              socket.create_connection(("127.0.0.1", 6382), timeout=1)
+          except OSError:
+              print("SHQIPSHOP_F07C_REDIS_OUTAGE_OBSERVED")
+          else:
+              raise AssertionError("Synthetic Redis did not actually stop")
+          PY
+          docker start "$redis_name" >/dev/null
+          for i in $(seq 1 40); do
+            if docker exec "$redis_name" redis-cli ping 2>/dev/null | grep -qx PONG; then break; fi
+            sleep 1
+          done
+          docker exec "$redis_name" redis-cli ping | grep -qx PONG
+          docker exec "$redis_name" redis-cli --raw INFO persistence | grep -q '^aof_enabled:1'
+          docker exec "$redis_name" redis-cli --scan --pattern '*events-queue*' | grep -q .
+          echo SHQIPSHOP_F07C_AOF_QUEUE_SURVIVED_RESTART
+
+          WORKER_MODE=worker setsid pnpm --filter @dtc/backend exec medusa develop --port 9014 \
+            > "$RUNNER_TEMP/f07c-worker-aof.log" 2>&1 &
+          worker_pid=$!
+          consumed=0
+          for i in $(seq 1 100); do
+            if [ -f "$RUNNER_TEMP/f07c-outage-success" ]; then consumed=1; break; fi
+            if ! kill -0 "$worker_pid" 2>/dev/null; then break; fi
+            sleep 3
+          done
+          if [ "$consumed" != 1 ]; then
+            tail -80 "$RUNNER_TEMP/f07c-worker-aof.log" || true
+            echo "::error::Queued event not consumed after Redis AOF restart"; exit 1
+          fi
+          test -s "$RUNNER_TEMP/f07c-outage-success"
+          echo SHQIPSHOP_F07C_REDIS_AOF_RESTART_DELIVERY_PASSED
+
+      - name: Verify cross-process Medusa Redis locking mutual exclusion
+        env:
+          SHQIPSHOP_F07C_PROOF_DIR: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          export JWT_SECRET="$(openssl rand -hex 32)" COOKIE_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$JWT_SECRET"
+          echo "::add-mask::$COOKIE_SECRET"
+          export WORKER_MODE=server REDIS_URL=redis://127.0.0.1:6379
+          holder_pid=""
+          contender_pid=""
+          cleanup() {
+            for pid in "$holder_pid" "$contender_pid"; do
+              if [ -n "$pid" ]; then kill -TERM -- "-$pid" 2>/dev/null || true; fi
+            done
+          }
+          trap cleanup EXIT
+          setsid pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07c-lock-contention-ci.ts holder \
+            > "$RUNNER_TEMP/f07c-lock-holder.log" 2>&1 &
+          holder_pid=$!
+          ready=0
+          for i in $(seq 1 100); do
+            if [ -f "$RUNNER_TEMP/f07c-lock-holder-entered" ]; then ready=1; break; fi
+            if ! kill -0 "$holder_pid" 2>/dev/null; then break; fi
+            sleep 2
+          done
+          if [ "$ready" != 1 ]; then
+            tail -60 "$RUNNER_TEMP/f07c-lock-holder.log" || true
+            echo "::error::Redis lock holder never entered"; exit 1
+          fi
+          setsid pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07c-lock-contention-ci.ts contender \
+            > "$RUNNER_TEMP/f07c-lock-contender.log" 2>&1 &
+          contender_pid=$!
+          ready=0
+          for i in $(seq 1 100); do
+            if [ -f "$RUNNER_TEMP/f07c-lock-contender-ready" ]; then ready=1; break; fi
+            if ! kill -0 "$contender_pid" 2>/dev/null; then break; fi
+            sleep 2
+          done
+          test "$ready" = 1
+          sleep 3
+          test ! -e "$RUNNER_TEMP/f07c-lock-contender-entered"
+          test -e "$RUNNER_TEMP/f07c-lock-critical"
+          echo SHQIPSHOP_F07C_LOCK_CONTENDER_BLOCKED
+          printf "release\n" > "$RUNNER_TEMP/f07c-lock-release-request"
+          if ! wait "$holder_pid"; then
+            tail -60 "$RUNNER_TEMP/f07c-lock-holder.log" || true
+            echo "::error::Lock holder failed"; exit 1
+          fi
+          if ! wait "$contender_pid"; then
+            tail -60 "$RUNNER_TEMP/f07c-lock-contender.log" || true
+            echo "::error::Lock contender failed"; exit 1
+          fi
+          test -f "$RUNNER_TEMP/f07c-lock-holder-left"
+          test -f "$RUNNER_TEMP/f07c-lock-contender-entered"
+          test ! -e "$RUNNER_TEMP/f07c-lock-critical"
+          test "$(cat "$RUNNER_TEMP/f07c-lock-holder-entered")" != \
+            "$(cat "$RUNNER_TEMP/f07c-lock-contender-entered")"
+          echo SHQIPSHOP_F07C_REDIS_LOCK_CONTENTION_PASSED
+
+      - name: Explicit certification limits
+        if: always()
+        run: |
+          echo "Only synthetic Medusa Redis event queue and dedicated worker handling are exercised."
+          echo "Disposable AOF Redis restart and two independent locking CLI processes are checked; no unplanned crash, failover/HA, business idempotence, Redis cache, real customer data, production TLS or live payments."

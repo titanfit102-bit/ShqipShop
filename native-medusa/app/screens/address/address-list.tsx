@@ -19,6 +19,7 @@ import { HttpTypes } from '@medusajs/types';
 import twColors from 'tailwindcss/colors';
 import { useCountries } from '@data/region-context';
 import utils from '@utils/common';
+import { privateCustomerQueryKey } from '@data/private-customer-queries';
 
 const AddressList = () => {
   const { l10n } = useLocalization();
@@ -28,7 +29,7 @@ const AddressList = () => {
   const navigation = useNavigation();
 
   const { data, refetch, isRefetching } = useQuery({
-    queryKey: ['address-list'],
+    queryKey: privateCustomerQueryKey(customer?.id, 'addresses'),
     queryFn: async () => {
       const { addresses } = await apiClient.store.customer.listAddress();
       return addresses;
@@ -43,7 +44,7 @@ const AddressList = () => {
       await apiClient.store.customer.deleteAddress(addressId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['address-list'] });
+      queryClient.invalidateQueries({ queryKey: privateCustomerQueryKey(customer?.id, 'addresses') });
     },
   });
 
