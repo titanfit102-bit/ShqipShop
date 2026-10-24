@@ -52,11 +52,10 @@ const getCart = async id => {
   assert.equal(data.cart?.id, id, "Incorrect cart")
   return data.cart
 }
-const currentSession = cart => {
+const activeSessions = cart => {
   const sessions = cart.payment_collection?.payment_sessions || []
-  const active = sessions.filter(s => ["pending", "requires_more", "authorized", "captured", "pending_authorization"].includes(s.status))
-  assert.equal(active.length, 1, "Expected one processable manual CI session")
-  return active[0]
+  return sessions.filter(s =>
+    ["pending", "requires_more", "authorized", "captured", "pending_authorization"].includes(s.status))
 }
 const money = (value, name) => {
   const amount = Number(value)
@@ -90,8 +89,9 @@ const collection = (await call("POST", "/store/payment-collections", { cart_id: 
 assert(collection?.id, "Missing disposable payment collection")
 await call("POST", `/store/payment-collections/${collection.id}/payment-sessions`, { provider_id: "pp_system_default" })
 const before = await getCart(id)
-const originalSession = currentSession(before)
-assert.equal(money(originalSession.amount, "original session"), money(before.total, "original total"),
+const initialActive = activeSessions(before)
+assert.equal(initialActive.length, 1, "Expected exactly one initial manual session")
+assert.equal(money(initialActive[0].amount, "original session"), money(before.total, "original total"),
   "Baseline payment was already stale")
 const item = (before.items || []).find(x => x.variant_id === variant.id)
 assert(item?.id && item.quantity === 1, "Missing initial item")
@@ -102,19 +102,37 @@ await call("POST", `/store/carts/${id}/line-items/${item.id}`, { quantity: 2 })
 const after = await getCart(id)
 assert.equal((after.items || []).find(x => x.id === item.id)?.quantity, 2)
 const cartTotal = money(after.total, "updated cart total")
-const sessionAmount = money(currentSession(after).amount, "updated session amount")
 assert(cartTotal > money(before.total, "previous total"), "Cart quantity did not change total")
-if (cartTotal === sessionAmount) {
-  console.log("SHQIPSHOP_F07F_HTTP_SESSION_AUTO_REFRESHED_AFTER_CART_MUTATION")
-  console.log("SHQIPSHOP_F07F_HTTP_NEGATIVE_STALE_COMPLETION_NOT_EXERCISED")
-} else {
-  console.log("SHQIPSHOP_F07F_HTTP_STALE_SESSION_OBSERVED")
+const active = activeSessions(after)
+assert(active.length <= 1, "Cart mutation produced multiple processable sessions")
+
+if (active.length === 0) {
+  // The official cart update may invalidate the previous payment session.
+  // Medusa's own validateCartPaymentsStep runs before our amount hook.
+  console.log("SHQIPSHOP_F07F_HTTP_PAYMENT_SESSION_INVALIDATED_AFTER_CART_MUTATION")
   for (let i = 0; i < 2; i++) {
     const { status, data } = await call("POST", `/store/carts/${id}/complete`, {}, false)
-    assert.equal(status, 409, `Stale checkout not rejected: HTTP ${status}`)
-    assert(!data.order?.id, "Order created with stale payment session")
+    assert([400, 409].includes(status),
+      `Invalidated-session checkout was not rejected: HTTP ${status}`)
+    assert(!data.order?.id, "Order created despite invalid payment session")
   }
-  const unchanged = await getCart(id)
-  assert(!unchanged.completed_at, "Stale cart was marked completed")
-  console.log("SHQIPSHOP_F07F_HTTP_STALE_SESSION_REJECTED_409_TWICE")
+  const latest = await getCart(id)
+  assert(!latest.completed_at, "Rejected cart was marked completed")
+  console.log("SHQIPSHOP_F07F_HTTP_INVALIDATED_PAYMENT_COMPLETION_REJECTED_TWICE")
+} else {
+  const sessionAmount = money(active[0].amount, "updated session amount")
+  if (cartTotal === sessionAmount) {
+    console.log("SHQIPSHOP_F07F_HTTP_SESSION_AUTO_REFRESHED_AFTER_CART_MUTATION")
+    console.log("SHQIPSHOP_F07F_HTTP_NEGATIVE_STALE_COMPLETION_NOT_EXERCISED")
+  } else {
+    console.log("SHQIPSHOP_F07F_HTTP_STALE_SESSION_OBSERVED")
+    for (let i = 0; i < 2; i++) {
+      const { status, data } = await call("POST", `/store/carts/${id}/complete`, {}, false)
+      assert.equal(status, 409, `Stale checkout not rejected: HTTP ${status}`)
+      assert(!data.order?.id, "Order created with stale payment session")
+    }
+    const latest = await getCart(id)
+    assert(!latest.completed_at, "Rejected cart was marked completed")
+    console.log("SHQIPSHOP_F07F_HTTP_STALE_SESSION_REJECTED_409_TWICE")
+  }
 }
