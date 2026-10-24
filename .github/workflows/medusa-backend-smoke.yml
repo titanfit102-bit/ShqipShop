@@ -167,6 +167,7 @@ jobs:
           for i in $(seq 1 90); do
             if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:9000/health > /dev/null 2>&1; then
               node scripts/store-api-reprice-ci.mjs complete
+              node scripts/f07f-post-session-cart-mutation-ci.mjs
               exit 0
             fi
             if ! kill -0 "$backend_pid" 2>/dev/null; then
