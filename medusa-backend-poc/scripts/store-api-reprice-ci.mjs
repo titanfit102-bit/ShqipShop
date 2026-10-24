@@ -14,7 +14,7 @@ assert.equal(process.env.SHQIPSHOP_F07E_REPRICE_PROBE, "true")
 assert.equal(process.env.DATABASE_URL, "postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci")
 assert.equal(process.env.REDIS_URL, "redis://127.0.0.1:6379")
 const mode = process.argv[2]
-assert(["prepare", "verify"].includes(mode), "Invalid F07e proof mode")
+assert(["prepare", "verify", "complete"].includes(mode), "Invalid F07e proof mode")
 const proofPath = process.env.SHQIPSHOP_F07E_REPRICE_PROOF_FILE
 const keyFile = process.env.SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE
 const runner = process.env.RUNNER_TEMP
@@ -101,7 +101,7 @@ if (mode === "prepare") {
   }
   writeFileSync(proofPath, JSON.stringify(snapshot), { flag: "wx", encoding: "utf8", mode: 0o600 })
   console.log("SHQIPSHOP_F07E_HTTP_REPRICE_ACTIVE_CART_PRIMED")
-} else {
+} else if (mode === "verify") {
   const proof = JSON.parse(readFileSync(proofPath, "utf8"))
   const products = await catalog(proof.regionId, proof.productId)
   const currentVariant = products[0]?.variants?.find(v => v.id === proof.variantId)
@@ -146,4 +146,118 @@ if (mode === "prepare") {
   assert(Number.isFinite(updated.total), "Active cart total missing after price mutation")
   console.log("SHQIPSHOP_F07E_HTTP_ACTIVE_CART_AFTER_REPRICE_INVARIANTS_PASSED")
   console.log("SHQIPSHOP_F07E_HTTP_LIVE_REPRICE_OBSERVATION_COMPLETE")
+} else {
+  // This is a checkout contract probe, NOT an implementation of buyer consent.
+  // We use the last server-returned cart total as a synthetic "reviewed" value.
+  const proof = JSON.parse(readFileSync(proofPath, "utf8"))
+  assert(proof.cartId?.startsWith("cart_") && proof.variantId?.startsWith("variant_"),
+    "Invalid synthetic cart proof")
+
+  // Use exactly the same local-only/manual system provider as the original
+  // checkout CI. Do not hit a gateway, collect card data or complete payment.
+  const address = {
+    first_name: "Test", last_name: "Klient",
+    address_1: "Rruga Demo 1", city: "Tiranë",
+    postal_code: "1001", country_code: "al",
+    phone: "+355690000001",
+  }
+  const updatedAddress = await request("POST",
+    `/store/carts/${encodeURIComponent(proof.cartId)}`, {
+      email: "reprice-ci@example.invalid",
+      shipping_address: address, billing_address: address,
+    })
+  assert.equal(updatedAddress.cart?.id, proof.cartId, "Address applied to wrong cart")
+  const options = (await request("GET",
+    `/store/shipping-options?cart_id=${encodeURIComponent(proof.cartId)}`)).shipping_options ?? []
+  const shipping = options.find(o => o.name === "Transport standard") ?? options[0]
+  assert(shipping?.id, "No CI Albanian shipping option")
+  await request("POST",
+    `/store/carts/${encodeURIComponent(proof.cartId)}/shipping-methods`, {
+      option_id: shipping.id,
+    })
+
+  const available = (await request("GET",
+    `/store/payment-providers?region_id=${encodeURIComponent(proof.regionId)}`)).payment_providers ?? []
+  assert(available.some(p => p.id === "pp_system_default"),
+    "Disposable system payment provider not available")
+  const payment = await request("POST", "/store/payment-collections", {
+    cart_id: proof.cartId,
+  })
+  const collectionId = payment.payment_collection?.id
+  assert(collectionId, "No test payment collection")
+  await request("POST",
+    `/store/payment-collections/${encodeURIComponent(collectionId)}/payment-sessions`, {
+      provider_id: "pp_system_default",
+    })
+  const sessionInfo = await request("GET",
+    `/store/carts/${encodeURIComponent(proof.cartId)}?fields=` +
+      encodeURIComponent("+payment_collection.payment_sessions,+shipping_methods.name"))
+  assert((sessionInfo.cart?.payment_collection?.payment_sessions ?? []).some(s =>
+    s.provider_id === "pp_system_default" && ["pending", "authorized"].includes(s.status)),
+    "Manual payment session not ready")
+  const reviewed = await cart(proof.cartId)
+  const reviewedLine = line(reviewed, proof.variantId)
+  assert.equal(reviewedLine.quantity, 2, "Active cart quantity changed unexpectedly")
+  assert.equal(reviewed.currency_code, "all", "Unexpected cart currency")
+  const reviewedUnit = money(reviewedLine.unit_price, "reviewed unit price")
+  const reviewedSubtotal = money(reviewed.subtotal, "reviewed subtotal")
+  const reviewedTotal = money(reviewed.total, "reviewed total")
+  assert([proof.originalAmount, proof.expectedAmount].includes(reviewedUnit),
+    "Unknown effective unit price after updating cart")
+  assert.equal(reviewedSubtotal, 2 * reviewedUnit,
+    "Reviewed subtotal is inconsistent with cart line")
+  assert(reviewedTotal >= reviewedSubtotal,
+    "Reviewed total is less than the subtotal in a no-promotion CI cart")
+  console.log(reviewedUnit === proof.originalAmount ?
+    "SHQIPSHOP_F07E_CHECKOUT_REVIEW_OLD_PRICE_OBSERVED" :
+    "SHQIPSHOP_F07E_CHECKOUT_REVIEW_NEW_PRICE_OBSERVED")
+  console.log("SHQIPSHOP_F07E_CHECKOUT_REVIEWED_TOTAL_RECORDED")
+
+  const completed = await request("POST",
+    `/store/carts/${encodeURIComponent(proof.cartId)}/complete`, {})
+  assert.equal(completed.type, "order", "Review cart did not produce an order")
+  const order = completed.order
+  assert(order?.id?.startsWith("order_"), "Missing test order")
+  assert.equal(order.currency_code, "all", "Order currency mismatch")
+  assert.equal(money(order.total, "completed order total"), reviewedTotal,
+    "REPRICE_TOTAL_MISMATCH: completed order differs from server-reviewed cart")
+  assert.equal(money(order.subtotal, "completed order subtotal"), reviewedSubtotal,
+    "Completed order subtotal differs from reviewed cart")
+  const items = (order.items ?? []).filter(i => i.variant_id === proof.variantId)
+  assert.equal(items.length, 1, "Order line variant missing/duplicated")
+  assert.equal(items[0].quantity, 2, "Order quantity is not reviewed quantity")
+  assert.equal(money(items[0].unit_price, "order line unit price"), reviewedUnit,
+    "Order line unit price silently changed during completion")
+  if (order.cart_id !== undefined) {
+    assert.equal(order.cart_id, proof.cartId, "Order attached to wrong cart")
+  }
+  console.log("SHQIPSHOP_F07E_CHECKOUT_ORDER_EQUALS_REVIEWED_TOTAL_PASSED")
+
+  // Guest receipt is protected by a cart proof. An order ID alone must not
+  // expose personal details, even in a disposable CI environment.
+  const receiptPath = `/store/orders/${encodeURIComponent(order.id)}`
+  const noProof = await fetch(host + receiptPath, {
+    headers: { "x-publishable-api-key": key },
+    signal: AbortSignal.timeout(20000),
+    cache: "no-store",
+  })
+  assert([401, 403, 404].includes(noProof.status),
+    "Guest order receipt exposed by order ID alone")
+  const receiptResponse = await fetch(host + receiptPath, {
+    headers: {
+      "x-publishable-api-key": key,
+      "x-shqipshop-cart-proof": proof.cartId,
+    },
+    signal: AbortSignal.timeout(20000),
+    cache: "no-store",
+  })
+  assert.equal(receiptResponse.status, 200, "Valid guest receipt unavailable")
+  const receipt = (await receiptResponse.json()).order
+  assert.equal(receipt?.id, order.id, "Wrong guest receipt order")
+  assert.equal(money(receipt.total, "guest receipt total"), reviewedTotal,
+    "REPRICE_RECEIPT_MISMATCH: guest receipt differs from reviewed total")
+  assert.equal(money(receipt.subtotal, "guest receipt subtotal"), reviewedSubtotal,
+    "Guest receipt subtotal differs from reviewed cart")
+  console.log("SHQIPSHOP_F07E_CHECKOUT_RECEIPT_EQUALS_REVIEWED_TOTAL_PASSED")
+  console.log("SHQIPSHOP_F07E_REPRICED_ACTIVE_CART_MOCK_CHECKOUT_PASSED")
 }

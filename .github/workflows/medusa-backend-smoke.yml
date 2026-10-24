@@ -148,6 +148,34 @@ jobs:
           SHQIPSHOP_CI_INVENTORY_SNAPSHOT: ${{ runner.temp }}/shqipshop-inventory-before.json
           SHQIPSHOP_CI_INVENTORY_MODE: after
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-ci-inventory.ts
+      - name: Verify repriced active-cart final order and protected guest receipt using mock payment
+        env:
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+          SHQIPSHOP_F07E_REPRICE_PROBE: "true"
+          SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
+        run: |
+          set -euo pipefail
+          pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/f07e-checkout-backend.log" 2>&1 &
+          backend_pid=$!
+          cleanup() {
+            kill "$backend_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for i in $(seq 1 90); do
+            if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:9000/health > /dev/null 2>&1; then
+              node scripts/store-api-reprice-ci.mjs complete
+              exit 0
+            fi
+            if ! kill -0 "$backend_pid" 2>/dev/null; then
+              echo "::error::Disposable Medusa backend exited during repricing checkout proof"
+              tail -100 "$RUNNER_TEMP/f07e-checkout-backend.log"
+              exit 1
+            fi
+            sleep 4
+          done
+          echo "::error::Medusa API not healthy for repricing checkout proof"
+          tail -100 "$RUNNER_TEMP/f07e-checkout-backend.log"
+          exit 1
       - name: CI state
         if: always()
         run: |
