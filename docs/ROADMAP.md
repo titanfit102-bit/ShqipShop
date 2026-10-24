@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F07e Stage 2 — HTTP calculated ALL price + quantity/cart totals proof (2026-10-24)
+
+**DONE (verified CI):** [code 8f47c5d7](https://github.com/titanfit102-bit/ShqipShop/commit/8f47c5d7ca178be87b60f286d175e78bba5f441e), 7/7 PR workflows SUCCESS, including [backend Store API smoke 40044165844](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40044165844). New standalone CI-only HTTP Store API test confirms calculated ALL variant price equals line unit price/subtotal, cart quantity 1→2 doubles subtotal and total rises, 2→1 restores original subtotal and total. Existing checkout and inventory preservation unaffected. Explicit isolated Redis requirement enforced in backend CI. This docs checkpoint requires its own CI verification.
+
+**OPEN GATES:** Store API after updating ALL/other currency variant price via backend workflow, existing carts price refresh vs contractual price snapshot; promotions/discounts/taxes/shipping and multiple line items, Next.js product and variants `force-cache` expiry/merchant invalidation, PWA/browser E2E; worker outage/observability, production fail-closed TLS/ACL/HA, F08 JWT revocation, F09 single-commerce authority. F07 PARTIAL, G3/G5 IN_PROGRESS; PR Draft, no main/merge/deploy.
+
+
 ## F07e — linked variant-price and cart metadata cache proof (2026-10-24)
 
 **DONE / CI verified:** [a16263f2](https://github.com/titanfit102-bit/ShqipShop/commit/a16263f2bc042eaf0a6e848440bf699a426bd137) with 7/7 PR and 2/2 push Actions SUCCESS including [F07e PR](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40040438586). New CI guarded Medusa script verifies a linked `price.amount` and a cart `email` field are refreshed across independent processes after official variant-price/cart workflows; A and B isolated Redis/DB + live workers. Old F07d title and cache isolation remain green. Docs commit requires its own CI check.

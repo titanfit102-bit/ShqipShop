@@ -1,5 +1,10 @@
 # Working on ShqipShop — repository instructions
 
+## Latest F07e Store HTTP arithmetic checkpoint — 2026-10-24
+
+**Verified code [8f47c5d7](https://github.com/titanfit102-bit/ShqipShop/commit/8f47c5d7ca178be87b60f286d175e78bba5f441e)** on `feat/merchant-auth-boundary-ci` / PR #12 Draft: **7/7 PR CI SUCCESS**, including [Store API backend smoke 40044165844](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40044165844). Added CI-only HTTP probe for live Store API ALL `calculated_price` vs cart unit price, cart subtotal, 1→2→1 quantity/total arithmetic and preservation of existing order/inventory proof. Set `SHQIPSHOP_REQUIRE_REDIS=true` explicitly in disposable backend-smoke job. NO real payments, production, main, merge, deploy or tenant secrets touched. **Not proven:** change price during active cart, tax/shipping/promo discounts, Next.js product/variant `force-cache` auto invalidation, worker lag or Redis HA. F07=PARTIAL, G3/G5=OPEN; F08 JWT revocation and F09 single Medusa commerce truth pending. Verify new docs HEAD's CI separately. Only 5 continuity docs have standing update scope on this branch.
+
+
 ## Latest F07e CI-verified checkpoint (2026-10-24)
 
 **Code [a16263f2](https://github.com/titanfit102-bit/ShqipShop/commit/a16263f2bc042eaf0a6e848440bf699a426bd137)** in `feat/merchant-auth-boundary-ci` / PR #12 Draft, **7/7 PR + 2/2 push workflows SUCCESS**, [F07e/F07d PR 40040438586](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40040438586), [push 40040432525](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40040432525). Tests with dedicated A/B workers and distinct Redis/DB validate linked variant `price.amount` and cart `email` automatic Query cache invalidation across independent processes, via real Medusa workflow mutations and no cache.clear. Next F07e Store API price/cart computed totals and PWA Next.js cache freshness (products.ts still force-cache and cookie-only tags), worker failure/monitoring. NOT production-ready, F07 PARTIAL and G3/G5 OPEN; F08/F09 future priorities. Docs checkpoint CI must be checked independently, five continuity docs only standing write scope; no main/merge/deploy.
