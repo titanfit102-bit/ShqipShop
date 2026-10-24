@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F07f — opt-in workflow payment-session amount equality (2026-10-24)
+
+**Verified code [58104c54](https://github.com/titanfit102-bit/ShqipShop/commit/58104c54d24812003a8212e71f23d4b655ce86d7), 7/7 PR CI SUCCESS**, [backend 40094386938](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40094386938). New `completeCartWorkflow.hooks.validate` checks processable payment-session amount equals server cart snapshot with `MathBN`, rejects mismatches via conflict. Feature flag `SHQIPSHOP_ENFORCE_PAYMENT_TOTAL_MATCH=true` is **only enabled in disposable CI**. Deterministic negative unit fixtures and live positive mock HTTP order PASS. No production behavior enabled by default. Docs checkpoint CI separate.
+
+**P0 OPEN:** verify actual HTTP 409 on a real mis-sized disposable payment session; implement buyer price-change review/acceptance and backend quote revision; protect against race between review, PSP authorization and order transaction; stale/replay/idempotency testing. Upstream Medusa core workflow does not compare authorized amount to cart total; split tender/credits and full payment reconciliation require explicit rules. F07 PARTIAL; G3/G5 IN PROGRESS. Also Next.js product caching, tax/discounts, Redis worker/outages, F08 JWT and F09 single Medusa commerce authority. No merge/deploy.
+
+
 ## F07e — priced cart to mock order consistency (2026-10-24)
 
 **VERIFIED in CI:** [code 1a7241f2](https://github.com/titanfit102-bit/ShqipShop/commit/1a7241f2ae84cc4c3b29aa2399d61602468af17f), 8/8 workflows SUCCESS, [backend 40090442879](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40090442879). Synthetic pre-existing cart: product ALL price increased 1500→1517; existing cart initially retained 1500 but repriced to 1517 after quantity update. Qty2 products 3034 + shipping10 = server-reviewed cart 3044; `pp_system_default` mock order total and protected guest receipt both 3044. Existing CI inventory assertions preserved. Earlier failing assertion that subtotal excludes shipping was corrected after diagnostic run 40090096933. No real charges/production code modified; new docs SHA requires CI recheck.

@@ -1,5 +1,12 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-10-24 — F07f opt-in server-side payment total check
+
+- Started from [docs checkpoint 86869bc9](https://github.com/titanfit102-bit/ShqipShop/commit/86869bc9daba9f4870a97130751f7b5e946cbb6f), 7/7 CI PASS. Reviewed Medusa v2.22.0 completeCartWorkflow: processable session statuses validated, amount vs current cart **not** checked by core. Scoped `completeCartWorkflow.hooks.validate` guard and pure helper added on code `3d941c37`, plus synthetic positive/negative CLI fixtures; opt-in `SHQIPSHOP_ENFORCE_PAYMENT_TOTAL_MATCH=true` in isolated backend CI.
+- First [CI 40094258642](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40094258642) failed because the new CLI test ran BEFORE PostgreSQL migrations, not because of price mismatch. Fixed job order in [58104c54](https://github.com/titanfit102-bit/ShqipShop/commit/58104c54d24812003a8212e71f23d4b655ce86d7): **7/7 CI SUCCESS**, [backend 40094386938](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40094386938), with fixture markers `SHQIPSHOP_F07F_MATCHED_PAYMENT_AMOUNT_ACCEPTED` and `SHQIPSHOP_F07F_STALE_AND_AMBIGUOUS_PAYMENT_AMOUNTS_DENIED`; existing Store mock checkout/reprice regression still PASS with flag.
+- No actual HTTP negative stale-session completion test exists yet and no buyer price-change consent UI or transactional guard built. Feature is not automatically enabled in real merchants. F07 PARTIAL, G3/G5 OPEN; F08/F09 remain priorities. Do not merge/deploy. New docs CI must be inspected separately.
+
+
 ## 2026-10-24 — F07e active-cart repricing mock checkout CI gate
 
 - Started from docs head `2712ca0a` (7/7 CI PASS). Extended existing CI-only `store-api-reprice-ci.mjs` and backend smoke workflow to finish the repriced active cart via disposable `pp_system_default`, AFTER original order/inventory tests. Initial [backend 40089830653](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40089830653) FAILED because TEST incorrectly assumed subtotal = items only, excluding transport; [diagnostic 40090096933](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40090096933) showed synthetic ALL 1517×2 +10 shipping =3044. Corrected test invariant in [1a7241f2](https://github.com/titanfit102-bit/ShqipShop/commit/1a7241f2ae84cc4c3b29aa2399d61602468af17f), preserving strict order/receipt equality.

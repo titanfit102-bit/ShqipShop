@@ -1,5 +1,14 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## Latest F07f — opt-in workflow payment total guard (2026-10-24)
+
+**Verified code [58104c54](https://github.com/titanfit102-bit/ShqipShop/commit/58104c54d24812003a8212e71f23d4b655ce86d7)**, `feat/merchant-auth-boundary-ci`, [PR #12 Draft](https://github.com/titanfit102-bit/ShqipShop/pull/12); **7/7 CI SUCCESS** for this SHA, including [backend 40094386938](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40094386938). The documentation commit requires its own CI validation. Never merge/deploy/alter main.
+
+New code in `apps/backend/src/lib/checkout/payment-amount-guard.ts` and `src/workflows/hooks/shqipshop-payment-amount.ts`: an opt-in `completeCartWorkflow.hooks.validate` guard checks exactly one processable payment session with `MathBN`-equal amount vs the workflow's server-side cart total; rejects lower/higher/malformed/multiple processable sessions with CONFLICT. Only activates if `SHQIPSHOP_ENFORCE_PAYMENT_TOTAL_MATCH=true`. CI turns it on; merchant Production is NOT automatically enabled. `f07f-payment-amount-guard-ci.ts` covers positive and synthetic negative fixtures. The normal HTTP Store API order plus active-cart repricing/mock payment finalization still PASS with flag enabled. Initially the proof was mistakenly placed before DB migration (CI 40094258642 failure); moved after migration in 58104c54; all 7 PR workflows green.
+
+**Crucial limits:** The negative tests cover the function, not an actual mis-sized HTTP session completion (P0 open). Buyer-facing re-acceptance of changed price, issuer/PSP payment authorization equality, atomic quote validation and cross-request race/replay controls are STILL MISSING. Upstream Medusa 2.22.0 acknowledges that completeCartWorkflow does not compare authorized payment amount with cart total; our guard is a narrow defense, not a finished checkout contract. Next: end-to-end wrong-payment-session HTTP 409 proof in disposable CI, then signed/server-controlled cart quote and explicit buyer acceptance, server-side stale conflict and payment refresh; test concurrency, multi-tender/credits and Next.js price cache. F07 PARTIAL/G3-G5 OPEN. F08 JWT and F09 unified commerce source-of-truth remain open. No real payment or deployment changed.
+
+
 ## Latest F07e — repriced active-cart mock order and receipt (2026-10-24)
 
 **Code [1a7241f2](https://github.com/titanfit102-bit/ShqipShop/commit/1a7241f2ae84cc4c3b29aa2399d61602468af17f)**, `feat/merchant-auth-boundary-ci`, PR #12 Draft; **8/8 PR+push CI SUCCESS** at exact code SHA. [Backend smoke 40090442879](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40090442879) and [F07d Redis 40090442894](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40090442894) passed. Check CI of newer docs checkpoint separately.
