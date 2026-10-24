@@ -120,6 +120,7 @@ jobs:
                 > "$RUNNER_TEMP/indicative-fx.json"
               node -e "const q=require(process.env.RUNNER_TEMP+'/indicative-fx.json'); if(q.available!==true || q.all_per_eur!==100 || q.indicative_only!==true || !q.source?.includes('CI')) process.exit(1); console.log('SHQIPSHOP_INDICATIVE_FX_HTTP_PASSED')"
               node scripts/store-api-checkout.mjs
+              node scripts/store-api-cart-totals-ci.mjs
               exit 0
             fi
             if ! kill -0 "$backend_pid" 2>/dev/null; then
