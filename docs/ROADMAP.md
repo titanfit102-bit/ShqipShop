@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F07f — real HTTP 409 for processable wrong-amount payment session (2026-10-24)
+
+**CI-VERIFIED / scoped test DONE:** [code 3fad5802](https://github.com/titanfit102-bit/ShqipShop/commit/3fad5802e202d60d3bfa46978bbf18e3d2ad37ca), **8/8 PR+push runs SUCCESS**, [backend 40136557541](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40136557541). Isolated `pp_system_default` session was deliberately mutated through Medusa's Payment module to amount = unchanged cart total +23 and stayed processable. Two separate Store HTTP completion attempts gave 409, created no order and did not complete cart. CI-only proof with guard flag enabled; no Production activation. This completes the previously open **negative active-stale-session HTTP** gate, but is NOT a release authorization. Documentation checkpoint CI must be checked separately.
+
+**P0 STILL OPEN / F07g NEXT:** existing bounded buyer-accepted quote architecture at next section below is DESIGN ONLY. Build server-side tenant/cart-bound quote + canonical amount and revision, strict expiry, deliberate buyer acceptance, front-end difference confirmation, payment collection binding, stale quote 409 at direct Store API completion, transactional cart/order/payment boundary and race/replay tests. Do not accept a client-calculated EUR indication as payment amount. Then provider authorization reconciliation, split tender/credit lines, tax/promotion/shipping, frontend Next.js cache and operational Redis monitoring. F07 PARTIAL, G3/G5 IN PROGRESS; F08/F09 OPEN. PR #12 Draft, no merge/deploy.
+
+
 ## F07g — proposed buyer-accepted quote protocol (design checkpoint, NOT implemented; 2026-10-24)
 
 **Basis**: current verified HEAD [82b1ebf3](https://github.com/titanfit102-bit/ShqipShop/commit/82b1ebf32a6705620bda2526a8c26d51793f3ad6) on Draft PR #12, **7/7 PR CI SUCCESS**. Previous CI code 85baac09 observed Medusa automatically invalidates a processable session on an ordinary quantity edit; this does not establish a guarantee for an externally authorized payment, admin repricing during checkout or other races. Existing F07f equality guard is opt-in and only enabled in synthetic CI.

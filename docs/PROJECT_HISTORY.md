@@ -1,5 +1,12 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-10-24 · F07f active-session stale amount actual HTTP negative proof
+
+- Starting verified HEAD `818dd827`, 7/7 PR CI green, had already documented F07g quote/acceptance design; F07g was NOT implemented. Previous `85baac09` genuine quantity-edit HTTP behavior invalidated previous payment session (4xx checkout), leaving processable-wrong-amount HTTP branch unverified.
+- [Code 3fad5802](https://github.com/titanfit102-bit/ShqipShop/commit/3fad5802e202d60d3bfa46978bbf18e3d2ad37ca) adds only two guarded CI scripts plus existing backend smoke workflow wiring. In isolated Medusa DB/Redis, created a real synthetic manual session matching cart; official Payment module changed its amount +23 while remaining processable and without altering cart. Two Store HTTP completion attempts both returned 409 and created no order; cart not completed. [Backend CI 40136557541](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40136557541) green, final `SHQIPSHOP_F07F_HTTP_ACTIVE_STALE_AMOUNT_REJECTED_409_TWICE`. **8/8 PR/push workflows SUCCESS**, including [F07d cache 40136557552](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40136557552).
+- This is one *injected* active-session wrong-amount CI negative proof, not proof for real PSP/race/replay/consent. F07 PARTIAL, G3/G5 OPEN; next F07g existing quote protocol design → gated implementation. No main/merge/deploy/Production touched. New docs commit CI needs independent check.
+
+
 ## 2026-10-24 — F07f HTTP payment-session lifecycle proof
 
 - Checkpoint `a8928451` previously had 7/7 CI success. Added isolated HTTP post-payment cart update test in `33e0d91c` to test payment session after quantity 1→2 using only official Store API, `pp_system_default`, temporary seeded commerce resources and disposable credentials. Initial [backend 40099189548](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099189548) failed because after quantity change no processable session remained. That was a test assumption, not evidence of a completed stale-price order.

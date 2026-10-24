@@ -1,5 +1,10 @@
 # Working on ShqipShop — repository instructions
 
+## Latest F07f — wrong-amount processable session rejected by HTTP 409 (2026-10-24)
+
+**Code [3fad5802](https://github.com/titanfit102-bit/ShqipShop/commit/3fad5802e202d60d3bfa46978bbf18e3d2ad37ca)**, `feat/merchant-auth-boundary-ci` / PR #12 Draft, **8/8 CI SUCCESS**, including [backend 40136557541](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40136557541) and [F07d Redis 40136557552](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40136557552). Two CI-only scripts use official Medusa Payment module to deliberately change a `pp_system_default` synthetic payment session amount +23 while it stays processable, leaving cart total unchanged; two actual Store HTTP `complete` requests **both 409**, no order and cart not completed. This closes the F07f narrow negative HTTP test gap. Unlike normal cart-mutation invalidation (`85baac09`), this deliberately exercises the F07f amount guard. Hook flag remains opt-in CI, not enabled for merchants. **F07 PARTIAL / G3,G5 OPEN; F07g quote+buyer-consent protocol already designed at prior `818dd827`, NOT implemented.** Next build consent/versioned server quote with transactional stale/race/replay checks; F08/F09 afterward. No main/merge/deploy/Production. Verify documentation HEAD CI separately.
+
+
 ## Latest F07f HTTP payment invalidation checkpoint — 2026-10-24
 
 **Verified CODE SHA [85baac09](https://github.com/titanfit102-bit/ShqipShop/commit/85baac09a723c075ea555ae9975cb5bfb46a3617)**, branch `feat/merchant-auth-boundary-ci`, [PR #12 Draft](https://github.com/titanfit102-bit/ShqipShop/pull/12). **8/8 GitHub PR + push runs SUCCESS** at this code SHA, including [backend smoke 40099439205](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099439205) and [Redis F07d](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099439168). This docs-only checkpoint requires its OWN CI check. Main, merge, deployment and Production untouched.
