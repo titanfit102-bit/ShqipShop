@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F07e active-cart price snapshot vs current catalogue (2026-10-24)
+
+**VERIFIED CI:** code [b3a854f7](https://github.com/titanfit102-bit/ShqipShop/commit/b3a854f7845c27e8254fa60250e805c175c079fc), **8/8 PR+push runs SUCCESS**, [Store HTTP job 40085452001](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40085452001). Separate CI-only official variant ALL price mutation (+17) while cart at old price is already active: Store API `calculated_price` updates, new cart reflects new price, original cart initially preserves old price. Quantity 1→2 subtotal invariant PASS; precise post-quantity pricing policy not yet classified. Code changed only two guarded proof scripts and the existing backend smoke workflow, not checkout production logic. New docs checkpoint requires separate CI review.
+
+**RELEASE-BLOCKING / P0-P1 OPEN:** distinguish allowable time-limited price lock from stale exploit; ensure checkout/payment/order authority revalidates price with clear buyer consent to any repricing; verify exact final order/receipt/payment mock against displayed/accepted amount and concurrency/replay. Then shipping/tax/promotions/discount/multiline, real frontend Next.js product+variant `force-cache` invalidation and cache TTL, worker outage/Redis failover/HA/ACL/TLS, F08 server-side JWT revocation and F09 unified Medusa commerce. Do not declare F07, G3 or G5 done; no merge/deploy.
+
+
 ## F07e Stage 2 — HTTP calculated ALL price + quantity/cart totals proof (2026-10-24)
 
 **DONE (verified CI):** [code 8f47c5d7](https://github.com/titanfit102-bit/ShqipShop/commit/8f47c5d7ca178be87b60f286d175e78bba5f441e), 7/7 PR workflows SUCCESS, including [backend Store API smoke 40044165844](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40044165844). New standalone CI-only HTTP Store API test confirms calculated ALL variant price equals line unit price/subtotal, cart quantity 1→2 doubles subtotal and total rises, 2→1 restores original subtotal and total. Existing checkout and inventory preservation unaffected. Explicit isolated Redis requirement enforced in backend CI. This docs checkpoint requires its own CI verification.

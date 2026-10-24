@@ -1,5 +1,12 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-10-24 · Active cart repricing proof (F07e)
+
+- Starting documentation HEAD `ea6022e5` had 7/7 CI SUCCESS. Wrote CI-only scripts `store-api-reprice-ci.mjs`, `f07e-store-reprice-ci.ts` and updated backend smoke workflow on [code b3a854f7](https://github.com/titanfit102-bit/ShqipShop/commit/b3a854f7845c27e8254fa60250e805c175c079fc). **8/8 PR and push runs SUCCESS**: [backend Store HTTP 40085452001](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40085452001), [F07d 40085452011](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40085452011), [F07c 40085452004](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40085452004), [parallel PR 40085452032](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40085452032), [parallel push 40085448395](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40085448395), [two isolated 40085452000](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40085452000), [native 40085451990](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40085451990), [pilot 40085452069](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40085452069).
+- With exact disposable ALL linked variant price changed via Medusa official workflow while existing cart remains open, HTTP Store API product and a newly created cart use new price. Previously opened cart returns its original price on first read; changing quantity verifies line/subtotal consistency but not whether old/new quote wins afterward. Observed markers [backend job 40085452001](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40085452001). NO checkout was attempted with the repriced existing cart and no real payment was touched.
+- Outstanding P0/P1 policy: enforce authoritative checkout price + user reconfirmation or explicit bounded quote locking, test actual order/receipt and mock payment, then frontend and complex totals. F07 remains PARTIAL, G3/G5 open, PR #12 Draft; no main/merge/deploy. This docs checkpoint requires independent CI check.
+
+
 ## 2026-10-24 · F07e Store API arithmetic gate
 
 - Started from docs checkpoint `3185f11a` with 7/7 green. New CI-only Store API smoke `store-api-cart-totals-ci.mjs` in [commit 281fc3a8](https://github.com/titanfit102-bit/ShqipShop/commit/281fc3a8e37f0e14209696aa3e026e77d3b164ba); explicit CI Redis fail-closed flag set in [8f47c5d7](https://github.com/titanfit102-bit/ShqipShop/commit/8f47c5d7ca178be87b60f286d175e78bba5f441e).
