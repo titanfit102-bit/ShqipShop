@@ -204,6 +204,21 @@ if (mode === "prepare") {
   const reviewedTotal = money(reviewed.total, "reviewed total")
   assert([proof.originalAmount, proof.expectedAmount].includes(reviewedUnit),
     "Unknown effective unit price after updating cart")
+  console.log("SHQIPSHOP_F07E_CHECKOUT_CART_FINANCIAL_DIAGNOSTIC", JSON.stringify({
+    previousPrice: proof.originalAmount,
+    changedPrice: proof.expectedAmount,
+    quantity: reviewedLine.quantity,
+    unitPrice: reviewedUnit,
+    lineSubtotal: reviewedLine.subtotal,
+    lineTotal: reviewedLine.total,
+    lineTaxTotal: reviewedLine.tax_total,
+    cartSubtotal: reviewedSubtotal,
+    cartTotal: reviewedTotal,
+    cartTaxTotal: reviewed.tax_total,
+    shippingSubtotal: reviewed.shipping_subtotal,
+    shippingTotal: reviewed.shipping_total,
+    discountTotal: reviewed.discount_total,
+  }))
   assert.equal(reviewedSubtotal, 2 * reviewedUnit,
     "Reviewed subtotal is inconsistent with cart line")
   assert(reviewedTotal >= reviewedSubtotal,
