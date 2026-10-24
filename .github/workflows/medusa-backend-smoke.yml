@@ -105,6 +105,8 @@ jobs:
           SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE: ${{ runner.temp }}/shqipshop-empty-channel-key.txt
           SHQIPSHOP_CI_ORDER_ID_FILE: ${{ runner.temp }}/shqipshop-order-id.txt
           SHQIPSHOP_CI_CART_ID_FILE: ${{ runner.temp }}/shqipshop-cart-id.txt
+          SHQIPSHOP_F07E_REPRICE_PROBE: "true"
+          SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
         run: |
           set -euo pipefail
           pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/medusa-backend.log" 2>&1 &
@@ -122,6 +124,9 @@ jobs:
               node -e "const q=require(process.env.RUNNER_TEMP+'/indicative-fx.json'); if(q.available!==true || q.all_per_eur!==100 || q.indicative_only!==true || !q.source?.includes('CI')) process.exit(1); console.log('SHQIPSHOP_INDICATIVE_FX_HTTP_PASSED')"
               node scripts/store-api-checkout.mjs
               node scripts/store-api-cart-totals-ci.mjs
+              node scripts/store-api-reprice-ci.mjs prepare
+              pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07e-store-reprice-ci.ts
+              node scripts/store-api-reprice-ci.mjs verify
               exit 0
             fi
             if ! kill -0 "$backend_pid" 2>/dev/null; then
