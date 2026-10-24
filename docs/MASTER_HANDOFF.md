@@ -1,5 +1,14 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## Latest F07f — Medusa invalidates old payment session on quantity mutation (2026-10-24)
+
+**Verified CODE SHA [85baac09](https://github.com/titanfit102-bit/ShqipShop/commit/85baac09a723c075ea555ae9975cb5bfb46a3617)**, branch `feat/merchant-auth-boundary-ci`, [PR #12 Draft](https://github.com/titanfit102-bit/ShqipShop/pull/12). **8/8 GitHub PR + push runs SUCCESS** at this code SHA, including [backend smoke 40099439205](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099439205) and [Redis F07d](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099439168). This docs-only checkpoint requires its OWN CI check. Main, merge, deployment and Production untouched.
+
+Latest CI-only code adds `scripts/f07f-post-session-cart-mutation-ci.mjs` to `.github/workflows/medusa-backend-smoke.yml`. With a disposable Albania ALL cart, quantity 1, shipping and active `pp_system_default` payment session, HTTP shows original session amount equals total. Then legitimate Store API quantity update to 2 leaves **zero processable sessions**, and two attempted cart completions return **4xx (asserted 400 or 409, exact one not logged)**, no order, cart not completed. [backend smoke 40099439205](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099439205) includes `SHQIPSHOP_F07F_HTTP_PAYMENT_SESSION_INVALIDATED_AFTER_CART_MUTATION` and `SHQIPSHOP_F07F_HTTP_INVALIDATED_PAYMENT_COMPLETION_REJECTED_TWICE`. Prior positive mock checkout and F07f fixture tests remain green; 8/8 CI.
+
+First `33e0d91c` test failed due to expecting an active post-edit session; `85baac09` accounts for Medusa's actual behavior without forging payment session amounts. **Do NOT claim** end-to-end F07f 409 for still-active under/over-paid session: the API route here was blocked by Medusa's built-in missing-processable-session validation, not necessarily our amount guard. A real active stale amount can arise through other races/providers and is unverified. Opt-in F07f guard remains in code; real customer acceptance, quote revision, synchronized PSP amount and atomic checkout revalidation NOT implemented. F07 PARTIAL; G3/G5 OPEN, F08/F09 OPEN. Next gated stage: server quote creation/explicit acceptance and enforce unchanged cart/payment revision at completion (including replay, race, split-tender and provider failure scenarios). No main/merge/deploy.
+
+
 ## Latest F07f — opt-in workflow payment total guard (2026-10-24)
 
 **Verified code [58104c54](https://github.com/titanfit102-bit/ShqipShop/commit/58104c54d24812003a8212e71f23d4b655ce86d7)**, `feat/merchant-auth-boundary-ci`, [PR #12 Draft](https://github.com/titanfit102-bit/ShqipShop/pull/12); **7/7 CI SUCCESS** for this SHA, including [backend 40094386938](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40094386938). The documentation commit requires its own CI validation. Never merge/deploy/alter main.

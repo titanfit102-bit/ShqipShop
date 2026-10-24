@@ -1,5 +1,14 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F07f — post-session cart change HTTP regression (2026-10-24)
+
+**Verified CODE SHA [85baac09](https://github.com/titanfit102-bit/ShqipShop/commit/85baac09a723c075ea555ae9975cb5bfb46a3617)**, branch `feat/merchant-auth-boundary-ci`, [PR #12 Draft](https://github.com/titanfit102-bit/ShqipShop/pull/12). **8/8 GitHub PR + push runs SUCCESS** at this code SHA, including [backend smoke 40099439205](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099439205) and [Redis F07d](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099439168). This docs-only checkpoint requires its OWN CI check. Main, merge, deployment and Production untouched.
+
+**DONE (limited):** Real Store API demo checkout script creates matching manual session; changing item quantity via regular API invalidates the old session. Two completion calls return 4xx, leave cart uncompleted, no order. See [backend smoke 40099439205](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099439205). Prior negative validator helper and successful live synthetic order cases retain PASS. Initial wrong assumption about a remaining active session produced a test-only failure (`33e0d91c`), fixed in `85baac09`. No live payment, no backend policy enabled in Production.
+
+**P0 OPEN:** real HTTP rejection for a still-processable mismatched session (not tested by normal quantity update), explicit buyer accepted quote, server-side amount/revision check at workflow boundary, TOCTOU/payment synchronization, idempotent replay and PSP reconciliation. P1: tax/promos, multiple lines, Next.js price cache, Redis worker failure/HA. F07 PARTIAL, G3/G5 IN PROGRESS; F08 and F09 OPEN. No merge/deploy.
+
+
 ## F07f — opt-in workflow payment-session amount equality (2026-10-24)
 
 **Verified code [58104c54](https://github.com/titanfit102-bit/ShqipShop/commit/58104c54d24812003a8212e71f23d4b655ce86d7), 7/7 PR CI SUCCESS**, [backend 40094386938](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40094386938). New `completeCartWorkflow.hooks.validate` checks processable payment-session amount equals server cart snapshot with `MathBN`, rejects mismatches via conflict. Feature flag `SHQIPSHOP_ENFORCE_PAYMENT_TOTAL_MATCH=true` is **only enabled in disposable CI**. Deterministic negative unit fixtures and live positive mock HTTP order PASS. No production behavior enabled by default. Docs checkpoint CI separate.

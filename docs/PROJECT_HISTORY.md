@@ -1,5 +1,12 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-10-24 — F07f HTTP payment-session lifecycle proof
+
+- Checkpoint `a8928451` previously had 7/7 CI success. Added isolated HTTP post-payment cart update test in `33e0d91c` to test payment session after quantity 1→2 using only official Store API, `pp_system_default`, temporary seeded commerce resources and disposable credentials. Initial [backend 40099189548](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099189548) failed because after quantity change no processable session remained. That was a test assumption, not evidence of a completed stale-price order.
+- Updated script in [85baac09](https://github.com/titanfit102-bit/ShqipShop/commit/85baac09a723c075ea555ae9975cb5bfb46a3617) to classify Medusa session invalidation, auto-refresh or stale-active case separately. **8/8 CI PASS**, [backend smoke 40099439205](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099439205): first payment session matches cart, quantity update invalidates it, two complete attempts rejected with HTTP 400 or 409, no order and cart uncompleted. Exact 4xx status not emitted in marker. No direct payment-session tampering.
+- **Not proven:** active wrong-amount HTTP 409 from our custom amount hook; normal Medusa validation rejected the invalidated session. Buyer consent, atomic price version, concurrency/replay, actual PSP amounts all open. F07 PARTIAL/G3-G5 OPEN, no main/merge/deploy; docs checkpoint CI separate.
+
+
 ## 2026-10-24 — F07f opt-in server-side payment total check
 
 - Started from [docs checkpoint 86869bc9](https://github.com/titanfit102-bit/ShqipShop/commit/86869bc9daba9f4870a97130751f7b5e946cbb6f), 7/7 CI PASS. Reviewed Medusa v2.22.0 completeCartWorkflow: processable session statuses validated, amount vs current cart **not** checked by core. Scoped `completeCartWorkflow.hooks.validate` guard and pure helper added on code `3d941c37`, plus synthetic positive/negative CLI fixtures; opt-in `SHQIPSHOP_ENFORCE_PAYMENT_TOTAL_MATCH=true` in isolated backend CI.
