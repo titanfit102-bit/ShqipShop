@@ -219,7 +219,7 @@ if (mode === "prepare") {
     shippingTotal: reviewed.shipping_total,
     discountTotal: reviewed.discount_total,
   }))
-  assert.equal(reviewedSubtotal, 2 * reviewedUnit,
+  assert.equal(reviewedSubtotal, 2 * reviewedUnit + money(reviewed.shipping_subtotal, "shipping subtotal"),
     "Reviewed subtotal is inconsistent with cart line")
   assert(reviewedTotal >= reviewedSubtotal,
     "Reviewed total is less than the subtotal in a no-promotion CI cart")
