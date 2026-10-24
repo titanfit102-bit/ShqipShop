@@ -1,5 +1,10 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## F07g — quote/reconfirmation contract defined, implementation OPEN (2026-10-24)
+
+At verified HEAD [82b1ebf3](https://github.com/titanfit102-bit/ShqipShop/commit/82b1ebf32a6705620bda2526a8c26d51793f3ad6) PR #12 Draft, **7/7 CI SUCCESS**, the Medusa quantity-change HTTP test and payment-amount helper CI are green. Ordinary cart mutations invalidate old payment session, and incomplete stale attempts return 4xx; no actual processable wrong-amount HTTP proof. A proposed bounded server quote + explicit buyer acceptance + checkout fail-closed protocol is now specified in `docs/ROADMAP.md` under F07g; **no code implementation**, runtime flag change, approval of price-lock business policy or production action. In particular, hook-level validation is NOT sufficient to guarantee atomicity with concurrent updates. F07 PARTIAL/G3-G5 OPEN; no main/merge/deploy.
+
+
 ## F07f — live Store HTTP post-payment cart mutation behavior established (2026-10-24)
 
 **Verified CODE SHA [85baac09](https://github.com/titanfit102-bit/ShqipShop/commit/85baac09a723c075ea555ae9975cb5bfb46a3617)**, branch `feat/merchant-auth-boundary-ci`, [PR #12 Draft](https://github.com/titanfit102-bit/ShqipShop/pull/12). **8/8 GitHub PR + push runs SUCCESS** at this code SHA, including [backend smoke 40099439205](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099439205) and [Redis F07d](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099439168). This docs-only checkpoint requires its OWN CI check. Main, merge, deployment and Production untouched.

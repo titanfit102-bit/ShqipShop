@@ -1,5 +1,10 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## F07g — price acceptance architecture scoped, not implemented (2026-10-24)
+
+Checkpoint based on [current HEAD 82b1ebf3](https://github.com/titanfit102-bit/ShqipShop/commit/82b1ebf32a6705620bda2526a8c26d51793f3ad6): **7/7 CI PASS**, Draft PR #12. Existing post-session quantity-change test verifies native Medusa invalidates session and rejects checkout 4xx. The still-processable mismatched-session HTTP 409 and buyer consent remain unverified. Next P0 is a **server-issued, explicitly buyer-accepted quote** with exact currency/total and canonical cart fingerprint, tenant/cart binding and expiry. Native checkout must fail closed without accepted revision and compare payment session at workflow snapshot; use transactional/locking boundary because Medusa validate hook alone is not atomic versus concurrent mutation. Do not allow frontend-only consent or indicative EUR amount into payment hash. See F07g section at top of `docs/ROADMAP.md` for state machine, contract, test matrix and limits. **Design only**, no behavior changes, no merge/main/deploy. F07 PARTIAL/G3-G5 OPEN; F08/F09 future.
+
+
 ## Latest F07f — Medusa invalidates old payment session on quantity mutation (2026-10-24)
 
 **Verified CODE SHA [85baac09](https://github.com/titanfit102-bit/ShqipShop/commit/85baac09a723c075ea555ae9975cb5bfb46a3617)**, branch `feat/merchant-auth-boundary-ci`, [PR #12 Draft](https://github.com/titanfit102-bit/ShqipShop/pull/12). **8/8 GitHub PR + push runs SUCCESS** at this code SHA, including [backend smoke 40099439205](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099439205) and [Redis F07d](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40099439168). This docs-only checkpoint requires its OWN CI check. Main, merge, deployment and Production untouched.
