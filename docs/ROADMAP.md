@@ -1,5 +1,12 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F07e — priced cart to mock order consistency (2026-10-24)
+
+**VERIFIED in CI:** [code 1a7241f2](https://github.com/titanfit102-bit/ShqipShop/commit/1a7241f2ae84cc4c3b29aa2399d61602468af17f), 8/8 workflows SUCCESS, [backend 40090442879](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40090442879). Synthetic pre-existing cart: product ALL price increased 1500→1517; existing cart initially retained 1500 but repriced to 1517 after quantity update. Qty2 products 3034 + shipping10 = server-reviewed cart 3044; `pp_system_default` mock order total and protected guest receipt both 3044. Existing CI inventory assertions preserved. Earlier failing assertion that subtotal excludes shipping was corrected after diagnostic run 40090096933. No real charges/production code modified; new docs SHA requires CI recheck.
+
+**P0 open, not a product fix:** explicit shopper acknowledgement of the changed total and server-authoritative cart/price version or bounded quote, stale-price conflict (409 or equivalent), atomic prepayment and order recheck, idempotency/race tests, payment provider reconciliation. **P1 open:** tax, promotions, multi-line, multiple currency and Next.js product cache invalidation, Redis outage/ops. F07 PARTIAL, G3/G5 IN_PROGRESS, F08/F09 OPEN; no merge/deploy.
+
+
 ## F07e active-cart price snapshot vs current catalogue (2026-10-24)
 
 **VERIFIED CI:** code [b3a854f7](https://github.com/titanfit102-bit/ShqipShop/commit/b3a854f7845c27e8254fa60250e805c175c079fc), **8/8 PR+push runs SUCCESS**, [Store HTTP job 40085452001](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40085452001). Separate CI-only official variant ALL price mutation (+17) while cart at old price is already active: Store API `calculated_price` updates, new cart reflects new price, original cart initially preserves old price. Quantity 1→2 subtotal invariant PASS; precise post-quantity pricing policy not yet classified. Code changed only two guarded proof scripts and the existing backend smoke workflow, not checkout production logic. New docs checkpoint requires separate CI review.
