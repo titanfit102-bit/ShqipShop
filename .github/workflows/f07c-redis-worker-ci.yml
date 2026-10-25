@@ -197,7 +197,7 @@ jobs:
           docker exec "$redis_name" redis-cli --raw INFO persistence | grep -q '^aof_enabled:1'
           pnpm --filter @dtc/backend exec medusa exec ./src/scripts/emit-f07c-ci-probe.ts outage
           test ! -e "$RUNNER_TEMP/f07c-outage-success"
-          docker exec "$redis_name" redis-cli --scan --pattern '*events-queue*' | grep -q .
+          docker exec "$redis_name" redis-cli --scan --pattern '*events-queue*' | grep . >/dev/null
           echo SHQIPSHOP_F07C_AOF_QUEUED_BEFORE_RESTART
           docker stop "$redis_name" >/dev/null
           python3 - <<'PY'
@@ -216,7 +216,7 @@ jobs:
           done
           docker exec "$redis_name" redis-cli ping | grep -qx PONG
           docker exec "$redis_name" redis-cli --raw INFO persistence | grep -q '^aof_enabled:1'
-          docker exec "$redis_name" redis-cli --scan --pattern '*events-queue*' | grep -q .
+          docker exec "$redis_name" redis-cli --scan --pattern '*events-queue*' | grep . >/dev/null
           echo SHQIPSHOP_F07C_AOF_QUEUE_SURVIVED_RESTART
 
           WORKER_MODE=worker setsid pnpm --filter @dtc/backend exec medusa develop --port 9014 \
