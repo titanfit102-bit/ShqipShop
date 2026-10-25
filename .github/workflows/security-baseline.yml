@@ -1,0 +1,40 @@
+name: ShqipShop security baseline (read-only)
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      release_gate:
+        description: 'Also check release configuration (known blockers currently cause FAIL)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shqipshop-security-baseline-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-baseline:
+    name: Tracked-source secret patterns and regression tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read-only checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Unit-test the high-confidence scanner
+        run: python -m unittest discover -s scripts/security -p 'test_*.py' -v
+      - name: Scan tracked text without printing matched secret values
+        run: python scripts/security/guard.py --scan
+      - name: Strict static release gate (manual only, no signing/deploy)
+        if: github.event_name == 'workflow_dispatch' && inputs.release_gate
+        run: python scripts/security/guard.py --release
