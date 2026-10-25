@@ -94,6 +94,10 @@ jobs:
         env:
           SHQIPSHOP_F07G_CONTRACT_CI: "true"
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-quote-contract-ci.ts
+      - name: Prove server-verified guest and authenticated-customer quote identity (F07g stage 2B-2A)
+        env:
+          SHQIPSHOP_F07G_PRINCIPAL_CI: "true"
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-principal-binding-ci.ts
       - name: Prove atomic tenant-bound quote persistence with disposable PostgreSQL (F07g stage 2A)
         env:
           SHQIPSHOP_F07G_TRANSACTION_CI: "true"
