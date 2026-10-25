@@ -94,6 +94,10 @@ jobs:
         env:
           SHQIPSHOP_F07G_CONTRACT_CI: "true"
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-quote-contract-ci.ts
+      - name: Prove atomic tenant-bound quote persistence with disposable PostgreSQL (F07g stage 2A)
+        env:
+          SHQIPSHOP_F07G_TRANSACTION_CI: "true"
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-persisted-quote-ci.ts
       - name: Assert Albania region, ALL currency, products and shipping
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-albania-seed.ts
       - name: Export ephemeral publishable key into runner-local file
