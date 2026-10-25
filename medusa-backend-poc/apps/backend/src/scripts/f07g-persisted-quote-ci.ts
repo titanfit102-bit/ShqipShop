@@ -9,6 +9,7 @@
 import assert from "node:assert/strict"
 import type { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import { bindVerifiedQuotePrincipal } from "../lib/checkout/quote-principal"
 import {
   issueCheckoutQuote,
   acceptCheckoutQuote,
@@ -47,6 +48,7 @@ export default async function verify({ container }: ExecArgs) {
     t.string("buyer_binding", 160).notNullable()
     t.string("fingerprint", 80).notNullable()
     t.jsonb("snapshot").notNullable()
+    t.bigInteger("issued_at_ms").notNullable()
     t.bigInteger("expires_at_ms").notNullable()
     t.bigInteger("accepted_at_ms").nullable()
     t.string("acceptance_nonce", 80).nullable()
@@ -72,12 +74,25 @@ export default async function verify({ container }: ExecArgs) {
       discountTotal: "0",
       creditTotal: "0",
     }
+    const serverSecret = process.env.JWT_SECRET
+    assert(serverSecret && /^[a-f0-9]{64}$/.test(serverSecret), "CI-generated key required")
+    const principalA = bindVerifiedQuotePrincipal({
+      deploymentTenantId: "merchant_A",
+      trustedCart: { id: input.cartId, customerId: null },
+      validatedAuthContext: null, authorizationAttempted: false,
+      guestCartProof: input.cartId, serverSecret,
+    })
+    Object.assign(input, principalA)
+    const principalB = bindVerifiedQuotePrincipal({
+      deploymentTenantId: "merchant_B",
+      trustedCart: { id: "cart_synthetic_B", customerId: null },
+      validatedAuthContext: null, authorizationAttempted: false,
+      guestCartProof: "cart_synthetic_B", serverSecret,
+    })
     const quoteA = issueCheckoutQuote(input, clock, 120000)
     const quoteB = issueCheckoutQuote({
       ...input,
-      tenantId: "merchant_B",
-      cartId: "cart_synthetic_B",
-      buyerBinding: "guest:sha256:" + "b".repeat(64),
+      ...principalB,
     }, clock, 120000)
 
     const store = async (quote: CheckoutQuote) => {
@@ -89,6 +104,7 @@ export default async function verify({ container }: ExecArgs) {
         fingerprint: quote.fingerprint,
         snapshot: JSON.stringify(quote.snapshot),
         status: quote.status,
+        issued_at_ms: quote.issuedAtMs,
         expires_at_ms: quote.expiresAtMs,
       })
     }
@@ -122,7 +138,7 @@ export default async function verify({ container }: ExecArgs) {
           fingerprint: row.fingerprint,
           snapshot: typeof row.snapshot === "string" ? JSON.parse(row.snapshot) : row.snapshot,
           status: row.status,
-          issuedAtMs: quote.issuedAtMs,
+          issuedAtMs: Number(row.issued_at_ms),
           expiresAtMs: Number(row.expires_at_ms),
         }
         // Refuse any substitution of IDs, currency, catalogue/cart state,
@@ -176,6 +192,9 @@ export default async function verify({ container }: ExecArgs) {
       clock + 10), false, "Unchanged total with new catalogue revision is stale")
     assert.equal(await tryAccept(quoteA, aScope, input, clock + 120000), false,
       "Expired quote must not be accepted")
+    assert.equal(await tryAccept({ ...quoteA, issuedAtMs: clock - 10000 },
+      aScope, input, clock - 1), false,
+      "Caller must not override persisted quote issuance time")
 
     // A separate isolated merchant's quote can be accepted; it never changes
     // the status of A's quote.
