@@ -1,6 +1,8 @@
 """Deterministic self-tests for high-confidence, non-disclosing scanner rules."""
 import unittest
-from guard import scan_bytes, INDICATORS
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from guard import scan_bytes, INDICATORS, release_failures
 
 class SecretGuardTest(unittest.TestCase):
     def test_token_detection_without_secret_output(self):
@@ -20,6 +22,27 @@ class SecretGuardTest(unittest.TestCase):
     def test_distinct_identifiers(self):
         names = [name for name, _ in INDICATORS]
         self.assertEqual(len(names), len(set(names)))
+
+    def test_release_gate_detects_debug_signing_and_insecure_token_store(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            gradle = root / "native-medusa/android/app/build.gradle"
+            token = root / "native-medusa/app/api/auth-token-storage.ts"
+            gradle.parent.mkdir(parents=True)
+            token.parent.mkdir(parents=True)
+            gradle.write_text("android { buildTypes { release {\n"
+                              " signingConfig signingConfigs.debug\n"
+                              " } } }\n")
+            token.write_text("import AsyncStorage from 'storage'\n")
+            self.assertEqual(release_failures(root), [
+                "SEC-05-ANDROID-RELEASE-DEBUG-SIGNING",
+                "SEC-04-NATIVE-JWT-ASYNCSTORAGE",
+            ])
+            gradle.write_text("android { buildTypes { release {\n"
+                              " signingConfig signingConfigs.release\n"
+                              " } } }\n")
+            token.write_text("import SecureStore from 'trusted_store'\n")
+            self.assertEqual(release_failures(root), [])
 
 if __name__ == "__main__":
     unittest.main()
