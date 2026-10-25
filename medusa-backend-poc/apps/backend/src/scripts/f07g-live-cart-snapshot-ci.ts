@@ -13,6 +13,7 @@ import { readFileSync, writeFileSync } from "node:fs"
 import { resolve } from "node:path"
 import type { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, MathBN } from "@medusajs/framework/utils"
+import { bindVerifiedQuotePrincipal } from "../lib/checkout/quote-principal"
 import {
   acceptCheckoutQuote, assertAcceptedCheckoutQuote, fingerprintQuoteSnapshot,
   issueCheckoutQuote, type CheckoutQuote, type QuoteSnapshot,
@@ -74,7 +75,7 @@ export default async function liveCart({ container, args }: ExecArgs) {
     query.graph({
       entity: "cart",
       fields: [
-        "id", "currency_code", "region_id", "updated_at", "total",
+        "id", "currency_code", "region_id", "customer_id", "updated_at", "total",
         "tax_total", "discount_total", "credit_line_total",
         "items.id", "items.variant_id", "items.quantity", "items.unit_price", "items.total",
       ],
@@ -112,9 +113,20 @@ export default async function liveCart({ container, args }: ExecArgs) {
   const discountTotal = money(cart.discount_total ?? 0)
   const creditTotal = money(cart.credit_line_total ?? 0)
 
+  // CI verifies guest possession using the same cart ID retrieved freshly
+  // from Medusa; production adapters MUST obtain proof from the request and
+  // validate auth context themselves, never trust client tenant claims.
+  const principal = bindVerifiedQuotePrincipal({
+    deploymentTenantId: "merchant_ci_isolated",
+    trustedCart: { id: cartId, customerId: cart.customer_id },
+    validatedAuthContext: null,
+    authorizationAttempted: false,
+    guestCartProof: prepared.cartId,
+    serverSecret: process.env.JWT_SECRET ?? "",
+  })
   const snapshot: QuoteSnapshot = {
-    tenantId: "merchant_ci_isolated",
-    cartId, buyerBinding: "guest:sha256:" + digest(["ci-test-only",cartId]),
+    tenantId: principal.tenantId,
+    cartId: principal.cartId, buyerBinding: principal.buyerBinding,
     cartRevision: "cart_" + digest([
       cartId, cart.region_id, cart.updated_at,
       [lineId, variantId, item.quantity, cartUnit, lineTotal],
