@@ -21,7 +21,10 @@ import {
 const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex")
 const fail = (reason: string): never => { throw new Error("F07g Medusa cart proof: " + reason) }
 const money = (x: unknown) => {
-  if (typeof x !== "number" && typeof x !== "string") return fail("missing financial field")
+  // Medusa Query Graph returns stored prices as numbers, but computed cart
+  // totals and unit_price as BigNumber instances. Preserve decimal text;
+  // never JSON-coerce/round those objects to an unsafe JavaScript float.
+  if (x === null || x === undefined) return fail("missing financial field")
   const s = String(x)
   if (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(s)) return fail("invalid financial field")
   return s
