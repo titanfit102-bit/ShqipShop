@@ -1,5 +1,17 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## F07g Stage 2A — PostgreSQL atomic-acceptance CI, 2026-10-25
+
+**Verified code [8f5a5b53](https://github.com/titanfit102-bit/ShqipShop/commit/8f5a5b53bdb3c534f7867949b7cc926fb782ada7)** on Draft PR #12: **8/8 PR workflows SUCCESS** including [backend 40182883873](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40182883873), [F07c 40182883858](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40182883858), [F07d 40182883860](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40182883860), isolation, native, pilot and security baseline. New `f07g-persisted-quote-ci.ts` uses Medusa's PostgreSQL connection and a disposable table in CI only; validates scoped tenant/cart/guest acceptance, rejected expired/stale prices, one-winner concurrent acceptance, replay denial and transaction rollback. Backend logs show `SHQIPSHOP_F07G_POSTGRES_TENANT_PRINCIPAL_AND_EXPIRY_DENIAL_PASSED`, `SHQIPSHOP_F07G_POSTGRES_ATOMIC_SINGLE_ACCEPTANCE_AND_REPLAY_DENIED`, `SHQIPSHOP_F07G_POSTGRES_TRANSACTION_ROLLBACK_PASSED`; old F07f HTTP 409 tests still green.
+
+**F07c regression repaired:** [2b91c545](https://github.com/titanfit102-bit/ShqipShop/commit/2b91c5457b32ae3fd10943a3b188b132219f8816) replaced two Redis `--scan | grep -q .` pipelines (SIGPIPE/exit 141 under `pipefail`) with full-output-consuming `grep . >/dev/null` while preserving both pre/post restart checks; [F07c 40182883858](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40182883858) SUCCESS. Historical failed run 40182334895 remains recorded.
+
+**Strict limits:** This is an isolated synthetic PostgreSQL test, **not** a permanent quote migration, Medusa HTTP review/accept endpoint, authenticated buyer confirmation UI or atomic real payment/order/PSP workflow. F07g Stage 2B remains P0: trusted fresh Medusa cart+price version adapter, tenant-specific persistent quote model, 409 direct completion, idempotency/payment lock and UI tests. G3/G5 BLOCKED; F08 JWT and F09 commerce authority OPEN. No main, merge, deploy, Production, real money or secrets touched. Check this docs commit's own CI separately.
+
+
+
+
+
 **Scope:** `titanfit102-bit/ShqipShop` / `feat/merchant-auth-boundary-ci`, Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12), based on Draft PR #11. Baseline reviewed at commit [bfa26cf](https://github.com/titanfit102-bit/ShqipShop/commit/bfa26cf8825452b1adaffe71a35191636d0a08bb), with **7/7 associated PR Actions SUCCESS**. The evidence is development/CI, **not** evidence of a live, hardened deployment. No main merge or Production authorization.
 
 ## Security governance checkpoint — 2026-10-25
@@ -23,7 +35,7 @@ This is the **current, concise status index**; the detailed chronological eviden
 | ID | Priority | Status | Control / verified boundary / unresolved requirement | Evidence / owner of next action |
 | --- | --- | --- | --- | --- |
 | SEC-01 | P0 | PARTIAL | Separate A/B Medusa services, PostgreSQL databases and roles, Redis/cache/worker probes and limited Admin/Customer JWT/cookie/order/mutation negative HTTP tests. Full endpoints, refunds, media, operations and deployed tenant lifecycle remain unproven. | [ADR-006](../ADR-006_TENANT_BACKEND_ISOLATION.md), [CI 40178952139](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40178952139), [40178952074](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40178952074); G3 owner |
-| SEC-02 | P0 | PARTIAL | F07f opt-in (CI-only) payment-session/cart equality; HTTP 409 on injected stale session **VERIFIED in synthetic scope**. F07g pure versioned quote contract **VERIFIED in CI**; no persistent acceptance, authoritative HTTP checkout gate, price lock or concurrency/idempotent PSP proof. | [Code F07g e9f6033](https://github.com/titanfit102-bit/ShqipShop/commit/e9f6033778d15059cdbcd805807eabb2d101f270), [backend run 40178570633](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40178570633); F07g next |
+| SEC-02 | P0 | PARTIAL | F07f stale-amount HTTP 409 and F07g Stage 1/Stage 2A PostgreSQL acceptance verified in disposable CI; real persistent quote/API/buyer consent/payment order atomic lock still absent. | [Code 8f5a5b53](https://github.com/titanfit102-bit/ShqipShop/commit/8f5a5b53bdb3c534f7867949b7cc926fb782ada7), [CI 40182883873](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40182883873); Stage 2B P0 |
 | SEC-03 | P0 | PARTIAL | JWT local logout race has native tests, but bearer JWT remains usable after cookie logout in controlled A/B test. Server-side revocation/multi-device logout and TTL policy not proved. | PR #12 P0 boundary tests, `MASTER_HANDOFF.md`; F08 next |
 | SEC-04 | P0 | PARTIAL | Native token uses AsyncStorage, **not** an evidenced Android Keystore / iOS Keychain-backed secret store. Local logout marker does not substitute for hardware-backed persistence. | `native-medusa/app/api/auth-token-storage.ts`; mobile auth review |
 | SEC-05 | P0 | FAILED | Android **release** build configuration points to debug signing. This is a known release-signing gate failure, not evidence of a production-signed APK. | `native-medusa/android/app/build.gradle` (`signingConfig signingConfigs.debug` inside `release`); require approved production signing procedure |

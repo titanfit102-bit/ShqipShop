@@ -1,5 +1,17 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## F07g Stage 2A — PostgreSQL atomic-acceptance CI, 2026-10-25
+
+**Verified code [8f5a5b53](https://github.com/titanfit102-bit/ShqipShop/commit/8f5a5b53bdb3c534f7867949b7cc926fb782ada7)** on Draft PR #12: **8/8 PR workflows SUCCESS** including [backend 40182883873](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40182883873), [F07c 40182883858](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40182883858), [F07d 40182883860](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40182883860), isolation, native, pilot and security baseline. New `f07g-persisted-quote-ci.ts` uses Medusa's PostgreSQL connection and a disposable table in CI only; validates scoped tenant/cart/guest acceptance, rejected expired/stale prices, one-winner concurrent acceptance, replay denial and transaction rollback. Backend logs show `SHQIPSHOP_F07G_POSTGRES_TENANT_PRINCIPAL_AND_EXPIRY_DENIAL_PASSED`, `SHQIPSHOP_F07G_POSTGRES_ATOMIC_SINGLE_ACCEPTANCE_AND_REPLAY_DENIED`, `SHQIPSHOP_F07G_POSTGRES_TRANSACTION_ROLLBACK_PASSED`; old F07f HTTP 409 tests still green.
+
+**F07c regression repaired:** [2b91c545](https://github.com/titanfit102-bit/ShqipShop/commit/2b91c5457b32ae3fd10943a3b188b132219f8816) replaced two Redis `--scan | grep -q .` pipelines (SIGPIPE/exit 141 under `pipefail`) with full-output-consuming `grep . >/dev/null` while preserving both pre/post restart checks; [F07c 40182883858](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40182883858) SUCCESS. Historical failed run 40182334895 remains recorded.
+
+**Strict limits:** This is an isolated synthetic PostgreSQL test, **not** a permanent quote migration, Medusa HTTP review/accept endpoint, authenticated buyer confirmation UI or atomic real payment/order/PSP workflow. F07g Stage 2B remains P0: trusted fresh Medusa cart+price version adapter, tenant-specific persistent quote model, 409 direct completion, idempotency/payment lock and UI tests. G3/G5 BLOCKED; F08 JWT and F09 commerce authority OPEN. No main, merge, deploy, Production, real money or secrets touched. Check this docs commit's own CI separately.
+
+
+
+
+
 ## F07g Stage 1 — server-quote contract primitive, CI VERIFIED (2026-10-25)
 
 **Implemented code [e9f6033](https://github.com/titanfit102-bit/ShqipShop/commit/e9f6033778d15059cdbcd805807eabb2d101f270)** on `feat/merchant-auth-boundary-ci`, [PR #12 Draft](https://github.com/titanfit102-bit/ShqipShop/pull/12). All **7/7 pull-request workflow runs COMPLETED/SUCCESS at this exact code SHA**: [backend smoke 40178570633](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40178570633), [two isolated 40178570656](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40178570656), [parallel 40178570589](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40178570589), [F07c Redis worker 40178570604](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40178570604), [F07d Redis cache 40178570685](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40178570685), [native 40178570613](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40178570613), [pilot 40178570650](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40178570650). Backend CI logs explicitly include `SHQIPSHOP_F07G_EXPLICIT_QUOTE_ACCEPTANCE_CONTRACT_PASSED`, `SHQIPSHOP_F07G_STALE_PRINCIPAL_TENANT_PRICE_SHIPPING_CART_DENIED` and `SHQIPSHOP_F07G_MALFORMED_REPLAY_AND_TAMPERING_DENIED`.
