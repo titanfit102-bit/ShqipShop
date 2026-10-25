@@ -12,7 +12,7 @@ import { createHash } from "node:crypto"
 import { readFileSync, writeFileSync } from "node:fs"
 import { resolve } from "node:path"
 import type { ExecArgs } from "@medusajs/framework/types"
-import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys, MathBN } from "@medusajs/framework/utils"
 import {
   acceptCheckoutQuote, assertAcceptedCheckoutQuote, fingerprintQuoteSnapshot,
   issueCheckoutQuote, type CheckoutQuote, type QuoteSnapshot,
@@ -20,14 +20,19 @@ import {
 
 const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex")
 const fail = (reason: string): never => { throw new Error("F07g Medusa cart proof: " + reason) }
-const money = (x: unknown) => {
-  // Medusa Query Graph returns stored prices as numbers, but computed cart
-  // totals and unit_price as BigNumber instances. Preserve decimal text;
-  // never JSON-coerce/round those objects to an unsafe JavaScript float.
+const money = (x: unknown): string => {
+  // Medusa Query Graph returns computed monetary fields as framework
+  // BigNumber objects; MathBN supports both those and stored numeric values.
+  // Decimal text comes from bignumber.js, never a lossy JS Number coercion.
   if (x === null || x === undefined) return fail("missing financial field")
-  const s = String(x)
-  if (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(s)) return fail("invalid financial field")
-  return s
+  let value: string
+  try {
+    value = MathBN.convert(x as number).toString()
+  } catch {
+    return fail("invalid financial field")
+  }
+  if (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(value)) return fail("invalid financial field")
+  return value
 }
 const identifier = (value: unknown, prefix: string) => {
   if (typeof value !== "string" || !value.startsWith(prefix) ||
@@ -130,8 +135,9 @@ export default async function liveCart({ container, args }: ExecArgs) {
     // Fail closed if the real Store cart price already disagrees with its
     // only linked ALL price, or cart arithmetic is inconsistent.
     assert.equal(cartUnit, effectivePrice, "Unrefreshed cart cannot be newly confirmed")
-    assert.equal(Number(lineTotal), Number(cartUnit), "CI line amount inconsistent")
-    assert.equal(Number(cartTotal), Number(lineTotal) + Number(taxTotal) - Number(discountTotal),
+    assert(MathBN.convert(lineTotal).eq(MathBN.convert(cartUnit)), "CI line amount inconsistent")
+    const expectedTotal = MathBN.sub(MathBN.add(lineTotal, taxTotal), discountTotal)
+    assert(MathBN.convert(cartTotal).eq(expectedTotal),
       "CI total must come from coherent Medusa data")
     const now = Date.now()
     const quote = issueCheckoutQuote(snapshot, now, 300000)
