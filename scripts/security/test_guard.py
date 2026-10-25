@@ -30,7 +30,7 @@ class SecretGuardTest(unittest.TestCase):
             token = root / "native-medusa/app/api/auth-token-storage.ts"
             gradle.parent.mkdir(parents=True)
             token.parent.mkdir(parents=True)
-            gradle.write_text("android { buildTypes { release {\n"
+            gradle.write_text("release {\n"
                               " signingConfig signingConfigs.debug\n"
                               " } } }\n")
             token.write_text("import AsyncStorage from 'storage'\n")
@@ -38,7 +38,7 @@ class SecretGuardTest(unittest.TestCase):
                 "SEC-05-ANDROID-RELEASE-DEBUG-SIGNING",
                 "SEC-04-NATIVE-JWT-ASYNCSTORAGE",
             ])
-            gradle.write_text("android { buildTypes { release {\n"
+            gradle.write_text("release {\n"
                               " signingConfig signingConfigs.release\n"
                               " } } }\n")
             token.write_text("import SecureStore from 'trusted_store'\n")
