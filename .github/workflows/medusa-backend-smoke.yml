@@ -90,6 +90,10 @@ jobs:
         run: pnpm --filter @dtc/backend exec medusa db:migrate
       - name: Assert payment amount match and stale/ambiguous session rejection (F07f)
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07f-payment-amount-guard-ci.ts
+      - name: Assert bounded buyer-accepted checkout quote contract (F07g stage 1, CI-only)
+        env:
+          SHQIPSHOP_F07G_CONTRACT_CI: "true"
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-quote-contract-ci.ts
       - name: Assert Albania region, ALL currency, products and shipping
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-albania-seed.ts
       - name: Export ephemeral publishable key into runner-local file
