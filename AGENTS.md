@@ -20,7 +20,7 @@
 
 ## Current blockers at security-governance checkpoint
 
-F07g Stage 1, Stage 2A disposable PostgreSQL atomic acceptance, and Stage 2B-1 real Medusa cart-vs-catalogue stale-quote tests passed CI. **Durable HTTP review/accept, authenticated buyer proof, payment/order locking and UI remain OPEN.** F08 server JWT revocation OPEN. F09 unified PWA/Medusa commerce OPEN. G3/G5 not production-ready. Native token persists in AsyncStorage, Android release uses debug signing, real PSP/TLS/backups/media/RBAC/device coverage unverified. These are **not** solved by creating security documents. Review live register for changes.
+F07g Stage 1/2A/2B-1 and Stage 2B-2A server-derived tenant/buyer HMAC binding passed scoped Medusa CI. **Durable HTTP review/accept, authenticated buyer proof, payment/order locking and UI remain OPEN.** F08 server JWT revocation OPEN. F09 unified PWA/Medusa commerce OPEN. G3/G5 not production-ready. Native token persists in AsyncStorage, Android release uses debug signing, real PSP/TLS/backups/media/RBAC/device coverage unverified. These are **not** solved by creating security documents. Review live register for changes.
 
 ## Risk-proportional CI
 
