@@ -35,7 +35,7 @@ export default async function verify(_args: ExecArgs) {
   assert.equal(positive.tenantId, "merchant_A")
   assert.equal(positive.cartId, cartId)
   assert.match(positive.buyerBinding, /^guest:sha256:[a-f0-9]{64}$/)
-  assert(!JSON.stringify(positive).includes(cartId.slice(5)),
+  assert(!positive.buyerBinding.includes(cartId.slice(5)),
     "Guest proof must not appear in persisted buyerBinding")
   assert.notEqual(positive.buyerBinding, bindVerifiedQuotePrincipal({
     ...guest, deploymentTenantId: "merchant_B",
