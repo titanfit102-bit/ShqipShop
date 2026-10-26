@@ -6,6 +6,16 @@ import { ensureOrderReader } from './middlewares/ensure-order-reader'
 export default defineMiddlewares({
   routes: [
     {
+      // This endpoint's handler is hard-disabled except disposable localhost CI.
+      // Still attach Medusa's real session/JWT authentication middleware;
+      // invalid auth must never be silently treated as guest credentials.
+      matcher: '/store/shqipshop/quote-boundary-ci',
+      method: ['POST'],
+      middlewares: [
+        authenticate('customer', ['session', 'bearer'], { allowUnauthenticated: true }),
+      ],
+    },
+    {
       matcher: '/store/orders/:id',
       method: ['GET'],
       middlewares: [
