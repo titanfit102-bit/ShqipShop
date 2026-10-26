@@ -83,6 +83,11 @@ const made = await http("POST", "/store/carts", { token:a.token,body:{region_id:
 assert.equal(made.status,200,"Authenticated cart create failed")
 const cartId = made.data?.cart?.id
 assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(cartId||""))
+// Medusa v2 has an explicit, authenticated "set cart's customer" flow.
+// Merely creating a cart with a bearer does not establish ownership.
+const association = await http("POST",
+  "/store/carts/"+encodeURIComponent(cartId)+"/customer", {token:a.token})
+assert.equal(association.status,200,"Cart owner association failed")
 const retrieved = await http("GET","/store/carts/"+encodeURIComponent(cartId),{token:a.token})
 assert.equal(retrieved.status,200,"Authenticated cart retrieve failed")
 assert.equal(retrieved.data.cart?.customer_id,a.id,
