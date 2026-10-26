@@ -1,5 +1,15 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-10-26 — F07g Stage 2B-2C: real Medusa customer HTTP proof
+
+**VERIFIED code:** [41ff8a8](https://github.com/titanfit102-bit/ShqipShop/commit/41ff8a8ed9feced57d55bbc74fc341e66e3ae557), Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12), **8/8 scoped CI SUCCESS**. [Backend smoke 40362438097](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40362438097) shows `SHQIPSHOP_F07G_REAL_CUSTOMER_BEARER_OWN_CART_HTTP_PASSED`, `SHQIPSHOP_F07G_REAL_CUSTOMER_FOREIGN_BEARER_AND_GUEST_DOWNGRADE_DENIED`, `SHQIPSHOP_F07G_REAL_CUSTOMER_COOKIE_SESSION_AND_LOGOUT_DENIAL_PASSED`; previous guest principal, PostgreSQL single-winner, real catalogue repricing and F07f HTTP 409 still passed. F07c/d, native, A/B, pilot and scanner passed at identical SHA.
+
+**Implemented:** `medusa-backend-poc/scripts/f07g-http-registered-customer-ci.mjs` in existing backend smoke workflow: use real disposable Medusa customer registrations, customer bearer JWTs, explicitly associate a customer with a new cart via authenticated `POST /store/carts/:id/customer`; read back server `customer_id`, require own-cart bearer and cookie access, reject foreign bearer even with guest cart proof, reject guest downgrade of an account cart, invalid bearer, tampered and logged-out cookies, and header tenant spoofing. Only synthetic customers/URLs/keys; no payment, quote issuance, checkout policy or schema migration.
+
+**Observed F08 OPEN:** `SHQIPSHOP_F07G_POST_COOKIE_LOGOUT_BEARER_STATUS 200`. Medusa session logout invalidated its cookie, **not** the previously issued bearer JWT. Do not claim account-wide or multi-device logout. Server revocation/TTL and token-at-rest remain P0. **F07g still PARTIAL**: CI-only authorization probe is not persistent production quote, buyer review/accept or payment/order lock; PSP, race/replay, stock and client UI remain gating. G3/G5 BLOCKED, F09 OPEN. No merge/main/Production. CI for the following documentation SHA must be checked separately.
+
+
+
 ## 2026-10-26 — F07g Stage 2B-2B: CI-gated Medusa HTTP buyer/capability boundary
 
 **CODE VERIFIED:** [commit `1cd4bd9`](https://github.com/titanfit102-bit/ShqipShop/commit/1cd4bd951df978dd84255d09734f821b12735e07) on `feat/merchant-auth-boundary-ci`, Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12), **8/8 GitHub Actions SUCCESS** at this code SHA. [Backend smoke 40328961097](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40328961097) logged `SHQIPSHOP_F07G_REAL_HTTP_GUEST_CAPABILITY_AND_TENANT_SPOOF_DENIED` and `SHQIPSHOP_F07G_REAL_HTTP_INVALID_AUTH_NO_GUEST_DOWNGRADE`, plus existing F07g PostgreSQL single-winner and stale-price checks and F07f active stale-payment HTTP 409 twice. Parallel tenant, Redis, native, pilot and security baseline tests also passed.
