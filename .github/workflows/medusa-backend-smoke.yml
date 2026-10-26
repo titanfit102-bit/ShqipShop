@@ -123,6 +123,7 @@ jobs:
           SHQIPSHOP_F07E_REPRICE_PROBE: "true"
           SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
           SHQIPSHOP_F07G_REAL_CART_CI: "true"
+          SHQIPSHOP_F07G_HTTP_CI: "true"
           SHQIPSHOP_F07G_REAL_CART_PROOF_FILE: ${{ runner.temp }}/shqipshop-f07g-medusa-cart-snapshot.json
         run: |
           set -euo pipefail
@@ -142,6 +143,7 @@ jobs:
               node scripts/store-api-checkout.mjs
               node scripts/store-api-cart-totals-ci.mjs
               node scripts/store-api-reprice-ci.mjs prepare
+              node scripts/f07g-http-quote-boundary-ci.mjs
               pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-live-cart-snapshot-ci.ts before
               pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07e-store-reprice-ci.ts
               pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-live-cart-snapshot-ci.ts after
