@@ -143,6 +143,67 @@ export default async function liveCart({ container, args }: ExecArgs) {
     shipping: [], adjustments: [], taxTotal, discountTotal, creditTotal,
   }
 
+  // Only a disposable PostgreSQL fixture. This table does not exist in
+  // production and is never a Medusa schema migration or payment policy.
+  const db: any = container.resolve(ContainerRegistrationKeys.PG_CONNECTION)
+  const table = "shqipshop_f07g_disposable_ci_live_quotes"
+  const dbQuote = (row: any): CheckoutQuote => ({
+    id: row.quote_id,
+    fingerprint: row.fingerprint,
+    snapshot: typeof row.snapshot === "string" ? JSON.parse(row.snapshot) : row.snapshot,
+    status: row.status,
+    issuedAtMs: Number(row.issued_at_ms),
+    expiresAtMs: Number(row.expires_at_ms),
+    ...(row.accepted_at_ms !== null && row.accepted_at_ms !== undefined
+      ? { acceptedAtMs: Number(row.accepted_at_ms) } : {}),
+    ...(row.acceptance_nonce ? { acceptanceNonce: row.acceptance_nonce } : {}),
+  })
+  const store = async (quote: CheckoutQuote) => {
+    await db(table).insert({
+      quote_id: quote.id, tenant_id: quote.snapshot.tenantId,
+      cart_id: quote.snapshot.cartId, buyer_binding: quote.snapshot.buyerBinding,
+      fingerprint: quote.fingerprint, snapshot: JSON.stringify(quote.snapshot),
+      issued_at_ms: quote.issuedAtMs, expires_at_ms: quote.expiresAtMs,
+      status: "quoted",
+    })
+  }
+  const scope = {
+    tenantId: snapshot.tenantId, cartId: snapshot.cartId,
+    buyerBinding: snapshot.buyerBinding,
+  }
+  // No trust in any caller-supplied quote body. The stored snapshot, issued
+  // time, principal scope and expiration come ONLY from the PostgreSQL row.
+  const tryAccept = async (
+    quoteId: string, submissionFingerprint: string,
+    scopeArg: typeof scope, current: QuoteSnapshot, at: number,
+  ): Promise<boolean> => db.transaction(async (trx: any) => {
+    const row = await trx(table).where({
+      quote_id: quoteId, tenant_id: scopeArg.tenantId,
+      cart_id: scopeArg.cartId, buyer_binding: scopeArg.buyerBinding,
+    }).first()
+    if (!row) return false
+    let candidate: CheckoutQuote
+    try {
+      candidate = acceptCheckoutQuote(
+        dbQuote(row), { quoteId, fingerprint: submissionFingerprint }, current, at,
+      )
+    } catch {
+      return false
+    }
+    const changed = await trx(table)
+      .where({
+        quote_id: quoteId, tenant_id: scopeArg.tenantId,
+        cart_id: scopeArg.cartId, buyer_binding: scopeArg.buyerBinding,
+        status: "quoted", fingerprint: candidate.fingerprint,
+      })
+      .andWhere("expires_at_ms", ">", at)
+      .update({
+        status: "accepted", accepted_at_ms: at,
+        acceptance_nonce: candidate.acceptanceNonce,
+      }).returning("quote_id")
+    return changed.length === 1
+  })
+
   if (phase === "before") {
     // Fail closed if the real Store cart price already disagrees with its
     // only linked ALL price, or cart arithmetic is inconsistent.
@@ -151,33 +212,103 @@ export default async function liveCart({ container, args }: ExecArgs) {
     const expectedTotal = MathBN.sub(MathBN.add(lineTotal, taxTotal), discountTotal)
     assert(MathBN.convert(cartTotal).eq(expectedTotal),
       "CI total must come from coherent Medusa data")
+    assert.equal(await db.schema.hasTable(table), false,
+      "Never alter a pre-existing table, including other test fixtures")
+    await db.schema.createTable(table, (t: any) => {
+      t.string("quote_id", 80).primary()
+      t.string("tenant_id", 100).notNullable()
+      t.string("cart_id", 100).notNullable()
+      t.string("buyer_binding", 160).notNullable()
+      t.string("fingerprint", 80).notNullable()
+      t.jsonb("snapshot").notNullable()
+      t.bigInteger("issued_at_ms").notNullable()
+      t.bigInteger("expires_at_ms").notNullable()
+      t.bigInteger("accepted_at_ms").nullable()
+      t.string("acceptance_nonce", 80).nullable()
+      t.string("status", 12).notNullable()
+      t.index(["tenant_id", "cart_id", "status"], "f07g_live_ci_tenant_cart_state")
+    })
     const now = Date.now()
     const quote = issueCheckoutQuote(snapshot, now, 300000)
-    const accepted = acceptCheckoutQuote(quote,
-      { quoteId: quote.id, fingerprint: quote.fingerprint }, snapshot, now + 1)
-    assertAcceptedCheckoutQuote(accepted, snapshot, now + 2)
-    writeFileSync(checkpoint, JSON.stringify({ accepted, linkedAmount: effectivePrice }),
-      { flag: "wx", mode: 0o600 })
+    const pending = issueCheckoutQuote(snapshot, now, 300000)
+    await store(quote)
+    await store(pending)
+    assert.equal(await tryAccept(quote.id, quote.fingerprint,
+      {...scope, tenantId: "foreign_merchant"}, snapshot, now + 1), false)
+    assert.equal(await tryAccept(quote.id, quote.fingerprint,
+      {...scope, buyerBinding: "guest:sha256:" + "f".repeat(64)}, snapshot, now + 1), false)
+    assert.equal(await tryAccept(quote.id, quote.fingerprint,
+      scope, {...snapshot, pricingRevision: "price_wrong_revision"}, now + 1), false)
+    assert.equal(await tryAccept(quote.id, quote.fingerprint,
+      scope, snapshot, quote.expiresAtMs), false)
+    const attempts = await Promise.all([
+      tryAccept(quote.id, quote.fingerprint, scope, snapshot, now + 2),
+      tryAccept(quote.id, quote.fingerprint, scope, snapshot, now + 2),
+    ])
+    assert.equal(attempts.filter(Boolean).length, 1,
+      "Only one of two concurrent PostgreSQL updates may accept the real Medusa quote")
+    assert.equal(await tryAccept(quote.id, quote.fingerprint,
+      scope, snapshot, now + 3), false, "Replay must be rejected")
+    const row = await db(table).where({quote_id:quote.id,...{
+      tenant_id:scope.tenantId,cart_id:scope.cartId,buyer_binding:scope.buyerBinding,
+    }}).first()
+    const accepted = dbQuote(row)
+    assertAcceptedCheckoutQuote(accepted, snapshot, now + 3)
+    writeFileSync(checkpoint, JSON.stringify({
+      accepted, linkedAmount: effectivePrice, pendingQuoteId: pending.id,
+    }), { flag: "wx", mode: 0o600 })
     console.log("SHQIPSHOP_F07G_REAL_MEDUSA_CART_SNAPSHOT_BEFORE_REPRICE_PASSED")
+    console.log("SHQIPSHOP_F07G_REAL_MEDUSA_PG_ATOMIC_SINGLE_ACCEPTANCE_AND_REPLAY_DENIED")
     return
   }
 
-  const prior = JSON.parse(readFileSync(checkpoint, "utf8")) as {
-    accepted: CheckoutQuote; linkedAmount: string
+  try {
+    const prior = JSON.parse(readFileSync(checkpoint, "utf8")) as {
+      accepted: CheckoutQuote; linkedAmount: string; pendingQuoteId: string
+    }
+    assert.equal(Number(effectivePrice), prepared.expectedAmount,
+      "Catalogue repricing did not persist in real Medusa PostgreSQL")
+    assert.equal(Number(prior.linkedAmount), prepared.originalAmount)
+    assert.notEqual(snapshot.pricingRevision, prior.accepted.snapshot.pricingRevision,
+      "Catalogue price revision must change even when an active cart stays stale")
+    assert.notEqual(fingerprintQuoteSnapshot(snapshot), prior.accepted.fingerprint,
+      "Old acceptance must never be reusable after catalogue repricing")
+    const acceptedRow = await db(table).where({
+      quote_id: prior.accepted.id, tenant_id: scope.tenantId,
+      cart_id: scope.cartId, buyer_binding: scope.buyerBinding,
+    }).first()
+    assert(acceptedRow && acceptedRow.status === "accepted",
+      "Accepted quote must survive separate Medusa exec process")
+    const persisted = dbQuote(acceptedRow)
+    assert.equal(persisted.fingerprint, prior.accepted.fingerprint)
+    assert.equal(persisted.acceptanceNonce, prior.accepted.acceptanceNonce)
+    assert.throws(() => assertAcceptedCheckoutQuote(persisted, snapshot,
+      persisted.acceptedAtMs! + 1), /F07g checkout quote conflict/)
+
+    const pendingRow = await db(table).where({
+      quote_id: prior.pendingQuoteId, tenant_id: scope.tenantId,
+      cart_id: scope.cartId, buyer_binding: scope.buyerBinding,
+    }).first()
+    assert(pendingRow && pendingRow.status === "quoted")
+    const unaccepted = dbQuote(pendingRow)
+    assert.throws(() => acceptCheckoutQuote(unaccepted,
+      { quoteId: unaccepted.id, fingerprint: unaccepted.fingerprint },
+      snapshot, unaccepted.issuedAtMs + 5), /F07g checkout quote conflict/,
+      "Catalogue repricing must reject an unaccepted persisted quote")
+    assert.equal(await tryAccept(unaccepted.id, unaccepted.fingerprint,
+      scope, snapshot, unaccepted.issuedAtMs + 5), false,
+      "Repriced cart cannot transition a stored quote to accepted")
+    assert.equal((await db(table).where({quote_id:unaccepted.id}).first()).status, "quoted")
+    console.log("SHQIPSHOP_F07G_REAL_MEDUSA_PG_REPRICE_DENIES_PENDING_QUOTE_ACROSS_PROCESSES")
+    if (cartUnit !== effectivePrice) {
+      console.log("SHQIPSHOP_F07G_REAL_MEDUSA_STALE_CART_UNIT_OBSERVED_NOT_APPROVED")
+    } else {
+      console.log("SHQIPSHOP_F07G_REAL_MEDUSA_CART_ALREADY_REPRICED_OBSERVED")
+    }
+    console.log("SHQIPSHOP_F07G_REAL_MEDUSA_REPRICE_INVALIDATES_BUYER_QUOTE_PASSED")
+  } finally {
+    // This is an explicitly disposable CI table; never migrate or drop a
+    // production model/table. Cleanup runs even when the stale-price test fails.
+    await db.schema.dropTableIfExists(table)
   }
-  assert.equal(Number(effectivePrice), prepared.expectedAmount,
-    "Catalogue repricing did not persist in real Medusa PostgreSQL")
-  assert.equal(Number(prior.linkedAmount), prepared.originalAmount)
-  assert.notEqual(snapshot.pricingRevision, prior.accepted.snapshot.pricingRevision,
-    "Catalogue price revision must change even when an active cart stays stale")
-  assert.notEqual(fingerprintQuoteSnapshot(snapshot), prior.accepted.fingerprint,
-    "Old acceptance must never be reusable after catalogue repricing")
-  assert.throws(() => assertAcceptedCheckoutQuote(prior.accepted, snapshot,
-    prior.accepted.acceptedAtMs! + 2), /F07g checkout quote conflict/)
-  if (cartUnit !== effectivePrice) {
-    console.log("SHQIPSHOP_F07G_REAL_MEDUSA_STALE_CART_UNIT_OBSERVED_NOT_APPROVED")
-  } else {
-    console.log("SHQIPSHOP_F07G_REAL_MEDUSA_CART_ALREADY_REPRICED_OBSERVED")
-  }
-  console.log("SHQIPSHOP_F07G_REAL_MEDUSA_REPRICE_INVALIDATES_BUYER_QUOTE_PASSED")
 }
