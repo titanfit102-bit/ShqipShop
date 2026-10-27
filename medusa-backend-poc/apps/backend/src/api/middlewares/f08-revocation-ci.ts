@@ -96,30 +96,44 @@ export const enforceF08CiOwnerCartPolicy = (
       const rawPath=String(req.originalUrl ?? req.path ?? "").split("?")[0]
       const pathMatch=/^\/store\/carts\/(cart_[A-Za-z0-9_-]{8,})(?:\/line-items)?\/?$/.exec(rawPath)
       const cartId=pathMatch?.[1]
-      if (!cartId || (req.params?.id && req.params.id !== cartId))
+      if (!cartId || (req.params?.id && req.params.id !== cartId)) {
+        console.log("SHQIPSHOP_F08_CI_DEBUG_CART_ROUTE_MISMATCH")
         return res.sendStatus(404)
+      }
       const query=req.scope.resolve(ContainerRegistrationKeys.QUERY)
       const {data:carts}=await query.graph({
         entity:"cart",
         fields:["id","customer_id"],
         filters:{id:cartId},
       })
-      if (carts.length !== 1) return res.sendStatus(404)
+      if (carts.length !== 1) {
+        console.log("SHQIPSHOP_F08_CI_DEBUG_CART_QUERY_COUNT_"+carts.length)
+        return res.sendStatus(404)
+      }
       const customerId=carts[0].customer_id
       // Invalid attempted auth cannot silently become a guest request.
       const attempted=Boolean(req.headers.authorization || req.headers.cookie)
       const actor=req.auth_context?.actor_type==="customer"
         ? req.auth_context?.actor_id : null
-      if (attempted && !actor) return res.sendStatus(401)
-      if (customerId && (!actor || actor !== customerId))
+      if (attempted && !actor) {
+        console.log("SHQIPSHOP_F08_CI_DEBUG_AUTHENTICATION_REJECTED")
+        return res.sendStatus(401)
+      }
+      if (customerId && (!actor || actor !== customerId)) {
+        console.log("SHQIPSHOP_F08_CI_DEBUG_CUSTOMER_OWNER_MISMATCH")
         return res.sendStatus(404)
+      }
+      console.log(customerId
+        ? "SHQIPSHOP_F08_CI_DEBUG_OWNER_CART_AUTHORIZED"
+        : "SHQIPSHOP_F08_CI_DEBUG_GUEST_CART_ALLOWED")
       // Revoke a known bearer for BOTH customer-linked cart read and write.
       // For guest carts no new policy is inferred by this test-only guard.
       if (customerId && req.headers.authorization)
         return enforceF08CiBearerPolicy(req,res,next)
       return next()
     } catch {
-      // Unknown DB/auth/query state must never expose a private cart.
+      // Diagnostics are CI-only and never expose IDs, tokens or PII.
+      console.log("SHQIPSHOP_F08_CI_DEBUG_CART_QUERY_ERROR")
       return res.sendStatus(503)
     }
   })

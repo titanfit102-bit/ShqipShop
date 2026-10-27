@@ -133,7 +133,7 @@ jobs:
           SHQIPSHOP_F08_CI_FIXTURE_ACTION=create pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
           pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/medusa-backend.log" 2>&1 &
           backend_pid=$!
-          trap 'kill "$backend_pid" 2>/dev/null || true' EXIT
+          trap 'status=$?; if [ "$status" -ne 0 ]; then grep -E "SHQIPSHOP_F08_CI_DEBUG_" "$RUNNER_TEMP/medusa-backend.log" | tail -35 || true; fi; kill "$backend_pid" 2>/dev/null || true' EXIT
           for i in $(seq 1 90); do
             if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:9000/health > "$RUNNER_TEMP/health.json" 2>/dev/null; then
               echo "Medusa API health endpoint returned HTTP 200"
