@@ -1,5 +1,15 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-10-27 — F08 Stage 1: disposable JWT revocation guard and demonstrated global gap
+
+**VERIFIED CODE:** [2237118](https://github.com/titanfit102-bit/ShqipShop/commit/2237118a43eed863b515ed60852b133f9f564512), **8/8 GitHub Actions SUCCESS** on that exact code SHA; [Medusa smoke 40503092248](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40503092248) logged `SHQIPSHOP_F08_DISPOSABLE_PER_TOKEN_HTTP_REVOCATION_DENIES_GUARDED_QUOTE` and `SHQIPSHOP_F08_GLOBAL_BEARER_REVOCATION_REMAINS_OPEN_STORE_ME_200`. Guest/customer quote and Medusa order/price/Redis checks remained green.
+
+**IMPLEMENTED / TESTED ONLY IN DISPOSABLE CI:** A per-bearer SHA-256 digest revocation table is created/dropped in disposable PostgreSQL via `f08-revocation-fixture-ci.ts`. Explicit CI-only authenticated bearer POST `/store/shqipshop/f08-token-revoke-ci` inserts only its own Medusa-validated token digest; tests deny a forged JWT, forged merchant, altered caller identity, and prove idempotent revocation. `enforceF08CiBearerPolicy` rejects a revoked JWT on the two disposable quote test endpoints, failing closed on storage errors. Crucially the SAME token continues to receive HTTP 200 at the unguarded built-in Medusa `/store/customers/me` endpoint. **Global F08 IS NOT IMPLEMENTED**, and session logout is not bearer revocation. No customer data, permanent DB, production middleware, auth policy migration, external payments or live deployment changed.
+
+**BLOCKED / NEXT:** Design and separately authorize a comprehensive per-merchant authenticated-route revocation/rotation/expiry strategy, including all Store order/customer/cart mutations, admin/worker roles as applicable, cookie-session logout, native secure storage, token refresh/password-change/device policy, failure cases and independent negative integration tests. Read [F08 design](security/F08_AUTH_REVOCATION_DESIGN.md) from docs; F07g PSP/atomicity, F09 commerce authority and G3/G5 gates remain blocked. PR #12 stays Draft. CI status of the following documentation SHA requires separate verification.
+
+
+
 ## 2026-10-27 — F07g Stage 2C-5: one claimed checkout intent per real Medusa cart (CI)
 
 **VERIFIED code:** [e59831c](https://github.com/titanfit102-bit/ShqipShop/commit/e59831c81bbc071077a30668858c110b4b789655), [Medusa CI 40499708458](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40499708458); **8/8 GitHub Actions SUCCESS** at that code SHA on Draft PR #12. In `f07g-live-cart-snapshot-ci.ts` the disposable PostgreSQL fixture now has a partial unique index on `(tenant_id,cart_id) WHERE status='claimed'`, and the CI-only `quote-claim-ci.ts` treats PostgreSQL error 23505 as a denied competing claim. Four concurrent claims on **two separately accepted quote IDs for one real Medusa cart** result in exactly one local claim. Same-quote replay, stale price, tenant/buyer denial, registered/guest HTTP and other checks remain passing.
