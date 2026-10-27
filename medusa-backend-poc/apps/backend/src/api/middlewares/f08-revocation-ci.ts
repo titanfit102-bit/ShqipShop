@@ -111,24 +111,42 @@ export const enforceF08CiOwnerCartPolicy = (
         return res.sendStatus(404)
       }
       const customerId=carts[0].customer_id
-      // Invalid attempted auth cannot silently become a guest request.
+      // Guest checkout can create a customer row without an account. Treating
+      // ANY customer_id as a logged-in owner breaks ordinary Medusa checkout.
+      // Query Medusa's authoritative account classification, never a header.
+      let registeredAccount=false
+      if (customerId) {
+        const {data:customers}=await query.graph({
+          entity:"customer",
+          fields:["id","has_account"],
+          filters:{id:String(customerId)},
+        })
+        if (customers.length!==1 ||
+            customers[0].id!==customerId ||
+            typeof customers[0].has_account!=="boolean") {
+          console.log("SHQIPSHOP_F08_CI_DEBUG_CUSTOMER_ACCOUNT_LOOKUP_INVALID")
+          return res.sendStatus(503)
+        }
+        registeredAccount=customers[0].has_account
+      }
       const attempted=Boolean(req.headers.authorization || req.headers.cookie)
       const actor=req.auth_context?.actor_type==="customer"
         ? req.auth_context?.actor_id : null
+      // A failed bearer/cookie is not a valid guest possession credential.
       if (attempted && !actor) {
         console.log("SHQIPSHOP_F08_CI_DEBUG_AUTHENTICATION_REJECTED")
         return res.sendStatus(401)
       }
-      if (customerId && (!actor || actor !== customerId)) {
-        console.log("SHQIPSHOP_F08_CI_DEBUG_CUSTOMER_OWNER_MISMATCH")
+      if (registeredAccount && (!actor || actor!==customerId)) {
+        console.log("SHQIPSHOP_F08_CI_DEBUG_REGISTERED_OWNER_MISMATCH")
         return res.sendStatus(404)
       }
-      console.log(customerId
-        ? "SHQIPSHOP_F08_CI_DEBUG_OWNER_CART_AUTHORIZED"
+      console.log(registeredAccount
+        ? "SHQIPSHOP_F08_CI_DEBUG_REGISTERED_CART_ALLOWED"
         : "SHQIPSHOP_F08_CI_DEBUG_GUEST_CART_ALLOWED")
-      // Revoke a known bearer for BOTH customer-linked cart read and write.
-      // For guest carts no new policy is inferred by this test-only guard.
-      if (customerId && req.headers.authorization)
+      // Only registered accounts are protected by the experimental bearer
+      // deny-list. Guest cart possession/expiry remains unapproved/open.
+      if (registeredAccount && req.headers.authorization)
         return enforceF08CiBearerPolicy(req,res,next)
       return next()
     } catch {
