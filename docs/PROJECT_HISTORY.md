@@ -1,5 +1,14 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-10-27 — F08 Stage 4: CI-gated guard on built-in Medusa customer profile
+
+**VERIFIED CODE:** [cd43db8](https://github.com/titanfit102-bit/ShqipShop/commit/cd43db8f9b3aab4ed2a2ad14f6210016ae148cf9), Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12), **8/8 GitHub Actions SUCCESS** at this exact code SHA. [Medusa CI 40525688304](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40525688304) logged `SHQIPSHOP_F08_CI_BUILTIN_PROFILE_REVOKED_JWT_401`, `SHQIPSHOP_F08_CI_GUARDED_BUILTIN_PROFILE_OUTAGE_FAIL_CLOSED_503`, `SHQIPSHOP_F08_CI_OUTAGE_PRIVATE_CART_STILL_UNGUARDED`, and `SHQIPSHOP_F08_GLOBAL_BEARER_REVOCATION_REMAINS_OPEN_STORE_CART_200`; prior scoped F07g and two-device tests passed.
+
+**IMPLEMENTED IN DISPOSABLE CI ONLY:** `medusa-backend-poc/apps/backend/src/api/middlewares/f08-revocation-ci.ts` now exports `enforceF08CiProfilePolicy`, which explicitly invokes Medusa-validated customer auth and applies the existing PostgreSQL JWT digest deny-list only under the exact disposable CI environment. A narrow middleware matcher for the **built-in GET /store/customers/me** in `middlewares.ts` is a no-op when that CI environment is absent. Previously revoked JWT now returns HTTP 401 at the built-in profile and missing deny-list returns HTTP 503 (fail closed), while the existing two quote CI routes retain their tests.
+
+
+
+
 ## 2026-10-27 — F08 Stage 3: independent same-customer bearer tokens (disposable CI)
 
 [Code f95ee96](https://github.com/titanfit102-bit/ShqipShop/commit/f95ee96d3fdf29d29b0a18008fcaa67d18e24e9f): CI-only second same-account JWT issued/verified; per-token revocation isolation passed. Global Medusa JWT logout, device policy and Production remain blocked.

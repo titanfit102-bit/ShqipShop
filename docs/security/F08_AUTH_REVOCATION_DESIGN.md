@@ -1,5 +1,8 @@
 # ShqipShop — F08 bearer JWT revocation design (PROPOSAL ONLY)
 
+**Stage 4 scoped CI evidence (2026-10-27):** [Medusa backend 40525688304](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40525688304) confirms an exact-CI gated Medusa-authenticated middleware also protects the built-in **GET /store/customers/me** after explicit per-JWT revoke (HTTP 401), failing closed HTTP 503 if disposable deny-list unavailable. **GET /store/carts/:id remains unguarded (revoked JWT HTTP 200)**, so this is a narrow proof of integration, not global/logout/device revocation. Middleware is pass-through outside exact CI; no approved production auth change.
+
+
 **Stage 3 scoped CI evidence:** [Medusa backend 40520620233](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40520620233) verified two *distinct* JWTs issued to one synthetic customer: revoking A left B usable only on the two guarded quote endpoints until B was independently revoked. Caller-supplied all-device logout was rejected. This is not a design approval or proof of global/account-wide revocation.
 
 

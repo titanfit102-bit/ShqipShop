@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-10-27 — F08 Stage 4: CI-gated guard on built-in Medusa customer profile
+
+Built-in Medusa profile GET now proved scoped JWT deny-list enforcement in disposable CI with 401 and outage 503 [40525688304](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40525688304). Cart GET still accepts revoked token; no global/device/Production authorization. F08 remains P0 OPEN, F07g/F09 and release blocked.
+
+
 ## 2026-10-27 — F08 Stage 3: independent same-customer bearer tokens (disposable CI)
 
 F08 scoped two-device JWT behavior verified in [Medusa CI 40520620233](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40520620233); **does not** approve all-device logout or solve global Medusa/private API revocation. Production implementation and release remain blocked.
