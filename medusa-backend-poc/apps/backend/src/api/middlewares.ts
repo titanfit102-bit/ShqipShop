@@ -1,11 +1,23 @@
 import { authenticate, configureStoreSearch, defineMiddlewares } from '@medusajs/framework/http'
 import { ensureOrderReader } from './middlewares/ensure-order-reader'
-import { enforceF08CiBearerPolicy, enforceF08CiProfilePolicy } from './middlewares/f08-revocation-ci'
+import { enforceF08CiBearerPolicy, enforceF08CiProfilePolicy, enforceF08CiOwnerCartPolicy } from './middlewares/f08-revocation-ci'
 
 // The product index declares filterable `status` and `sales_channel_ids`, so
 // the route narrows it to published products in the key's sales channels.
 export default defineMiddlewares({
   routes: [
+    {
+      // Exact disposable CI-only owner guard: Medusa built-in cart GET and
+      // line-item POST. Non-CI traffic is strictly unaffected by the function.
+      matcher: '/store/carts/:id',
+      method: ['GET'],
+      middlewares: [enforceF08CiOwnerCartPolicy],
+    },
+    {
+      matcher: '/store/carts/:id/line-items',
+      method: ['POST'],
+      middlewares: [enforceF08CiOwnerCartPolicy],
+    },
     {
       // CI-only demonstration of guard injection into a BUILT-IN Medusa
       // private customer profile endpoint. Outside exact disposable CI,

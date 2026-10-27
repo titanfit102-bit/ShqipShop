@@ -125,6 +125,7 @@ jobs:
           SHQIPSHOP_F07G_REAL_CART_CI: "true"
           SHQIPSHOP_F07G_HTTP_CI: "true"
           SHQIPSHOP_F08_REVOCATION_CI: "true"
+          SHQIPSHOP_F08_OWNER_CART_CI: "true"
           SHQIPSHOP_F07G_REAL_CART_PROOF_FILE: ${{ runner.temp }}/shqipshop-f07g-medusa-cart-snapshot.json
           SHQIPSHOP_F07G_REGISTERED_QUOTE_PROOF_FILE: ${{ runner.temp }}/shqipshop-f07g-registered-quote.json
         run: |

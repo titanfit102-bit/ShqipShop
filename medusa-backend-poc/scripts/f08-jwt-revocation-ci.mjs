@@ -1,12 +1,13 @@
-/** F08: prove a disposed JWT can be denied only by scoped CI policy.
- * A different Store route still accepts it — explicitly demonstrating
- * that global bearer revocation and production F08 remain UNSOLVED.
+/** F08: synthetic CI-only token revocation and owner-cart access proofs.
+ * Stage 7 guards two built-in cart routes in disposable CI; global revocation,
+ * guest capability expiry, and production F08 remain UNSOLVED.
  */
 import assert from "node:assert/strict"
 import {readFileSync} from "node:fs"
 import {resolve,sep} from "node:path"
 for(const [key,val] of Object.entries({
   CI:"true",NODE_ENV:"development",SHQIPSHOP_F08_REVOCATION_CI:"true",
+  SHQIPSHOP_F08_OWNER_CART_CI:"true",
   SHQIPSHOP_F07G_HTTP_CI:"true",SHQIPSHOP_REQUIRE_REDIS:"true",
   DATABASE_URL:"postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci",
   REDIS_URL:"redis://127.0.0.1:6379",
@@ -73,17 +74,24 @@ if (phase === "outage") {
   assert.equal((await request("GET","/store/customers/me",stranger.token)).status,503,
     "Valid second customer must also fail closed during deny-list outage")
   console.log("SHQIPSHOP_F08_CI_DENYLIST_UNAVAILABLE_GUARDED_BEARER_503")
-  // A different built-in Store private cart route is intentionally outside
-  // this CI guard. Global revocation and outage coverage remain UNSOLVED.
-  const unguarded=await request("GET","/store/carts/"+encodeURIComponent(cartId),owner.token)
-  assert.equal(unguarded.status,200,"Unguarded private cart remains a global blocker")
-  assert.equal(unguarded.payload?.cart?.customer_id,owner.id)
+  // Stage 7: customer-bound cart reads fail closed during deny-list outage.
+  const outageRead=await request("GET",customerCartPath,owner.token)
+  assert.equal(outageRead.status,503,"Owner cart must fail closed if deny-list is unavailable")
+  assert([401,403,404].includes((await probeBuiltInCart("NO_BEARER_OUTAGE",null)),
+    "Known cart ID must not bypass customer ownership during outage"))
   console.log("SHQIPSHOP_F08_CI_GUARDED_BUILTIN_PROFILE_OUTAGE_FAIL_CLOSED_503")
-  console.log("SHQIPSHOP_F08_CI_OUTAGE_PRIVATE_CART_STILL_UNGUARDED")
+  console.log("SHQIPSHOP_F08_CI_OWNED_CART_OUTAGE_FAIL_CLOSED_503")
   process.exit(0)
 }
+const ownerBefore=await probeBuiltInCart("OWNER_BEFORE_REVOKE",owner.token)
+assert.equal(ownerBefore,200,"Correct owner bearer must read cart")
 const anonymousBefore=await probeBuiltInCart("NO_BEARER_BEFORE_REVOKE",null)
 const foreignBefore=await probeBuiltInCart("FOREIGN_CUSTOMER_BEARER_BEFORE_REVOKE",stranger.token)
+assert([401,403,404].includes(anonymousBefore))
+assert([401,403,404].includes(foreignBefore))
+const invalidBefore=await probeBuiltInCart("INVALID_BEARER_BEFORE_REVOKE","invalid_f08_ci_token")
+assert([401,403,404].includes(invalidBefore))
+console.log("SHQIPSHOP_F08_CI_OWNER_CART_READ_SCOPE_POSITIVE_NEGATIVE_PASSED")
 assert.equal((await protectedQuote(owner.token)).status,200,
   "Medusa authenticated bearer must be accepted BEFORE CI revocation")
 assert.equal((await protectedQuote(owner.secondToken)).status,200,
@@ -144,24 +152,30 @@ for (const [label,token] of [
 ]) {
   const id=await newSyntheticOwnedCart()
   const attempted=await mutateSyntheticCart(id,token)
-  assert([200,400,401,403,404].includes(attempted.status),
-    "Unexpected Store cart mutation response: "+label)
+  assert([400,401,403,404].includes(attempted.status),
+    "Non-owner or invalid bearer MUST be denied cart mutation: "+label)
   const inspected=await request("GET","/store/carts/"+encodeURIComponent(id),owner.token)
   assert.equal(inspected.status,200)
   assert.equal(inspected.payload?.cart?.customer_id,owner.id)
   const items=inspected.payload?.cart?.items??[]
-  if(attempted.status===200) {
-    assert.equal(items.length,1,"HTTP 200 must have an actual persisted effect")
-    assert.equal(items[0].variant_id,syntheticVariant)
-    assert.equal(Number(items[0].quantity),1)
-  } else {
-    assert.equal(items.length,0,"Denied mutation must not change the owner cart")
-  }
-  console.log("SHQIPSHOP_F08_CI_OWNED_CART_WRITE_"+label+"_HTTP_"+attempted.status)
-  if(attempted.status===200)
-    console.log("SHQIPSHOP_F08_OWNED_CART_WRITE_"+label+"_AUTHORIZATION_REVIEW_OPEN")
+  assert.equal(items.length,0,"Denied mutation must not change owner cart")
+  console.log("SHQIPSHOP_F08_CI_OWNED_CART_WRITE_"+label+"_DENIED_HTTP_"+attempted.status)
 }
 
+// Guest-cart positive control retains Medusa's existing guest behavior;
+ // no new guest possession/expiry policy is claimed by this CI proof.
+const guest=await request("POST","/store/carts",null,{body:{region_id:region.id}})
+assert.equal(guest.status,200)
+const guestCartId=guest.payload?.cart?.id
+assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(guestCartId??""))
+const guestRead=await request("GET","/store/carts/"+encodeURIComponent(guestCartId),null)
+assert.equal(guestRead.status,200)
+assert.equal(guestRead.payload?.cart?.customer_id??null,null)
+const guestWrite=await mutateSyntheticCart(guestCartId,null)
+assert.equal(guestWrite.status,200)
+const guestUpdated=await request("GET","/store/carts/"+encodeURIComponent(guestCartId),null)
+assert.equal(guestUpdated.payload?.cart?.items?.length,1)
+console.log("SHQIPSHOP_F08_CI_GUEST_CART_BASELINE_READ_WRITE_PASSED")
 const done=await revocation(owner.token)
 assert.equal(done.status,200)
 assert.equal(done.payload?.revoked,true)
@@ -177,6 +191,13 @@ assert.equal((await request("GET","/store/customers/me",owner.token)).status,401
   "Revoked JWT must be denied even on the built-in customer profile")
 console.log("SHQIPSHOP_F08_CI_TWO_DEVICES_ONE_TOKEN_REVOKED_OTHER_STILL_ALLOWED")
 console.log("SHQIPSHOP_F08_CI_BUILTIN_PROFILE_DENIES_REVOKED_BEARER_401")
+assert.equal((await request("GET",customerCartPath,owner.token)).status,401,
+  "Explicitly revoked owner JWT must not read linked cart")
+assert.equal((await request("GET",customerCartPath,owner.secondToken)).status,200,
+  "Distinct still-valid same-owner JWT must read linked cart")
+assert.equal((await mutateSyntheticCart(controlCart,owner.token)).status,401,
+  "Revoked owner JWT must not mutate own linked cart")
+console.log("SHQIPSHOP_F08_CI_REVOKED_OWNER_CART_READ_WRITE_DENIED")
 assert.equal((await revocation(owner.secondToken)).status,200,
   "Second device must be revocable independently on explicit request")
 assert.equal((await protectedQuote(owner.secondToken)).status,401,
@@ -194,18 +215,17 @@ const guarded=await request("GET","/store/customers/me",owner.token)
 assert.equal(guarded.status,401,
   "Explicitly revoked JWT must be denied on built-in profile under exact CI guard")
 console.log("SHQIPSHOP_F08_CI_BUILTIN_PROFILE_REVOKED_JWT_401")
-// Deliberately read-only: prove a second built-in PRIVATE Store resource
-// accepts the same revoked JWT; never mutate a real customer or inventory.
-const cart=await request("GET","/store/carts/"+encodeURIComponent(cartId),owner.token)
-assert.equal(cart.status,200,"Unguarded Medusa cart read should still accept revoked bearer")
-assert.equal(cart.payload?.cart?.id,cartId)
-assert.equal(cart.payload?.cart?.customer_id,owner.id)
-console.log("SHQIPSHOP_F08_GLOBAL_BEARER_REVOCATION_REMAINS_OPEN_STORE_CART_200")
+// Narrow Stage 7 built-in cart guard denies revoked customer access in CI.
+const cart=await request("GET",customerCartPath,owner.token)
+assert.equal(cart.status,401,"Revoked owner JWT must fail on guarded built-in cart")
+console.log("SHQIPSHOP_F08_CI_REVOKED_OWNER_CART_GET_401")
 // Compare the SAME customer-owned synthetic cart after explicit owner JWT
 // revocation: this distinguishes bearer revocation from ID/capability access.
 const anonymousAfter=await probeBuiltInCart("NO_BEARER_AFTER_REVOKE",null)
 const foreignAfter=await probeBuiltInCart("FOREIGN_CUSTOMER_BEARER_AFTER_REVOKE",stranger.token)
 assert.equal(anonymousAfter,anonymousBefore,"Revoking the owner's JWT must not rewrite anonymous cart access semantics")
 assert.equal(foreignAfter,foreignBefore,"Revoking the owner's JWT must not change a different customer's cart read policy")
-if (anonymousAfter===200) console.log("SHQIPSHOP_F08_CART_ID_ACCESS_WITHOUT_JWT_REQUIRES_SEPARATE_POLICY")
-if (foreignAfter===200) console.log("SHQIPSHOP_F08_FOREIGN_BEARER_CAN_READ_CUSTOMER_CART_REQUIRES_OWNERSHIP_REVIEW")
+assert([401,403,404].includes(anonymousAfter))
+assert([401,403,404].includes(foreignAfter))
+console.log("SHQIPSHOP_F08_CI_OWNED_CART_REQUIRES_CUSTOMER_AUTH")
+

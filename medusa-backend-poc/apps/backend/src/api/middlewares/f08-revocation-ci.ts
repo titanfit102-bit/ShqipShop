@@ -74,3 +74,49 @@ export const enforceF08CiProfilePolicy = (
     return enforceF08CiBearerPolicy(req, res, next)
   })
 }
+
+/**
+ * F08 Stage 7 — disposable CI ONLY: prove that a known cart ID does not
+ * authorize reading or modifying a cart once it belongs to a customer.
+ * Guest carts deliberately retain original Medusa semantics in this probe;
+ * their capability/expiry contract is NOT a production security decision.
+ */
+export const enforceF08CiOwnerCartPolicy = (
+  req: AuthenticatedMedusaRequest,
+  res: MedusaResponse,
+  next: MedusaNextFunction,
+) => {
+  if (!isF08DisposableCi() ||
+      process.env.SHQIPSHOP_F08_OWNER_CART_CI !== "true") return next()
+  return ciCustomerAuth(req, res, async (err?: Error) => {
+    if (err) return next(err)
+    try {
+      const cartId=req.params?.id
+      if (typeof cartId !== "string" || !/^cart_[A-Za-z0-9_-]{8,}$/.test(cartId))
+        return res.sendStatus(404)
+      const query=req.scope.resolve(ContainerRegistrationKeys.QUERY)
+      const {data:carts}=await query.graph({
+        entity:"cart",
+        fields:["id","customer_id"],
+        filters:{id:cartId},
+      })
+      if (carts.length !== 1) return res.sendStatus(404)
+      const customerId=carts[0].customer_id
+      // Invalid attempted auth cannot silently become a guest request.
+      const attempted=Boolean(req.headers.authorization || req.headers.cookie)
+      const actor=req.auth_context?.actor_type==="customer"
+        ? req.auth_context?.actor_id : null
+      if (attempted && !actor) return res.sendStatus(401)
+      if (customerId && (!actor || actor !== customerId))
+        return res.sendStatus(404)
+      // Revoke a known bearer for BOTH customer-linked cart read and write.
+      // For guest carts no new policy is inferred by this test-only guard.
+      if (customerId && req.headers.authorization)
+        return enforceF08CiBearerPolicy(req,res,next)
+      return next()
+    } catch {
+      // Unknown DB/auth/query state must never expose a private cart.
+      return res.sendStatus(503)
+    }
+  })
+}
