@@ -1,5 +1,12 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-10-27 — F07g Stage 2C-4: registered buyer HTTP quote evidence
+
+**VERIFIED:** code [cfcd8b0](https://github.com/titanfit102-bit/ShqipShop/commit/cfcd8b047ac0ee79c0740c5ecaeb09fc171f4f42), Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12); **8/8 GitHub Actions SUCCESS** on that code SHA. [Medusa backend 40448041404](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40448041404) verified real synthetic registered owner cart with Medusa, independently scoped database quote pre-issuance, bearer HTTP review/accept, two concurrent accepts with exactly one winner, foreign buyer/guest downgrade/invalid bearer/tenant spoof/client total denial, and HTTP 409 on replay and after real catalogue repricing. Prior guest path and F07f payment amount 409, tenant A/B, Redis and native checks remain passing.
+
+
+
+
 ## 2026-10-27 — F07g Stage 2C-3: CI-only Medusa HTTP quote review/accept
 
 **VERIFIED code:** [b64e25c](https://github.com/titanfit102-bit/ShqipShop/commit/b64e25c9c44f68d69fbbb138b0237492ec550c79), Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12), **8/8 GitHub Actions SUCCESS** at the code SHA. [Backend smoke 40447001570](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40447001570) confirms real Medusa guest quote HTTP GET review; two competing POST accept attempts yield one 200 and one 409; replay and stale catalogue review/accept 409; tenant/proof/auth spoof and client-total injection denied; acceptance stored in disposable PostgreSQL across Medusa processes, while existing tenant, Redis, native and security gates remained green.

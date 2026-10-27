@@ -1,5 +1,8 @@
 # ShqipShop F07g — durable quote and checkout design (Stage 2C-2)
 
+**2026-10-27 2C-4 scoped proof:** Registered Medusa owner HTTP quote review/accept passed [CI 40448041404](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40448041404), denying foreign buyer, guest downgrade, spoofed tenant and replay/reprice. Owner quote is still **pre-issued only by CI script**. Production module, cookie CSRF, migration, PSP and shared checkout transaction NOT approved or implemented.
+
+
 **2026-10-27 CI-only update:** A disposable guest HTTP GET review / POST one-winner accept boundary passed [Medusa CI 40447001570](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40447001570), including stale 409. Quote issuance remains CI-script only; production model and endpoints below stay **NOT APPROVED / NOT IMPLEMENTED**.
 
 
