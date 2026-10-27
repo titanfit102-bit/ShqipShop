@@ -125,6 +125,7 @@ jobs:
           SHQIPSHOP_F07G_REAL_CART_CI: "true"
           SHQIPSHOP_F07G_HTTP_CI: "true"
           SHQIPSHOP_F07G_REAL_CART_PROOF_FILE: ${{ runner.temp }}/shqipshop-f07g-medusa-cart-snapshot.json
+          SHQIPSHOP_F07G_REGISTERED_QUOTE_PROOF_FILE: ${{ runner.temp }}/shqipshop-f07g-registered-quote.json
         run: |
           set -euo pipefail
           pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/medusa-backend.log" 2>&1 &
@@ -146,8 +147,12 @@ jobs:
               node scripts/f07g-http-quote-boundary-ci.mjs
               node scripts/f07g-http-registered-customer-ci.mjs
               pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-live-cart-snapshot-ci.ts before
+              node scripts/f07g-http-registered-quote-ci.mjs setup
+              pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-registered-http-quote-fixture-ci.ts
+              node scripts/f07g-http-registered-quote-ci.mjs verify
               node scripts/f07g-http-review-accept-ci.mjs before
               pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07e-store-reprice-ci.ts
+              node scripts/f07g-http-registered-quote-ci.mjs after
               node scripts/f07g-http-review-accept-ci.mjs after
               pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-live-cart-snapshot-ci.ts after
               node scripts/store-api-reprice-ci.mjs verify
