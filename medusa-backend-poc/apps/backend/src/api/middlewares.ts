@@ -1,5 +1,6 @@
 import { authenticate, configureStoreSearch, defineMiddlewares } from '@medusajs/framework/http'
 import { ensureOrderReader } from './middlewares/ensure-order-reader'
+import { enforceF08CiBearerPolicy } from './middlewares/f08-revocation-ci'
 
 // The product index declares filterable `status` and `sales_channel_ids`, so
 // the route narrows it to published products in the key's sales channels.
@@ -12,6 +13,7 @@ export default defineMiddlewares({
       method: ['GET', 'POST'],
       middlewares: [
         authenticate('customer', ['session', 'bearer'], { allowUnauthenticated: true }),
+        enforceF08CiBearerPolicy,
       ],
     },
     {
@@ -22,7 +24,14 @@ export default defineMiddlewares({
       method: ['POST'],
       middlewares: [
         authenticate('customer', ['session', 'bearer'], { allowUnauthenticated: true }),
+        enforceF08CiBearerPolicy,
       ],
+    },
+    {
+      // Disposable per-JWT deny-list demonstration, not global logout.
+      matcher: '/store/shqipshop/f08-token-revoke-ci',
+      method: ['POST'],
+      middlewares: [authenticate('customer', ['bearer'])],
     },
     {
       matcher: '/store/orders/:id',

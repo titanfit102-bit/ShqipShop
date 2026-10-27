@@ -1,0 +1,50 @@
+import type {AuthenticatedMedusaRequest, MedusaResponse, MedusaNextFunction} from "@medusajs/framework/http"
+import {ContainerRegistrationKeys} from "@medusajs/framework/utils"
+import {createHash} from "node:crypto"
+
+/**
+ * F08 CI-only proof of per-JWT server deny-list enforcement.
+ * Attached ONLY to disposable quote test routes. Not a global Medusa
+ * authorization, multi-device logout, token rotation or production feature.
+ */
+export const isF08DisposableCi = () =>
+  process.env.CI === "true" &&
+  process.env.NODE_ENV === "development" &&
+  process.env.SHQIPSHOP_F08_REVOCATION_CI === "true" &&
+  process.env.SHQIPSHOP_F07G_HTTP_CI === "true" &&
+  process.env.SHQIPSHOP_REQUIRE_REDIS === "true" &&
+  process.env.DATABASE_URL === "postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci" &&
+  process.env.REDIS_URL === "redis://127.0.0.1:6379" &&
+  /^[a-f0-9]{64}$/.test(process.env.JWT_SECRET ?? "")
+
+export const F08_CI_TABLE = "shqipshop_f08_disposable_ci_revoked_bearers"
+export const verifiedBearer = (h: unknown): string | null => {
+  if (typeof h !== "string") return null
+  const match=/^Bearer ([A-Za-z0-9._-]+)$/i.exec(h)
+  return match && match[1].length < 8192 ? match[1] : null
+}
+export const tokenDigest = (token: string): string =>
+  createHash("sha256").update(token,"utf8").digest("hex")
+
+export async function enforceF08CiBearerPolicy(
+  req: AuthenticatedMedusaRequest,
+  res: MedusaResponse,
+  next: MedusaNextFunction,
+) {
+  if (!isF08DisposableCi()) return next()
+  if (!req.headers.authorization) return next() // Guest checks are separate.
+  const token=verifiedBearer(req.headers.authorization)
+  if (!token || req.auth_context?.actor_type !== "customer" ||
+      !req.auth_context.actor_id) return res.sendStatus(401)
+  try {
+    const db:any=req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION)
+    const hit=await db(F08_CI_TABLE)
+      .where({token_sha256:tokenDigest(token),customer_id:req.auth_context.actor_id})
+      .first("token_sha256")
+    if (hit) return res.sendStatus(401)
+    return next()
+  } catch {
+    // A missing store/DB failure must NEVER become an authentication bypass.
+    return res.sendStatus(503)
+  }
+}

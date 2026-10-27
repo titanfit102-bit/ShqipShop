@@ -124,10 +124,12 @@ jobs:
           SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
           SHQIPSHOP_F07G_REAL_CART_CI: "true"
           SHQIPSHOP_F07G_HTTP_CI: "true"
+          SHQIPSHOP_F08_REVOCATION_CI: "true"
           SHQIPSHOP_F07G_REAL_CART_PROOF_FILE: ${{ runner.temp }}/shqipshop-f07g-medusa-cart-snapshot.json
           SHQIPSHOP_F07G_REGISTERED_QUOTE_PROOF_FILE: ${{ runner.temp }}/shqipshop-f07g-registered-quote.json
         run: |
           set -euo pipefail
+          SHQIPSHOP_F08_CI_FIXTURE_ACTION=create pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
           pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/medusa-backend.log" 2>&1 &
           backend_pid=$!
           trap 'kill "$backend_pid" 2>/dev/null || true' EXIT
@@ -154,6 +156,8 @@ jobs:
               pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07e-store-reprice-ci.ts
               node scripts/f07g-http-registered-quote-ci.mjs after
               node scripts/f07g-http-review-accept-ci.mjs after
+              node scripts/f08-jwt-revocation-ci.mjs
+              SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
               pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-live-cart-snapshot-ci.ts after
               node scripts/store-api-reprice-ci.mjs verify
               exit 0
