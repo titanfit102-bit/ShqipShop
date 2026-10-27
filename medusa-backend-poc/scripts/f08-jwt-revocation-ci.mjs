@@ -41,6 +41,21 @@ async function request(method,path,token,{headers={},body}={}){
 const protectedQuote=token=>request("POST","/store/shqipshop/quote-boundary-ci",token,{
   headers:{"x-shqipshop-cart-id":cartId},
 })
+// CI diagnostic only: Medusa's built-in cart GET may use cart-ID possession
+// rather than customer JWT authentication. Probe that assumption explicitly.
+// Report status and synthetic cart ownership only; never log tokens or PII.
+const customerCartPath="/store/carts/"+encodeURIComponent(cartId)
+async function probeBuiltInCart(label,token) {
+  const result=await request("GET",customerCartPath,token)
+  assert([200,401,403,404].includes(result.status),
+    "Unexpected built-in Medusa cart response during read-only authorization probe")
+  if (result.status===200) {
+    assert.equal(result.payload?.cart?.id,cartId)
+    assert.equal(result.payload?.cart?.customer_id,owner.id)
+  }
+  console.log("SHQIPSHOP_F08_CART_"+label+"_HTTP_"+result.status)
+  return result.status
+}
 const phase=process.argv[2] ?? "revocation"
 assert(["revocation","outage"].includes(phase),"Only CI revocation/outage test phases allowed")
 const revocation=(token,options={})=>request("POST","/store/shqipshop/f08-token-revoke-ci",token,options)
@@ -67,6 +82,8 @@ if (phase === "outage") {
   console.log("SHQIPSHOP_F08_CI_OUTAGE_PRIVATE_CART_STILL_UNGUARDED")
   process.exit(0)
 }
+const anonymousBefore=await probeBuiltInCart("NO_BEARER_BEFORE_REVOKE",null)
+const foreignBefore=await probeBuiltInCart("FOREIGN_CUSTOMER_BEARER_BEFORE_REVOKE",stranger.token)
 assert.equal((await protectedQuote(owner.token)).status,200,
   "Medusa authenticated bearer must be accepted BEFORE CI revocation")
 assert.equal((await protectedQuote(owner.secondToken)).status,200,
@@ -120,3 +137,11 @@ assert.equal(cart.status,200,"Unguarded Medusa cart read should still accept rev
 assert.equal(cart.payload?.cart?.id,cartId)
 assert.equal(cart.payload?.cart?.customer_id,owner.id)
 console.log("SHQIPSHOP_F08_GLOBAL_BEARER_REVOCATION_REMAINS_OPEN_STORE_CART_200")
+// Compare the SAME customer-owned synthetic cart after explicit owner JWT
+// revocation: this distinguishes bearer revocation from ID/capability access.
+const anonymousAfter=await probeBuiltInCart("NO_BEARER_AFTER_REVOKE",null)
+const foreignAfter=await probeBuiltInCart("FOREIGN_CUSTOMER_BEARER_AFTER_REVOKE",stranger.token)
+assert.equal(anonymousAfter,anonymousBefore,"Revoking the owner's JWT must not rewrite anonymous cart access semantics")
+assert.equal(foreignAfter,foreignBefore,"Revoking the owner's JWT must not change a different customer's cart read policy")
+if (anonymousAfter===200) console.log("SHQIPSHOP_F08_CART_ID_ACCESS_WITHOUT_JWT_REQUIRES_SEPARATE_POLICY")
+if (foreignAfter===200) console.log("SHQIPSHOP_F08_FOREIGN_BEARER_CAN_READ_CUSTOMER_CART_REQUIRES_OWNERSHIP_REVIEW")
