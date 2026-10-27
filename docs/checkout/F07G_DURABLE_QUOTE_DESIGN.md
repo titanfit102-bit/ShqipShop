@@ -1,5 +1,8 @@
 # ShqipShop F07g — durable quote and checkout design (Stage 2C-2)
 
+**2026-10-27 2C-5 CI-only evidence:** A disposable unique PostgreSQL partial index on tenant/cart where quote status is claimed prevents *different accepted quote IDs* for one real Medusa cart from both claiming under concurrent requests. [Medusa CI 40499708458](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40499708458) passed. Production needs separately reviewed per-cart unique checkout-intent/fulfillment/idempotency guarantees and PSP reconciliation; the CI index is NOT a release-ready migration or payment lock.
+
+
 **2026-10-27 2C-4 scoped proof:** Registered Medusa owner HTTP quote review/accept passed [CI 40448041404](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40448041404), denying foreign buyer, guest downgrade, spoofed tenant and replay/reprice. Owner quote is still **pre-issued only by CI script**. Production module, cookie CSRF, migration, PSP and shared checkout transaction NOT approved or implemented.
 
 

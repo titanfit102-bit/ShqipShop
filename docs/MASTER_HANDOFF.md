@@ -1,5 +1,13 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-10-27 — F07g Stage 2C-5: one claimed checkout intent per real Medusa cart (CI)
+
+**VERIFIED code:** [e59831c](https://github.com/titanfit102-bit/ShqipShop/commit/e59831c81bbc071077a30668858c110b4b789655), [Medusa CI 40499708458](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40499708458); **8/8 GitHub Actions SUCCESS** at that code SHA on Draft PR #12. In `f07g-live-cart-snapshot-ci.ts` the disposable PostgreSQL fixture now has a partial unique index on `(tenant_id,cart_id) WHERE status='claimed'`, and the CI-only `quote-claim-ci.ts` treats PostgreSQL error 23505 as a denied competing claim. Four concurrent claims on **two separately accepted quote IDs for one real Medusa cart** result in exactly one local claim. Same-quote replay, stale price, tenant/buyer denial, registered/guest HTTP and other checks remain passing.
+
+**BOUNDARY:** This prevents duplicate *CI quote intent states for one cart*, not duplicate Medusa orders, inventory reservations or PSP charges. Only disposable test table; NO production schema/migration, real payment/order/stock transaction or release. F07g final, F08 token revocation, F09 commerce authority, G3/G5 remain BLOCKED. Next requires an explicitly approved durable quote model plus Medusa checkout workflow/idempotency/PSP design; do not merge/deploy. This documentation SHA's CI must be checked separately.
+
+
+
 ## 2026-10-27 — F07g Stage 2C-4: registered buyer HTTP quote evidence
 
 **VERIFIED:** code [cfcd8b0](https://github.com/titanfit102-bit/ShqipShop/commit/cfcd8b047ac0ee79c0740c5ecaeb09fc171f4f42), Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12); **8/8 GitHub Actions SUCCESS** on that code SHA. [Medusa backend 40448041404](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40448041404) verified real synthetic registered owner cart with Medusa, independently scoped database quote pre-issuance, bearer HTTP review/accept, two concurrent accepts with exactly one winner, foreign buyer/guest downgrade/invalid bearer/tenant spoof/client total denial, and HTTP 409 on replay and after real catalogue repricing. Prior guest path and F07f payment amount 409, tenant A/B, Redis and native checks remain passing.

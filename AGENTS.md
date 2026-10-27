@@ -20,7 +20,7 @@
 
 ## Current blockers at security-governance checkpoint
 
-F07g Stages 1/2A/2B, 2C-1/2C-2, and 2C-3/2C-4 disposable Medusa guest+registered HTTP quote review/accept 200/409 passed scoped CI; the durable quote design is proposed only, NOT deployed; F08 bearer JWT replay after cookie logout HTTP 200 confirmed. **Durable production quote, buyer UI, payment/order locking and F08 token revocation remain OPEN.** F08 server JWT revocation OPEN. F09 unified PWA/Medusa commerce OPEN. G3/G5 not production-ready. Native token persists in AsyncStorage, Android release uses debug signing, real PSP/TLS/backups/media/RBAC/device coverage unverified. These are **not** solved by creating security documents. Review live register for changes.
+F07g Stages 1/2A/2B and 2C-1..2C-5 disposable PostgreSQL one-quote/one-cart claim, Medusa guest/registered HTTP review/accept 200/409 passed scoped CI; live orders and charges NOT covered; the durable quote design is proposed only, NOT deployed; F08 bearer JWT replay after cookie logout HTTP 200 confirmed. **Durable production quote, buyer UI, payment/order locking and F08 token revocation remain OPEN.** F08 server JWT revocation OPEN. F09 unified PWA/Medusa commerce OPEN. G3/G5 not production-ready. Native token persists in AsyncStorage, Android release uses debug signing, real PSP/TLS/backups/media/RBAC/device coverage unverified. These are **not** solved by creating security documents. Review live register for changes.
 
 ## Risk-proportional CI
 
