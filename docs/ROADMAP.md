@@ -1,5 +1,15 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-10-27 — F07g Stage 2C-3: CI-only Medusa HTTP quote review/accept
+
+**VERIFIED code:** [b64e25c](https://github.com/titanfit102-bit/ShqipShop/commit/b64e25c9c44f68d69fbbb138b0237492ec550c79), Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12), **8/8 GitHub Actions SUCCESS** at the code SHA. [Backend smoke 40447001570](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40447001570) confirms real Medusa guest quote HTTP GET review; two competing POST accept attempts yield one 200 and one 409; replay and stale catalogue review/accept 409; tenant/proof/auth spoof and client-total injection denied; acceptance stored in disposable PostgreSQL across Medusa processes, while existing tenant, Redis, native and security gates remained green.
+
+**Scope:** CI-gated `src/api/store/shqipshop/quote-review-accept-ci/route.ts`, Medusa session/bearer middleware, `scripts/f07g-http-review-accept-ci.mjs` and disposable quote fixtures in `src/scripts/f07g-live-cart-snapshot-ci.ts`. A **guest** quote is pre-issued only by Medusa CI script, not by Store API. Restricted to one real synthetic ALL-priced cart item with no shipping or discounts. Cookies denied (no CSRF contract); registered customer HTTP positive path not yet covered. NO durable production quote, approved migration, buyer-visible UI, real PSP or atomic Medusa cart/order/stock/payment lock.
+
+**Next:** add isolated registered-customer positive HTTP quote review/accept with independently created owner-bound cart and foreign-principal downgrade negatives; separately review migration/checkout architecture before authorization. F08 JWT revocation, F09 commerce authority and G3/G5 release gates remain BLOCKED. No main merge or deployment. Following docs commit needs own CI evaluation.
+
+
+
 ## 2026-10-27 — F07g Stage 2C-2: disposable pre-payment quote-intent claim + durable-design proposal
 
 **VERIFIED TEST CODE:** [commit 59b9153](https://github.com/titanfit102-bit/ShqipShop/commit/59b91530ecb18f2fb2bde2e75234071039b7663f) on Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12), **8/8 GitHub Actions SUCCESS** on that exact SHA. [Medusa smoke 40445884796](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40445884796) logged `SHQIPSHOP_F07G_REAL_MEDUSA_PG_PREPAYMENT_INTENT_SINGLE_CLAIM_PASSED`, `SHQIPSHOP_F07G_REAL_MEDUSA_PG_STALE_ACCEPTED_INTENT_CLAIM_DENIED`, plus original single-acceptance/reprice and F07f HTTP 409 proofs.
