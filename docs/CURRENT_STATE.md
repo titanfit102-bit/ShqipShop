@@ -1,5 +1,12 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-10-27 — F08 Stage 6: owner-linked cart mutation boundary
+
+**VERIFIED:** [code 01a1f1e](https://github.com/titanfit102-bit/ShqipShop/commit/01a1f1eaf89b792764ab1ad60dbd8014108897c7), [Medusa CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40540609649), **8/8 GitHub Actions SUCCESS** at code SHA. In disposable Medusa 2.22.0, separately created customer-linked synthetic carts accepted a line-item POST with **no JWT**, a **different customer's JWT**, and an **invalid JWT** (HTTP 200 and independently verified persisted product). A valid-owner mutation control also passed. No real orders, charge, merchant/customer data or production changes.
+
+**RISK P0 OPEN:** With known cart ID, cart mutation does not prove customer authorization; bearer-only revocation is insufficient where missing/invalid Authorization can fall through to cart-ID capability. Does not prove guessable IDs or cross-merchant access. **NEXT:** approve owner vs guest capability and invalid-auth downgrade policy for all cart GET/POST/DELETE plus expiry/login/logout, then test and implement it separately. F08, G3/G5, F07g/F09 and release remain BLOCKED; PR #12 Draft. New docs SHA requires separate CI verification.
+
+
 ## 2026-10-27 — F08 Stage 5: cart-ID access diagnostic (disposable CI)
 
 **VERIFIED:** [code b50a202](https://github.com/titanfit102-bit/ShqipShop/commit/b50a20273ed23d6f57870c8304e543c0fc87cc95), [Medusa workflow](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40528246965), **8/8 GitHub Actions SUCCESS** at the exact code SHA. The same synthetic customer-linked Medusa cart returned HTTP 200 using its cart ID with NO JWT, a different customer's bearer, and its owner's explicitly revoked JWT. The runner confirmed its synthetic cart/customer IDs without logging tokens or PII.
