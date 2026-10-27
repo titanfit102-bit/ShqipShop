@@ -146,7 +146,9 @@ jobs:
               node scripts/f07g-http-quote-boundary-ci.mjs
               node scripts/f07g-http-registered-customer-ci.mjs
               pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-live-cart-snapshot-ci.ts before
+              node scripts/f07g-http-review-accept-ci.mjs before
               pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07e-store-reprice-ci.ts
+              node scripts/f07g-http-review-accept-ci.mjs after
               pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-live-cart-snapshot-ci.ts after
               node scripts/store-api-reprice-ci.mjs verify
               exit 0
