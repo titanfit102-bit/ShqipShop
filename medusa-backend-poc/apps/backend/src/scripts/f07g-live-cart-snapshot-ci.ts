@@ -14,6 +14,7 @@ import { resolve } from "node:path"
 import type { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, MathBN } from "@medusajs/framework/utils"
 import { bindVerifiedQuotePrincipal } from "../lib/checkout/quote-principal"
+import { claimAcceptedQuoteInDisposableCi } from "../lib/checkout/quote-claim-ci"
 import {
   acceptCheckoutQuote, assertAcceptedCheckoutQuote, fingerprintQuoteSnapshot,
   issueCheckoutQuote, type CheckoutQuote, type QuoteSnapshot,
@@ -225,14 +226,20 @@ export default async function liveCart({ container, args }: ExecArgs) {
       t.bigInteger("expires_at_ms").notNullable()
       t.bigInteger("accepted_at_ms").nullable()
       t.string("acceptance_nonce", 80).nullable()
+      t.bigInteger("claimed_at_ms").nullable()
+      t.string("claim_nonce", 80).nullable()
       t.string("status", 12).notNullable()
       t.index(["tenant_id", "cart_id", "status"], "f07g_live_ci_tenant_cart_state")
     })
     const now = Date.now()
     const quote = issueCheckoutQuote(snapshot, now, 300000)
     const pending = issueCheckoutQuote(snapshot, now, 300000)
+    const claimedIntent = issueCheckoutQuote(snapshot, now, 300000)
+    const staleAcceptedIntent = issueCheckoutQuote(snapshot, now, 300000)
     await store(quote)
     await store(pending)
+    await store(claimedIntent)
+    await store(staleAcceptedIntent)
     assert.equal(await tryAccept(quote.id, quote.fingerprint,
       {...scope, tenantId: "foreign_merchant"}, snapshot, now + 1), false)
     assert.equal(await tryAccept(quote.id, quote.fingerprint,
@@ -254,9 +261,46 @@ export default async function liveCart({ container, args }: ExecArgs) {
     }}).first()
     const accepted = dbQuote(row)
     assertAcceptedCheckoutQuote(accepted, snapshot, now + 3)
+
+    // Distinct accepted intents: claim one atomically, keep the other accepted
+    // across the catalogue reprice to prove stale claims are denied.
+    assert.equal(await tryAccept(claimedIntent.id, claimedIntent.fingerprint,
+      scope, snapshot, now + 4), true)
+    assert.equal(await tryAccept(staleAcceptedIntent.id, staleAcceptedIntent.fingerprint,
+      scope, snapshot, now + 4), true)
+    const claim = (id: string, fp: string, claimScope: typeof scope,
+      fresh: QuoteSnapshot, at: number) => claimAcceptedQuoteInDisposableCi(
+      db, table, claimScope, id, fp, fresh, at)
+    assert.equal(await claim(claimedIntent.id, claimedIntent.fingerprint,
+      {...scope, tenantId: "foreign_merchant"}, snapshot, now + 5), false)
+    assert.equal(await claim(claimedIntent.id, claimedIntent.fingerprint,
+      {...scope, buyerBinding: "guest:sha256:" + "f".repeat(64)}, snapshot, now + 5), false)
+    assert.equal(await claim(claimedIntent.id, "sha256:" + "f".repeat(64),
+      scope, snapshot, now + 5), false)
+    assert.equal(await claim(claimedIntent.id, claimedIntent.fingerprint,
+      scope, {...snapshot, pricingRevision: "price_wrong_revision"}, now + 5), false)
+    assert.equal(await claim(claimedIntent.id, claimedIntent.fingerprint,
+      scope, snapshot, claimedIntent.expiresAtMs), false)
+    const contenders = await Promise.all([
+      claim(claimedIntent.id, claimedIntent.fingerprint, scope, snapshot, now + 6),
+      claim(claimedIntent.id, claimedIntent.fingerprint, scope, snapshot, now + 6),
+    ])
+    assert.equal(contenders.filter(Boolean).length, 1,
+      "Exactly one database quote intent claim, NEVER proof of one PSP charge")
+    assert.equal(await claim(claimedIntent.id, claimedIntent.fingerprint,
+      scope, snapshot, now + 7), false, "Claim replay forbidden")
+    const claimedRow = await db(table).where({quote_id:claimedIntent.id}).first()
+    assert.equal(claimedRow.status, "claimed")
+    assert.equal(Number(claimedRow.claimed_at_ms), now + 6)
+    assert.match(String(claimedRow.claim_nonce), /^[a-f0-9-]{36}$/)
+    const staleRow = await db(table).where({quote_id:staleAcceptedIntent.id}).first()
+    assert.equal(staleRow.status, "accepted")
     writeFileSync(checkpoint, JSON.stringify({
       accepted, linkedAmount: effectivePrice, pendingQuoteId: pending.id,
+      claimedIntentId: claimedIntent.id, claimedNonce: claimedRow.claim_nonce,
+      staleAcceptedIntentId: staleAcceptedIntent.id,
     }), { flag: "wx", mode: 0o600 })
+    console.log("SHQIPSHOP_F07G_REAL_MEDUSA_PG_PREPAYMENT_INTENT_SINGLE_CLAIM_PASSED")
     console.log("SHQIPSHOP_F07G_REAL_MEDUSA_CART_SNAPSHOT_BEFORE_REPRICE_PASSED")
     console.log("SHQIPSHOP_F07G_REAL_MEDUSA_PG_ATOMIC_SINGLE_ACCEPTANCE_AND_REPLAY_DENIED")
     return
@@ -265,6 +309,7 @@ export default async function liveCart({ container, args }: ExecArgs) {
   try {
     const prior = JSON.parse(readFileSync(checkpoint, "utf8")) as {
       accepted: CheckoutQuote; linkedAmount: string; pendingQuoteId: string
+      claimedIntentId: string; claimedNonce: string; staleAcceptedIntentId: string
     }
     assert.equal(Number(effectivePrice), prepared.expectedAmount,
       "Catalogue repricing did not persist in real Medusa PostgreSQL")
@@ -300,6 +345,26 @@ export default async function liveCart({ container, args }: ExecArgs) {
       "Repriced cart cannot transition a stored quote to accepted")
     assert.equal((await db(table).where({quote_id:unaccepted.id}).first()).status, "quoted")
     console.log("SHQIPSHOP_F07G_REAL_MEDUSA_PG_REPRICE_DENIES_PENDING_QUOTE_ACROSS_PROCESSES")
+
+    const claimedRow = await db(table).where({
+      quote_id: prior.claimedIntentId, tenant_id: scope.tenantId,
+      cart_id: scope.cartId, buyer_binding: scope.buyerBinding,
+    }).first()
+    assert.equal(claimedRow.status, "claimed")
+    assert.equal(claimedRow.claim_nonce, prior.claimedNonce,
+      "Single winner intent claim must persist across processes")
+    const staleClaimRow = await db(table).where({
+      quote_id: prior.staleAcceptedIntentId, tenant_id: scope.tenantId,
+      cart_id: scope.cartId, buyer_binding: scope.buyerBinding,
+    }).first()
+    assert.equal(staleClaimRow.status, "accepted")
+    assert.equal(await claimAcceptedQuoteInDisposableCi(
+      db, table, scope, staleClaimRow.quote_id, staleClaimRow.fingerprint,
+      snapshot, Number(staleClaimRow.accepted_at_ms) + 2), false,
+      "Repriced cart must deny even an already-accepted, unclaimed quote")
+    assert.equal((await db(table).where({quote_id:staleClaimRow.quote_id}).first()).status,
+      "accepted", "Stale quote claim may not mutate PostgreSQL state")
+    console.log("SHQIPSHOP_F07G_REAL_MEDUSA_PG_STALE_ACCEPTED_INTENT_CLAIM_DENIED")
     if (cartUnit !== effectivePrice) {
       console.log("SHQIPSHOP_F07G_REAL_MEDUSA_STALE_CART_UNIT_OBSERVED_NOT_APPROVED")
     } else {
