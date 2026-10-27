@@ -53,12 +53,18 @@ if (phase === "outage") {
     "Even a valid unrevoked bearer must fail closed during deny-list outage")
   assert.equal((await protectedQuote(owner.secondToken)).status,503,
     "A second-device JWT also must fail closed during deny-list outage")
+  assert.equal((await request("GET","/store/customers/me",owner.token)).status,503,
+    "Guarded built-in private profile MUST deny on absent deny-list")
+  assert.equal((await request("GET","/store/customers/me",stranger.token)).status,503,
+    "Valid second customer must also fail closed during deny-list outage")
   console.log("SHQIPSHOP_F08_CI_DENYLIST_UNAVAILABLE_GUARDED_BEARER_503")
-  // Medusa's unguarded routes STILL bypass this CI-only revocation policy.
-  const unguarded=await request("GET","/store/customers/me",owner.token)
-  assert.equal(unguarded.status,200,"Unguarded Store route remains a global blocker")
-  assert.equal(unguarded.payload?.customer?.id,owner.id)
-  console.log("SHQIPSHOP_F08_CI_OUTAGE_GLOBAL_PRIVATE_STORE_STILL_UNGUARDED")
+  // A different built-in Store private cart route is intentionally outside
+  // this CI guard. Global revocation and outage coverage remain UNSOLVED.
+  const unguarded=await request("GET","/store/carts/"+encodeURIComponent(cartId),owner.token)
+  assert.equal(unguarded.status,200,"Unguarded private cart remains a global blocker")
+  assert.equal(unguarded.payload?.cart?.customer_id,owner.id)
+  console.log("SHQIPSHOP_F08_CI_GUARDED_BUILTIN_PROFILE_OUTAGE_FAIL_CLOSED_503")
+  console.log("SHQIPSHOP_F08_CI_OUTAGE_PRIVATE_CART_STILL_UNGUARDED")
   process.exit(0)
 }
 assert.equal((await protectedQuote(owner.token)).status,200,
@@ -86,11 +92,16 @@ assert.equal((await protectedQuote(owner.secondToken)).status,200,
   "Revocation of ONE JWT must not revoke a distinct JWT from same account")
 assert.equal((await request("GET","/store/customers/me",owner.secondToken)).payload?.customer?.id,
   owner.id,"Independently authenticated device must remain usable")
+assert.equal((await request("GET","/store/customers/me",owner.token)).status,401,
+  "Revoked JWT must be denied even on the built-in customer profile")
 console.log("SHQIPSHOP_F08_CI_TWO_DEVICES_ONE_TOKEN_REVOKED_OTHER_STILL_ALLOWED")
+console.log("SHQIPSHOP_F08_CI_BUILTIN_PROFILE_DENIES_REVOKED_BEARER_401")
 assert.equal((await revocation(owner.secondToken)).status,200,
   "Second device must be revocable independently on explicit request")
 assert.equal((await protectedQuote(owner.secondToken)).status,401,
   "Second device must be denied after its OWN bearer is explicitly revoked")
+assert.equal((await request("GET","/store/customers/me",owner.secondToken)).status,401,
+  "Second-device JWT must be denied on the guarded built-in profile too")
 assert.equal((await protectedQuote(owner.token)).status,401,
   "First device must remain revoked after independent second revocation")
 console.log("SHQIPSHOP_F08_CI_SECOND_DEVICE_EXPLICIT_REVOCATION_DENIED")
@@ -98,10 +109,10 @@ assert.equal((await request("GET","/store/shqipshop/quote-review-accept-ci?quote
   headers:{"x-shqipshop-cart-id":cartId},
 })).status,401,"Second guarded quote endpoint must deny revoked bearer")
 console.log("SHQIPSHOP_F08_DISPOSABLE_PER_TOKEN_HTTP_REVOCATION_DENIES_GUARDED_QUOTE")
-const other=await request("GET","/store/customers/me",owner.token)
-assert.equal(other.status,200,"Global Medusa Store endpoint remains unprotected in F08 CI pilot")
-assert.equal(other.payload?.customer?.id,owner.id)
-console.log("SHQIPSHOP_F08_GLOBAL_BEARER_REVOCATION_REMAINS_OPEN_STORE_ME_200")
+const guarded=await request("GET","/store/customers/me",owner.token)
+assert.equal(guarded.status,401,
+  "Explicitly revoked JWT must be denied on built-in profile under exact CI guard")
+console.log("SHQIPSHOP_F08_CI_BUILTIN_PROFILE_REVOKED_JWT_401")
 // Deliberately read-only: prove a second built-in PRIVATE Store resource
 // accepts the same revoked JWT; never mutate a real customer or inventory.
 const cart=await request("GET","/store/carts/"+encodeURIComponent(cartId),owner.token)

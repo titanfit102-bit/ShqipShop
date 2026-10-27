@@ -1,11 +1,13 @@
+import {authenticate} from "@medusajs/framework/http"
 import type {AuthenticatedMedusaRequest, MedusaResponse, MedusaNextFunction} from "@medusajs/framework/http"
 import {ContainerRegistrationKeys} from "@medusajs/framework/utils"
 import {createHash} from "node:crypto"
 
 /**
  * F08 CI-only proof of per-JWT server deny-list enforcement.
- * Attached ONLY to disposable quote test routes. Not a global Medusa
- * authorization, multi-device logout, token rotation or production feature.
+ * Attached to disposable quote routes and, in Stage 4, an EXACT-CI gated
+ * built-in Store customer-profile GET. NOT global Medusa authorization,
+ * multi-device logout, token rotation or a production security mechanism.
  */
 export const isF08DisposableCi = () =>
   process.env.CI === "true" &&
@@ -47,4 +49,28 @@ export async function enforceF08CiBearerPolicy(
     // A missing store/DB failure must NEVER become an authentication bypass.
     return res.sendStatus(503)
   }
+}
+
+/**
+ * F08 Stage 4 — CI-only proof that Medusa's built-in private customer profile
+ * can be protected by a middleware-chain hook. In all non-disposable CI
+ * environments this is strictly a pass-through (no authentication override).
+ *
+ * Explicitly run Medusa auth BEFORE checking req.auth_context. Any Medusa
+ * auth error is forwarded; never infer identity from a request header.
+ * Built-in cart/order routes are intentionally NOT covered by this proof.
+ */
+const ciCustomerAuth = authenticate("customer", ["session", "bearer"], {
+  allowUnauthenticated: true,
+})
+export const enforceF08CiProfilePolicy = (
+  req: AuthenticatedMedusaRequest,
+  res: MedusaResponse,
+  next: MedusaNextFunction,
+) => {
+  if (!isF08DisposableCi()) return next()
+  return ciCustomerAuth(req, res, (err?: Error) => {
+    if (err) return next(err)
+    return enforceF08CiBearerPolicy(req, res, next)
+  })
 }

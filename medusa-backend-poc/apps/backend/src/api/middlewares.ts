@@ -1,11 +1,19 @@
 import { authenticate, configureStoreSearch, defineMiddlewares } from '@medusajs/framework/http'
 import { ensureOrderReader } from './middlewares/ensure-order-reader'
-import { enforceF08CiBearerPolicy } from './middlewares/f08-revocation-ci'
+import { enforceF08CiBearerPolicy, enforceF08CiProfilePolicy } from './middlewares/f08-revocation-ci'
 
 // The product index declares filterable `status` and `sales_channel_ids`, so
 // the route narrows it to published products in the key's sales channels.
 export default defineMiddlewares({
   routes: [
+    {
+      // CI-only demonstration of guard injection into a BUILT-IN Medusa
+      // private customer profile endpoint. Outside exact disposable CI,
+      // middleware is a no-op; real production auth behavior is unchanged.
+      matcher: '/store/customers/me',
+      method: ['GET'],
+      middlewares: [enforceF08CiProfilePolicy],
+    },
     {
       // CI-only, disposable PostgreSQL quote review/accept. Invalid Medusa
       // bearer credentials must not silently fall back to guest capability.
