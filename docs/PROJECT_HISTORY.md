@@ -1,5 +1,14 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-10-27 — F08 Stage 2: revoked JWT private-cart replay and deny-list outage (CI only)
+
+**VERIFIED CODE:** [e72bb04](https://github.com/titanfit102-bit/ShqipShop/commit/e72bb0477f41acf97f68d89f6767d1cffb003108), Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12); **8/8 GitHub Actions SUCCESS at this code SHA**. [Medusa backend run 40513465562](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40513465562) logged `SHQIPSHOP_F08_GLOBAL_BEARER_REVOCATION_REMAINS_OPEN_STORE_CART_200`, `SHQIPSHOP_F08_CI_DENYLIST_UNAVAILABLE_GUARDED_BEARER_503` and `SHQIPSHOP_F08_CI_OUTAGE_GLOBAL_PRIVATE_STORE_STILL_UNGUARDED`, in addition to the earlier profile replay proof. Existing tenant, checkout, Redis, native, security and pilot checks remained green.
+
+**SCOPE:** Extended existing synthetic CI-only `medusa-backend-poc/scripts/f08-jwt-revocation-ci.mjs` to show the same *explicitly revoked* JWT still receives HTTP 200 on Medusa's normal private customer-profile AND owner-cart reads. After deliberately dropping the **disposable** deny-list table, guarded F07g quote endpoint denies both revoked and otherwise valid bearer with HTTP 503 (fail-closed); the built-in private profile endpoint remains unguarded. No real customer data or mutations, no global Medusa auth middleware changes, no permanent DB schema/migration, new credentials, money, merge or Production. F08 remains **P0 PARTIAL**, not fixed. No guarantee of account/device-wide logout or private-route coverage.
+
+
+
+
 ## 2026-10-27 — F08 Stage 1: disposable JWT revocation guard and demonstrated global gap
 
 **VERIFIED CODE:** [2237118](https://github.com/titanfit102-bit/ShqipShop/commit/2237118a43eed863b515ed60852b133f9f564512), **8/8 GitHub Actions SUCCESS** on that exact code SHA; [Medusa smoke 40503092248](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40503092248) logged `SHQIPSHOP_F08_DISPOSABLE_PER_TOKEN_HTTP_REVOCATION_DENIES_GUARDED_QUOTE` and `SHQIPSHOP_F08_GLOBAL_BEARER_REVOCATION_REMAINS_OPEN_STORE_ME_200`. Guest/customer quote and Medusa order/price/Redis checks remained green.

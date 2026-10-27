@@ -1,5 +1,8 @@
 # ShqipShop — F08 bearer JWT revocation design (PROPOSAL ONLY)
 
+**Stage 2 evidence (2026-10-27):** [Medusa CI 40513465562](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40513465562) additionally confirms one explicitly revoked bearer still reads both built-in private **/store/customers/me** and its **/store/carts/:id** with HTTP 200. The test deliberately removes the disposable PostgreSQL deny-list: scoped quote endpoints respond HTTP 503 for both revoked and valid bearer (fail closed), while the built-in profile still responds HTTP 200. No Medusa-wide enforcement or production policy is deployed. This is an open P0 gap, not a workaround for it.
+
+
 **Status:** 2026-10-27; architecture and policy proposal, **NOT APPROVED OR DEPLOYED**. No changes to live authentication, Production schema, API keys, sessions, or release gate are authorized. Refer to `AGENTS.md`, [security register](SECURITY_REGISTER.md), [release gates](SECURITY_RELEASE_GATES.md), and [current state](../CURRENT_STATE.md).
 
 ## What is verified
