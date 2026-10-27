@@ -98,6 +98,70 @@ assert.equal((await revocation(owner.token,{body:{all_devices:true}})).status,40
   "The current CI endpoint has NO approved all-device logout semantics")
 assert.equal((await protectedQuote(owner.token)).status,200,
   "Rejected revocation requests must not invalidate the legitimate JWT")
+// Stage 6: controlled mutation diagnostic on NEW disposable customer-owned
+// carts, never on the quoted/order carts. This tests Medusa's real access
+// boundary, not a proposed production policy. No stock reservation, checkout,
+// payment or customer PII is authorized by this diagnostic.
+const proofForMutation=JSON.parse(readFileSync(file,"utf8"))
+const syntheticVariant=proofForMutation.variantId
+assert(/^variant_[A-Za-z0-9_-]{8,}$/.test(syntheticVariant??""))
+const regions=await request("GET","/store/regions",null)
+assert.equal(regions.status,200)
+const region=regions.payload?.regions?.find(
+  r=>r.currency_code==="all"&&r.name==="Shqipëri")
+assert(region?.id)
+async function newSyntheticOwnedCart() {
+  const created=await request("POST","/store/carts",owner.token,{
+    body:{region_id:region.id},
+  })
+  assert.equal(created.status,200,"Synthetic owner must create cart")
+  const id=created.payload?.cart?.id
+  assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(id??""))
+  const linked=await request("POST","/store/carts/"+encodeURIComponent(id)+"/customer",owner.token)
+  assert.equal(linked.status,200,"Real Medusa must link owner to synthetic cart")
+  const before=await request("GET","/store/carts/"+encodeURIComponent(id),owner.token)
+  assert.equal(before.status,200)
+  assert.equal(before.payload?.cart?.customer_id,owner.id)
+  assert.equal(before.payload?.cart?.items?.length??0,0)
+  return id
+}
+const mutateSyntheticCart=(id,token)=>
+  request("POST","/store/carts/"+encodeURIComponent(id)+"/line-items",token,{
+    body:{variant_id:syntheticVariant,quantity:1},
+  })
+const controlCart=await newSyntheticOwnedCart()
+const control=await mutateSyntheticCart(controlCart,owner.token)
+assert.equal(control.status,200,
+  "Positive owner mutation must succeed, avoiding invalid-variant false positives")
+const controlRead=await request("GET","/store/carts/"+encodeURIComponent(controlCart),owner.token)
+assert.equal(controlRead.payload?.cart?.customer_id,owner.id)
+assert.equal(controlRead.payload?.cart?.items?.length,1)
+assert.equal(controlRead.payload.cart.items[0].variant_id,syntheticVariant)
+console.log("SHQIPSHOP_F08_CI_OWNER_CART_WRITE_POSITIVE_CONTROL_200")
+for (const [label,token] of [
+  ["NO_BEARER",null],["FOREIGN_CUSTOMER_BEARER",stranger.token],
+  ["INVALID_BEARER","invalid_f08_ci_token"],
+]) {
+  const id=await newSyntheticOwnedCart()
+  const attempted=await mutateSyntheticCart(id,token)
+  assert([200,400,401,403,404].includes(attempted.status),
+    "Unexpected Store cart mutation response: "+label)
+  const inspected=await request("GET","/store/carts/"+encodeURIComponent(id),owner.token)
+  assert.equal(inspected.status,200)
+  assert.equal(inspected.payload?.cart?.customer_id,owner.id)
+  const items=inspected.payload?.cart?.items??[]
+  if(attempted.status===200) {
+    assert.equal(items.length,1,"HTTP 200 must have an actual persisted effect")
+    assert.equal(items[0].variant_id,syntheticVariant)
+    assert.equal(Number(items[0].quantity),1)
+  } else {
+    assert.equal(items.length,0,"Denied mutation must not change the owner cart")
+  }
+  console.log("SHQIPSHOP_F08_CI_OWNED_CART_WRITE_"+label+"_HTTP_"+attempted.status)
+  if(attempted.status===200)
+    console.log("SHQIPSHOP_F08_OWNED_CART_WRITE_"+label+"_AUTHORIZATION_REVIEW_OPEN")
+}
+
 const done=await revocation(owner.token)
 assert.equal(done.status,200)
 assert.equal(done.payload?.revoked,true)
