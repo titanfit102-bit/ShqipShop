@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-10-27 — F08 Stage 7: registered cart CI-only boundary
+
+[code `c33b16a`](https://github.com/titanfit102-bit/ShqipShop/commit/c33b16a9254c4c791a4a6b08627b0313dd350a67); **8/8 workflows PASS** incl. [Medusa CI 40544959985](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40544959985). Exact disposable CI middleware guards registered (`customer.has_account=true`) cart GET and line-item POST: owner allowed, missing/foreign/invalid/revoked JWT denied, deny-list outage 503; guest checkout stays operational. `customer_id` alone is insufficient because guest checkout also generates a customer record. Other cart routes, guest capability expiry, cookie/CSRF, device/global logout and production controls remain OPEN. F08 P0 and release BLOCKED, no merge/deploy.
+
+
 ## 2026-10-27 — F08 Stage 6: customer-cart write access
 
 [Code 01a1f1e](https://github.com/titanfit102-bit/ShqipShop/commit/01a1f1eaf89b792764ab1ad60dbd8014108897c7), [Medusa run](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40540609649): **8/8 CI PASS**. Customer-linked synthetic carts accepted persisted line-item changes when the cart ID was supplied with no JWT, a foreign customer's bearer or an invalid bearer; valid-owner positive control passed. Separate guest capability/customer ownership policy and invalid-auth downgrade tests are required; no production change, no guessable-ID or cross-merchant claim. F08 P0, G3/G5 BLOCKED.
