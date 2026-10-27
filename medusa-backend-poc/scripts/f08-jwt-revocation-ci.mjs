@@ -18,6 +18,8 @@ assert(temp&&file&&pk&&[file,pk].every(p=>resolve(p).startsWith(resolve(temp)+se
 const {owner,stranger,cartId}=JSON.parse(readFileSync(file,"utf8"))
 const key=readFileSync(pk,"utf8").trim()
 assert(owner?.token?.length>20 && stranger?.token?.length>20)
+assert(owner?.secondToken?.length>20 && owner.secondToken!==owner.token,
+  "Runner must produce TWO distinct JWTs for the same customer")
 assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(cartId))
 const origin="http://127.0.0.1:9000"
 async function request(method,path,token,{headers={},body}={}){
@@ -49,6 +51,8 @@ if (phase === "outage") {
     "Revoked bearer must fail closed on missing PostgreSQL deny-list table")
   assert.equal((await protectedQuote(stranger.token)).status,503,
     "Even a valid unrevoked bearer must fail closed during deny-list outage")
+  assert.equal((await protectedQuote(owner.secondToken)).status,503,
+    "A second-device JWT also must fail closed during deny-list outage")
   console.log("SHQIPSHOP_F08_CI_DENYLIST_UNAVAILABLE_GUARDED_BEARER_503")
   // Medusa's unguarded routes STILL bypass this CI-only revocation policy.
   const unguarded=await request("GET","/store/customers/me",owner.token)
@@ -59,10 +63,16 @@ if (phase === "outage") {
 }
 assert.equal((await protectedQuote(owner.token)).status,200,
   "Medusa authenticated bearer must be accepted BEFORE CI revocation")
+assert.equal((await protectedQuote(owner.secondToken)).status,200,
+  "Distinct second-device bearer must also authenticate as cart owner")
+assert.equal((await request("GET","/store/customers/me",owner.secondToken)).payload?.customer?.id,
+  owner.id,"Second token must correspond to the SAME verified customer")
 assert([401,403,404].includes((await revocation("bad_ci_bearer")).status),
   "Unverified bearer must not create a revocation entry")
 assert.equal((await revocation(owner.token,{headers:{"x-shqipshop-tenant-id":"merchant_foreign"}})).status,400)
 assert.equal((await revocation(owner.token,{body:{customer_id:stranger.id}})).status,400)
+assert.equal((await revocation(owner.token,{body:{all_devices:true}})).status,400,
+  "The current CI endpoint has NO approved all-device logout semantics")
 assert.equal((await protectedQuote(owner.token)).status,200,
   "Rejected revocation requests must not invalidate the legitimate JWT")
 const done=await revocation(owner.token)
@@ -72,6 +82,18 @@ assert.equal((await revocation(owner.token)).status,200,
   "Explicit per-token CI revocation must be idempotent")
 assert.equal((await protectedQuote(owner.token)).status,401,
   "Revoked JWT must be denied by guarded CI quote boundary")
+assert.equal((await protectedQuote(owner.secondToken)).status,200,
+  "Revocation of ONE JWT must not revoke a distinct JWT from same account")
+assert.equal((await request("GET","/store/customers/me",owner.secondToken)).payload?.customer?.id,
+  owner.id,"Independently authenticated device must remain usable")
+console.log("SHQIPSHOP_F08_CI_TWO_DEVICES_ONE_TOKEN_REVOKED_OTHER_STILL_ALLOWED")
+assert.equal((await revocation(owner.secondToken)).status,200,
+  "Second device must be revocable independently on explicit request")
+assert.equal((await protectedQuote(owner.secondToken)).status,401,
+  "Second device must be denied after its OWN bearer is explicitly revoked")
+assert.equal((await protectedQuote(owner.token)).status,401,
+  "First device must remain revoked after independent second revocation")
+console.log("SHQIPSHOP_F08_CI_SECOND_DEVICE_EXPLICIT_REVOCATION_DENIED")
 assert.equal((await request("GET","/store/shqipshop/quote-review-accept-ci?quote_id=quote_00000000-0000-4000-8000-000000000000",owner.token,{
   headers:{"x-shqipshop-cart-id":cartId},
 })).status,401,"Second guarded quote endpoint must deny revoked bearer")

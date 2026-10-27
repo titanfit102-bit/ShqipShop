@@ -62,7 +62,23 @@ async function registered(label){
   const login=await http("POST","/auth/customer/emailpass",{body:{email,password}})
   assert.equal(login.status,200,"Medusa customer login failed")
   assert(login.data?.token?.length>20)
-  return {id:customer.data.customer.id,token:login.data.token}
+  // Only the synthetic owner needs a second "device" JWT. Delay past a
+  // one-second JWT iat tick; otherwise two legitimate logins may produce
+  // identical deterministic signatures and would not prove token isolation.
+  let secondToken
+  if (label === "owner") {
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    const otherLogin=await http("POST","/auth/customer/emailpass",{
+      body:{email,password},
+    })
+    assert.equal(otherLogin.status,200,"Second synthetic login failed")
+    secondToken=otherLogin.data?.token
+    assert(typeof secondToken==="string"&&secondToken.length>20)
+    assert.notEqual(secondToken,login.data.token,
+      "Second device MUST have a distinct JWT for scoped revocation evidence")
+  }
+  return {id:customer.data.customer.id,token:login.data.token,
+    ...(secondToken?{secondToken}:{})}
 }
 const file=paths[2]
 if(phase==="setup"){
