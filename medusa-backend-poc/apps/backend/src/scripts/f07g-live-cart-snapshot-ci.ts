@@ -236,10 +236,14 @@ export default async function liveCart({ container, args }: ExecArgs) {
     const pending = issueCheckoutQuote(snapshot, now, 300000)
     const claimedIntent = issueCheckoutQuote(snapshot, now, 300000)
     const staleAcceptedIntent = issueCheckoutQuote(snapshot, now, 300000)
+    const httpQuote = issueCheckoutQuote(snapshot, now, 300000)
+    const staleHttpQuote = issueCheckoutQuote(snapshot, now, 300000)
     await store(quote)
     await store(pending)
     await store(claimedIntent)
     await store(staleAcceptedIntent)
+    await store(httpQuote)
+    await store(staleHttpQuote)
     assert.equal(await tryAccept(quote.id, quote.fingerprint,
       {...scope, tenantId: "foreign_merchant"}, snapshot, now + 1), false)
     assert.equal(await tryAccept(quote.id, quote.fingerprint,
@@ -299,6 +303,8 @@ export default async function liveCart({ container, args }: ExecArgs) {
       accepted, linkedAmount: effectivePrice, pendingQuoteId: pending.id,
       claimedIntentId: claimedIntent.id, claimedNonce: claimedRow.claim_nonce,
       staleAcceptedIntentId: staleAcceptedIntent.id,
+      httpQuote: {id:httpQuote.id,fingerprint:httpQuote.fingerprint},
+      staleHttpQuote: {id:staleHttpQuote.id,fingerprint:staleHttpQuote.fingerprint},
     }), { flag: "wx", mode: 0o600 })
     console.log("SHQIPSHOP_F07G_REAL_MEDUSA_PG_PREPAYMENT_INTENT_SINGLE_CLAIM_PASSED")
     console.log("SHQIPSHOP_F07G_REAL_MEDUSA_CART_SNAPSHOT_BEFORE_REPRICE_PASSED")
@@ -310,6 +316,8 @@ export default async function liveCart({ container, args }: ExecArgs) {
     const prior = JSON.parse(readFileSync(checkpoint, "utf8")) as {
       accepted: CheckoutQuote; linkedAmount: string; pendingQuoteId: string
       claimedIntentId: string; claimedNonce: string; staleAcceptedIntentId: string
+      httpQuote: {id:string;fingerprint:string}
+      staleHttpQuote: {id:string;fingerprint:string}
     }
     assert.equal(Number(effectivePrice), prepared.expectedAmount,
       "Catalogue repricing did not persist in real Medusa PostgreSQL")
@@ -364,6 +372,14 @@ export default async function liveCart({ container, args }: ExecArgs) {
       "Repriced cart must deny even an already-accepted, unclaimed quote")
     assert.equal((await db(table).where({quote_id:staleClaimRow.quote_id}).first()).status,
       "accepted", "Stale quote claim may not mutate PostgreSQL state")
+    const acceptedHttp = await db(table).where({quote_id:prior.httpQuote.id}).first()
+    assert.equal(acceptedHttp.status, "accepted",
+      "Reviewed quote must be accepted by real HTTP and survive Medusa subprocess")
+    assert.equal(acceptedHttp.fingerprint, prior.httpQuote.fingerprint)
+    const staleHttp = await db(table).where({quote_id:prior.staleHttpQuote.id}).first()
+    assert.equal(staleHttp.status,"quoted",
+      "HTTP must never accept a stored quote after actual catalogue repricing")
+    console.log("SHQIPSHOP_F07G_REAL_MEDUSA_PG_HTTP_BUYER_ACCEPTANCE_PERSISTED")
     console.log("SHQIPSHOP_F07G_REAL_MEDUSA_PG_STALE_ACCEPTED_INTENT_CLAIM_DENIED")
     if (cartUnit !== effectivePrice) {
       console.log("SHQIPSHOP_F07G_REAL_MEDUSA_STALE_CART_UNIT_OBSERVED_NOT_APPROVED")
