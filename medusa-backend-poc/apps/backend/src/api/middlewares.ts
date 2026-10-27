@@ -6,6 +6,15 @@ import { ensureOrderReader } from './middlewares/ensure-order-reader'
 export default defineMiddlewares({
   routes: [
     {
+      // CI-only, disposable PostgreSQL quote review/accept. Invalid Medusa
+      // bearer credentials must not silently fall back to guest capability.
+      matcher: '/store/shqipshop/quote-review-accept-ci',
+      method: ['GET', 'POST'],
+      middlewares: [
+        authenticate('customer', ['session', 'bearer'], { allowUnauthenticated: true }),
+      ],
+    },
+    {
       // This endpoint's handler is hard-disabled except disposable localhost CI.
       // Still attach Medusa's real session/JWT authentication middleware;
       // invalid auth must never be silently treated as guest credentials.
