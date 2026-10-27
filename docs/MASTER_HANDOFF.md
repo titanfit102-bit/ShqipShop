@@ -1,5 +1,12 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-10-27 — F08 Stage 3: independent same-customer bearer tokens (disposable CI)
+
+**TESTED:** [code `f95ee96`](https://github.com/titanfit102-bit/ShqipShop/commit/f95ee96d3fdf29d29b0a18008fcaa67d18e24e9f), [Medusa backend CI 40520620233](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40520620233) SUCCESS; observed `SHQIPSHOP_F08_CI_TWO_DEVICES_ONE_TOKEN_REVOKED_OTHER_STILL_ALLOWED` and `SHQIPSHOP_F08_CI_SECOND_DEVICE_EXPLICIT_REVOCATION_DENIED`. Synthetic Medusa customer logs in twice with distinct JWTs; revoking bearer A leaves B authorized on the two CI-guarded quote endpoints, then separately revoking B denies both. A caller's `all_devices` claim is rejected, not treated as an authorized policy. CI data remains runner-local.
+
+**NOT SOLVED:** No approved account-wide/device-wide logout policy, refresh/rotation, JWT revocation on standard Medusa Store APIs (profile and cart still accept revoked JWT), native secure storage, or Production migration. F08 remains **P0 PARTIAL**; F07g/F09 and G3/G5 remain blocked. Draft PR #12; no merge, production change or payment. Full workflow outcomes must be checked at the exact code/docs SHA.
+
+
 ## 2026-10-27 — F08 Stage 2: revoked JWT private-cart replay and deny-list outage (CI only)
 
 **VERIFIED CODE:** [e72bb04](https://github.com/titanfit102-bit/ShqipShop/commit/e72bb0477f41acf97f68d89f6767d1cffb003108), Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12); **8/8 GitHub Actions SUCCESS at this code SHA**. [Medusa backend run 40513465562](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40513465562) logged `SHQIPSHOP_F08_GLOBAL_BEARER_REVOCATION_REMAINS_OPEN_STORE_CART_200`, `SHQIPSHOP_F08_CI_DENYLIST_UNAVAILABLE_GUARDED_BEARER_503` and `SHQIPSHOP_F08_CI_OUTAGE_GLOBAL_PRIVATE_STORE_STILL_UNGUARDED`, in addition to the earlier profile replay proof. Existing tenant, checkout, Redis, native, security and pilot checks remained green.

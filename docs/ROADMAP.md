@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-10-27 — F08 Stage 3: independent same-customer bearer tokens (disposable CI)
+
+F08 scoped two-device JWT behavior verified in [Medusa CI 40520620233](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40520620233); **does not** approve all-device logout or solve global Medusa/private API revocation. Production implementation and release remain blocked.
+
+
 ## 2026-10-27 — F08 Stage 2: revoked JWT private-cart replay and deny-list outage (CI only)
 
 **VERIFIED CODE:** [e72bb04](https://github.com/titanfit102-bit/ShqipShop/commit/e72bb0477f41acf97f68d89f6767d1cffb003108), Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12); **8/8 GitHub Actions SUCCESS at this code SHA**. [Medusa backend run 40513465562](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40513465562) logged `SHQIPSHOP_F08_GLOBAL_BEARER_REVOCATION_REMAINS_OPEN_STORE_CART_200`, `SHQIPSHOP_F08_CI_DENYLIST_UNAVAILABLE_GUARDED_BEARER_503` and `SHQIPSHOP_F08_CI_OUTAGE_GLOBAL_PRIVATE_STORE_STILL_UNGUARDED`, in addition to the earlier profile replay proof. Existing tenant, checkout, Redis, native, security and pilot checks remained green.
