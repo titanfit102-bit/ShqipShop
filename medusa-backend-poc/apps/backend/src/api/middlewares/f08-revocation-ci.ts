@@ -91,8 +91,12 @@ export const enforceF08CiOwnerCartPolicy = (
   return ciCustomerAuth(req, res, async (err?: Error) => {
     if (err) return next(err)
     try {
-      const cartId=req.params?.id
-      if (typeof cartId !== "string" || !/^cart_[A-Za-z0-9_-]{8,}$/.test(cartId))
+      // Medusa may run a matcher before its final route populates req.params;
+      // extract only from the exact normalized path, never from a client header.
+      const rawPath=String(req.originalUrl ?? req.path ?? "").split("?")[0]
+      const pathMatch=/^\/store\/carts\/(cart_[A-Za-z0-9_-]{8,})(?:\/line-items)?\/?$/.exec(rawPath)
+      const cartId=pathMatch?.[1]
+      if (!cartId || (req.params?.id && req.params.id !== cartId))
         return res.sendStatus(404)
       const query=req.scope.resolve(ContainerRegistrationKeys.QUERY)
       const {data:carts}=await query.graph({
