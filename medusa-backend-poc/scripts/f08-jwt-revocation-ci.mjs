@@ -39,7 +39,24 @@ async function request(method,path,token,{headers={},body}={}){
 const protectedQuote=token=>request("POST","/store/shqipshop/quote-boundary-ci",token,{
   headers:{"x-shqipshop-cart-id":cartId},
 })
+const phase=process.argv[2] ?? "revocation"
+assert(["revocation","outage"].includes(phase),"Only CI revocation/outage test phases allowed")
 const revocation=(token,options={})=>request("POST","/store/shqipshop/f08-token-revoke-ci",token,options)
+if (phase === "outage") {
+  // A missing deny-list MUST block guarded private access (503), never
+  // silently treat the bearer as unrevoked. Guest access is out of scope.
+  assert.equal((await protectedQuote(owner.token)).status,503,
+    "Revoked bearer must fail closed on missing PostgreSQL deny-list table")
+  assert.equal((await protectedQuote(stranger.token)).status,503,
+    "Even a valid unrevoked bearer must fail closed during deny-list outage")
+  console.log("SHQIPSHOP_F08_CI_DENYLIST_UNAVAILABLE_GUARDED_BEARER_503")
+  // Medusa's unguarded routes STILL bypass this CI-only revocation policy.
+  const unguarded=await request("GET","/store/customers/me",owner.token)
+  assert.equal(unguarded.status,200,"Unguarded Store route remains a global blocker")
+  assert.equal(unguarded.payload?.customer?.id,owner.id)
+  console.log("SHQIPSHOP_F08_CI_OUTAGE_GLOBAL_PRIVATE_STORE_STILL_UNGUARDED")
+  process.exit(0)
+}
 assert.equal((await protectedQuote(owner.token)).status,200,
   "Medusa authenticated bearer must be accepted BEFORE CI revocation")
 assert([401,403,404].includes((await revocation("bad_ci_bearer")).status),
@@ -63,3 +80,10 @@ const other=await request("GET","/store/customers/me",owner.token)
 assert.equal(other.status,200,"Global Medusa Store endpoint remains unprotected in F08 CI pilot")
 assert.equal(other.payload?.customer?.id,owner.id)
 console.log("SHQIPSHOP_F08_GLOBAL_BEARER_REVOCATION_REMAINS_OPEN_STORE_ME_200")
+// Deliberately read-only: prove a second built-in PRIVATE Store resource
+// accepts the same revoked JWT; never mutate a real customer or inventory.
+const cart=await request("GET","/store/carts/"+encodeURIComponent(cartId),owner.token)
+assert.equal(cart.status,200,"Unguarded Medusa cart read should still accept revoked bearer")
+assert.equal(cart.payload?.cart?.id,cartId)
+assert.equal(cart.payload?.cart?.customer_id,owner.id)
+console.log("SHQIPSHOP_F08_GLOBAL_BEARER_REVOCATION_REMAINS_OPEN_STORE_CART_200")

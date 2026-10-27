@@ -158,6 +158,7 @@ jobs:
               node scripts/f07g-http-review-accept-ci.mjs after
               node scripts/f08-jwt-revocation-ci.mjs
               SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+              node scripts/f08-jwt-revocation-ci.mjs outage
               pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-live-cart-snapshot-ci.ts after
               node scripts/store-api-reprice-ci.mjs verify
               exit 0
