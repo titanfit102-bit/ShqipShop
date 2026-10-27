@@ -231,17 +231,25 @@ export default async function liveCart({ container, args }: ExecArgs) {
       t.string("status", 12).notNullable()
       t.index(["tenant_id", "cart_id", "status"], "f07g_live_ci_tenant_cart_state")
     })
+    // Stronger than uniqueness per quote_id: prohibit two independent
+    // accepted quote IDs being claimed for the SAME checkout cart.
+    // Disposable PostgreSQL-only proof; this is NOT a Medusa order lock.
+    await db.raw(`CREATE UNIQUE INDEX f07g_ci_one_claimed_per_cart
+      ON "${table}" ("tenant_id", "cart_id")
+      WHERE "status" = 'claimed'`)
     const now = Date.now()
     const quote = issueCheckoutQuote(snapshot, now, 300000)
     const pending = issueCheckoutQuote(snapshot, now, 300000)
     const claimedIntent = issueCheckoutQuote(snapshot, now, 300000)
     const staleAcceptedIntent = issueCheckoutQuote(snapshot, now, 300000)
+    const parallelSiblingIntent = issueCheckoutQuote(snapshot, now, 300000)
     const httpQuote = issueCheckoutQuote(snapshot, now, 300000)
     const staleHttpQuote = issueCheckoutQuote(snapshot, now, 300000)
     await store(quote)
     await store(pending)
     await store(claimedIntent)
     await store(staleAcceptedIntent)
+    await store(parallelSiblingIntent)
     await store(httpQuote)
     await store(staleHttpQuote)
     assert.equal(await tryAccept(quote.id, quote.fingerprint,
@@ -272,6 +280,8 @@ export default async function liveCart({ container, args }: ExecArgs) {
       scope, snapshot, now + 4), true)
     assert.equal(await tryAccept(staleAcceptedIntent.id, staleAcceptedIntent.fingerprint,
       scope, snapshot, now + 4), true)
+    assert.equal(await tryAccept(parallelSiblingIntent.id, parallelSiblingIntent.fingerprint,
+      scope, snapshot, now + 4), true)
     const claim = (id: string, fp: string, claimScope: typeof scope,
       fresh: QuoteSnapshot, at: number) => claimAcceptedQuoteInDisposableCi(
       db, table, claimScope, id, fp, fresh, at)
@@ -285,23 +295,38 @@ export default async function liveCart({ container, args }: ExecArgs) {
       scope, {...snapshot, pricingRevision: "price_wrong_revision"}, now + 5), false)
     assert.equal(await claim(claimedIntent.id, claimedIntent.fingerprint,
       scope, snapshot, claimedIntent.expiresAtMs), false)
+    // Four competing requests across TWO independently issued accepted
+    // quotes for the SAME real Medusa cart. Unique quote_id alone is not
+    // sufficient to stop double checkout intent claims.
     const contenders = await Promise.all([
       claim(claimedIntent.id, claimedIntent.fingerprint, scope, snapshot, now + 6),
       claim(claimedIntent.id, claimedIntent.fingerprint, scope, snapshot, now + 6),
+      claim(parallelSiblingIntent.id, parallelSiblingIntent.fingerprint, scope, snapshot, now + 6),
+      claim(parallelSiblingIntent.id, parallelSiblingIntent.fingerprint, scope, snapshot, now + 6),
     ])
     assert.equal(contenders.filter(Boolean).length, 1,
-      "Exactly one database quote intent claim, NEVER proof of one PSP charge")
+      "Exactly ONE PostgreSQL claimed quote across distinct IDs for same Medusa cart")
     assert.equal(await claim(claimedIntent.id, claimedIntent.fingerprint,
-      scope, snapshot, now + 7), false, "Claim replay forbidden")
-    const claimedRow = await db(table).where({quote_id:claimedIntent.id}).first()
-    assert.equal(claimedRow.status, "claimed")
+      scope, snapshot, now + 7), false, "First quote replay or sibling conflict denied")
+    assert.equal(await claim(parallelSiblingIntent.id, parallelSiblingIntent.fingerprint,
+      scope, snapshot, now + 7), false, "Other quote replay or sibling conflict denied")
+    const siblings = await db(table).whereIn("quote_id",
+      [claimedIntent.id, parallelSiblingIntent.id])
+    assert.equal(siblings.length, 2)
+    assert.equal(siblings.filter((r: any) => r.status === "claimed").length, 1)
+    assert.equal(siblings.filter((r: any) => r.status === "accepted").length, 1)
+    const claimedRow = siblings.find((r: any) => r.status === "claimed")
     assert.equal(Number(claimedRow.claimed_at_ms), now + 6)
     assert.match(String(claimedRow.claim_nonce), /^[a-f0-9-]{36}$/)
+    assert.equal(Number((await db(table).where({
+      tenant_id:scope.tenantId, cart_id:scope.cartId, status:"claimed",
+    }).count("* as count").first()).count), 1)
+    console.log("SHQIPSHOP_F07G_REAL_MEDUSA_PG_DISTINCT_QUOTES_ONE_CART_SINGLE_CLAIM")
     const staleRow = await db(table).where({quote_id:staleAcceptedIntent.id}).first()
     assert.equal(staleRow.status, "accepted")
     writeFileSync(checkpoint, JSON.stringify({
       accepted, linkedAmount: effectivePrice, pendingQuoteId: pending.id,
-      claimedIntentId: claimedIntent.id, claimedNonce: claimedRow.claim_nonce,
+      claimedIntentId: claimedRow.quote_id, claimedNonce: claimedRow.claim_nonce,
       staleAcceptedIntentId: staleAcceptedIntent.id,
       httpQuote: {id:httpQuote.id,fingerprint:httpQuote.fingerprint},
       staleHttpQuote: {id:staleHttpQuote.id,fingerprint:staleHttpQuote.fingerprint},

@@ -52,7 +52,8 @@ export async function claimAcceptedQuoteInDisposableCi(
     throw new Error("F07g claim forbidden outside disposable CI")
   }
   if (!scope || !quoteId || !reviewedFingerprint) return false
-  return db.transaction(async (trx: any) => {
+  try {
+    return await db.transaction(async (trx: any) => {
     const where = {
       quote_id: quoteId, tenant_id: scope.tenantId,
       cart_id: scope.cartId, buyer_binding: scope.buyerBinding,
@@ -75,5 +76,13 @@ export async function claimAcceptedQuoteInDisposableCi(
         claim_nonce: randomUUID(),
       }).returning("quote_id")
     return changed.length === 1
-  })
+    })
+  } catch (error: unknown) {
+    // The disposable per-cart partial unique index prohibits a second
+    // claimed quote ID for the same cart. A losing writer gets PG 23505.
+    // Only the expected uniqueness race maps to a safe denial.
+    if (error && typeof error === "object" &&
+        "code" in error && error.code === "23505") return false
+    throw error
+  }
 }
