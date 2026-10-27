@@ -76,7 +76,7 @@ export const enforceF08CiProfilePolicy = (
 }
 
 /**
- * F08 Stage 7 — disposable CI ONLY: prove that a known cart ID does not
+ * F08 Stages 7–8 — disposable CI ONLY: prove that a known cart ID does not
  * authorize reading or modifying a cart once it belongs to a customer.
  * Guest carts deliberately retain original Medusa semantics in this probe;
  * their capability/expiry contract is NOT a production security decision.
@@ -94,7 +94,7 @@ export const enforceF08CiOwnerCartPolicy = (
       // Medusa may run a matcher before its final route populates req.params;
       // extract only from the exact normalized path, never from a client header.
       const rawPath=String(req.originalUrl ?? req.path ?? "").split("?")[0]
-      const pathMatch=/^\/store\/carts\/(cart_[A-Za-z0-9_-]{8,})(?:\/line-items)?\/?$/.exec(rawPath)
+      const pathMatch=/^\/store\/carts\/(cart_[A-Za-z0-9_-]{8,})(?:\/line-items(?:\/cali_[A-Za-z0-9_-]{8,})?)?\/?$/.exec(rawPath)
       const cartId=pathMatch?.[1]
       if (!cartId || (req.params?.id && req.params.id !== cartId)) {
         console.log("SHQIPSHOP_F08_CI_DEBUG_CART_ROUTE_MISMATCH")

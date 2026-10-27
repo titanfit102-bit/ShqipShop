@@ -7,8 +7,8 @@ import { enforceF08CiBearerPolicy, enforceF08CiProfilePolicy, enforceF08CiOwnerC
 export default defineMiddlewares({
   routes: [
     {
-      // Exact disposable CI-only owner guard: Medusa built-in cart GET and
-      // line-item POST. Non-CI traffic is strictly unaffected by the function.
+      // Exact disposable CI-only owner guard: registered-account cart GET,
+      // line-item create/update/delete. Non-CI traffic remains unaffected.
       matcher: '/store/carts/:id',
       method: ['GET'],
       middlewares: [enforceF08CiOwnerCartPolicy],
@@ -16,6 +16,11 @@ export default defineMiddlewares({
     {
       matcher: '/store/carts/:id/line-items',
       method: ['POST'],
+      middlewares: [enforceF08CiOwnerCartPolicy],
+    },
+    {
+      matcher: '/store/carts/:id/line-items/:line_id',
+      method: ['POST', 'DELETE'],
       middlewares: [enforceF08CiOwnerCartPolicy],
     },
     {

@@ -1,5 +1,6 @@
 /** F08: synthetic CI-only token revocation and owner-cart access proofs.
- * Stage 7 guards two built-in cart routes in disposable CI; global revocation,
+ * Stage 8 extends the disposable registered-account guard to line-item
+ * update/delete. Global revocation,
  * guest capability expiry, and production F08 remain UNSOLVED.
  */
 import assert from "node:assert/strict"
@@ -176,6 +177,63 @@ assert.equal(guestWrite.status,200)
 const guestUpdated=await request("GET","/store/carts/"+encodeURIComponent(guestCartId),null)
 assert.equal(guestUpdated.payload?.cart?.items?.length,1)
 console.log("SHQIPSHOP_F08_CI_GUEST_CART_BASELINE_READ_WRITE_PASSED")
+// Stage 8: existing Medusa cart item update/delete with real response and
+// persisted-state checks. No checkout, stock reservation or payment effect.
+// Cart IDs/line IDs stay in memory; no tokens or customer data in logs.
+const linePath=(id,lineId)=>
+  "/store/carts/"+encodeURIComponent(id)+"/line-items/"+encodeURIComponent(lineId)
+const readCart=(id,token)=>
+  request("GET","/store/carts/"+encodeURIComponent(id),token)
+async function lineItemOf(id,token) {
+  const retrieved=await readCart(id,token)
+  assert.equal(retrieved.status,200)
+  const items=retrieved.payload?.cart?.items
+  assert.equal(items?.length,1)
+  const item=items[0]
+  assert(/^cali_[A-Za-z0-9_-]{8,}$/.test(item.id))
+  return item
+}
+const stage8Cart=await newSyntheticOwnedCart()
+assert.equal((await mutateSyntheticCart(stage8Cart,owner.token)).status,200)
+const stage8Item=await lineItemOf(stage8Cart,owner.token)
+const updateLine=(id,lineId,token,quantity)=>
+  request("POST",linePath(id,lineId),token,{body:{quantity}})
+const removeLine=(id,lineId,token)=>
+  request("DELETE",linePath(id,lineId),token)
+for (const [label,token] of [
+  ["NO_BEARER",null],
+  ["FOREIGN_CUSTOMER_BEARER",stranger.token],
+  ["INVALID_BEARER","invalid_f08_ci_token"],
+]) {
+  const updated=await updateLine(stage8Cart,stage8Item.id,token,2)
+  const removed=await removeLine(stage8Cart,stage8Item.id,token)
+  for(const [method,response] of [["UPDATE",updated],["DELETE",removed]]) {
+    assert([401,403,404].includes(response.status),
+      "Unverified "+label+" must not "+method+" registered cart item")
+  }
+  const unchanged=await lineItemOf(stage8Cart,owner.token)
+  assert.equal(unchanged.id,stage8Item.id)
+  assert.equal(Number(unchanged.quantity),1,
+    "Denied update/delete must not modify registered customer cart")
+  console.log("SHQIPSHOP_F08_CI_STAGE8_"+label+"_UPDATE_DELETE_DENIED")
+}
+const ownerUpdated=await updateLine(stage8Cart,stage8Item.id,owner.token,2)
+assert.equal(ownerUpdated.status,200)
+assert.equal(Number((await lineItemOf(stage8Cart,owner.token)).quantity),2,
+  "Owner update must persist the quantity")
+const ownerDeleted=await removeLine(stage8Cart,stage8Item.id,owner.token)
+assert.equal(ownerDeleted.status,200)
+const emptyOwner=await readCart(stage8Cart,owner.token)
+assert.equal(emptyOwner.payload?.cart?.items?.length,0,
+  "Owner delete must persist line-item removal")
+console.log("SHQIPSHOP_F08_CI_STAGE8_OWNER_UPDATE_DELETE_PERSISTED")
+const guestLine=await lineItemOf(guestCartId,null)
+assert.equal((await updateLine(guestCartId,guestLine.id,null,2)).status,200)
+assert.equal(Number((await lineItemOf(guestCartId,null)).quantity),2)
+assert.equal((await removeLine(guestCartId,guestLine.id,null)).status,200)
+assert.equal((await readCart(guestCartId,null)).payload?.cart?.items?.length,0)
+console.log("SHQIPSHOP_F08_CI_STAGE8_GUEST_UPDATE_DELETE_UNCHANGED_BASELINE")
+
 const done=await revocation(owner.token)
 assert.equal(done.status,200)
 assert.equal(done.payload?.revoked,true)
@@ -198,6 +256,12 @@ assert.equal((await request("GET",customerCartPath,owner.secondToken)).status,20
 assert.equal((await mutateSyntheticCart(controlCart,owner.token)).status,401,
   "Revoked owner JWT must not mutate own linked cart")
 console.log("SHQIPSHOP_F08_CI_REVOKED_OWNER_CART_READ_WRITE_DENIED")
+const stillOwnedLine=await lineItemOf(controlCart,owner.secondToken)
+assert.equal((await updateLine(controlCart,stillOwnedLine.id,owner.token,2)).status,401)
+assert.equal((await removeLine(controlCart,stillOwnedLine.id,owner.token)).status,401)
+assert.equal(Number((await lineItemOf(controlCart,owner.secondToken)).quantity),1,
+  "Revoked JWT must not update or delete cart items")
+console.log("SHQIPSHOP_F08_CI_STAGE8_REVOKED_OWNER_UPDATE_DELETE_401")
 assert.equal((await revocation(owner.secondToken)).status,200,
   "Second device must be revocable independently on explicit request")
 assert.equal((await protectedQuote(owner.secondToken)).status,401,
