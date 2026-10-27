@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-10-27 — F08 Stage 5: cart-access boundary
+
+[Commit b50a202](https://github.com/titanfit102-bit/ShqipShop/commit/b50a20273ed23d6f57870c8304e543c0fc87cc95) passed **8/8 CI**, including [Medusa run](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40528246965). The synthetic owner-linked cart GET returned HTTP 200 with no JWT, a foreign customer JWT and revoked owner JWT when given its cart ID. JWT revocation alone cannot protect this cart-ID access; no conclusion about guessing IDs or cross-merchant reads. Guest capability, owner privacy, auth downgrade and expiry require approval before production changes. F08 P0 and G3/G5 remain BLOCKED.
+
+
 ## 2026-10-27 — F08 Stage 4: CI-gated guard on built-in Medusa customer profile
 
 Built-in Medusa profile GET now proved scoped JWT deny-list enforcement in disposable CI with 401 and outage 503 [40525688304](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40525688304). Cart GET still accepts revoked token; no global/device/Production authorization. F08 remains P0 OPEN, F07g/F09 and release blocked.

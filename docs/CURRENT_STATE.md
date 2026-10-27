@@ -1,5 +1,12 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-10-27 — F08 Stage 5: cart-ID access diagnostic (disposable CI)
+
+**VERIFIED:** [code b50a202](https://github.com/titanfit102-bit/ShqipShop/commit/b50a20273ed23d6f57870c8304e543c0fc87cc95), [Medusa workflow](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40528246965), **8/8 GitHub Actions SUCCESS** at the exact code SHA. The same synthetic customer-linked Medusa cart returned HTTP 200 using its cart ID with NO JWT, a different customer's bearer, and its owner's explicitly revoked JWT. The runner confirmed its synthetic cart/customer IDs without logging tokens or PII.
+
+**SECURITY BOUNDARY:** A JWT-only deny-list cannot revoke access when the caller can omit the token. The cart ID functions as a bearer capability for this observed Store GET; this does NOT prove IDs are guessable or allow cross-merchant access. The guest-capability/customer ownership and invalid-auth downgrade policy require separate approved design. F08 P0, G3/G5, F07g/F09 remain blocked; no Production, schema, payment, deploy or main changes. **NEXT:** define and test guest versus authenticated cart read/mutation access, expiry/invalidation and device logout before production authorization.
+
+
 ## 2026-10-27 — F08 Stage 4: CI-gated guard on built-in Medusa customer profile
 
 **VERIFIED CODE:** [cd43db8](https://github.com/titanfit102-bit/ShqipShop/commit/cd43db8f9b3aab4ed2a2ad14f6210016ae148cf9), Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12), **8/8 GitHub Actions SUCCESS** at this exact code SHA. [Medusa CI 40525688304](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40525688304) logged `SHQIPSHOP_F08_CI_BUILTIN_PROFILE_REVOKED_JWT_401`, `SHQIPSHOP_F08_CI_GUARDED_BUILTIN_PROFILE_OUTAGE_FAIL_CLOSED_503`, `SHQIPSHOP_F08_CI_OUTAGE_PRIVATE_CART_STILL_UNGUARDED`, and `SHQIPSHOP_F08_GLOBAL_BEARER_REVOCATION_REMAINS_OPEN_STORE_CART_200`; prior scoped F07g and two-device tests passed.
