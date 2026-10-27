@@ -1,5 +1,15 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-10-27 — F07g Stage 2C-2: disposable pre-payment quote-intent claim + durable-design proposal
+
+**VERIFIED TEST CODE:** [commit 59b9153](https://github.com/titanfit102-bit/ShqipShop/commit/59b91530ecb18f2fb2bde2e75234071039b7663f) on Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12), **8/8 GitHub Actions SUCCESS** on that exact SHA. [Medusa smoke 40445884796](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40445884796) logged `SHQIPSHOP_F07G_REAL_MEDUSA_PG_PREPAYMENT_INTENT_SINGLE_CLAIM_PASSED`, `SHQIPSHOP_F07G_REAL_MEDUSA_PG_STALE_ACCEPTED_INTENT_CLAIM_DENIED`, plus original single-acceptance/reprice and F07f HTTP 409 proofs.
+
+**IMPLEMENTED:** CI-only `medusa-backend-poc/apps/backend/src/lib/checkout/quote-claim-ci.ts` provides a second one-winner PostgreSQL status CAS (`accepted→claimed`), scoped to tenant/cart/buyer/fingerprint, with strict stored expiry and fresh Medusa quote verification. Extended `f07g-live-cart-snapshot-ci.ts` to test concurrent claim, wrong tenant/buyer/fingerprint, expired/repriced state, replay, persistence across separate Medusa executions, and the denial of claiming a previously accepted offer after repricing. Disposal table and synthetic cart only; no production payment effects. New [F07g durable design](checkout/F07G_DURABLE_QUOTE_DESIGN.md) is a proposal, **not approved schema/API architecture**.
+
+**P0 STILL OPEN:** a DB-only intent claim is NOT a Medusa order/cart stock lock or exactly-once PSP charge. There is no production quote migration, HTTP buyer review/accept, complete taxes/shipping/discount rules, PSP callback/refund reconciliation, or buyer UI acceptance. F08 JWT revocation, F09 unified commerce, G3/G5 release gates remain blocked; native secure token/release signing also open. No merge, main, Production deploy, live payment, secrets or migration changes. The following docs commit will require its own CI verification.
+
+
+
 ## 2026-10-26 — F07g Stage 2C-1: PostgreSQL acceptance of actual Medusa cart quote (CI)
 
 **VERIFIED CODE:** [99d008a](https://github.com/titanfit102-bit/ShqipShop/commit/99d008a1913041dcbb98d6a0d9f096f42841ca51) on Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12); **8/8 PR GitHub Actions SUCCESS** at exactly that SHA. [Medusa smoke 40364666854](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40364666854) proves `SHQIPSHOP_F07G_REAL_MEDUSA_PG_ATOMIC_SINGLE_ACCEPTANCE_AND_REPLAY_DENIED` and `SHQIPSHOP_F07G_REAL_MEDUSA_PG_REPRICE_DENIES_PENDING_QUOTE_ACROSS_PROCESSES`, while F07f HTTP 409, Medusa A/B, Redis F07c/F07d, pilot, native and security baseline also passed. The real **disposable** Medusa cart and linked live catalogue ALL price now yield quote snapshots persisted in a temporary PostgreSQL table; two concurrent transactions permit one acceptance only, foreign tenant/buyer, expired/replayed and mismatched price revision are denied. A separate Medusa process reads stored quote state after repricing, and the previously pending quote cannot become accepted. Temp fixture table is dropped after the two-phase test.
