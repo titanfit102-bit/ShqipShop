@@ -55,6 +55,8 @@ jobs:
       NODE_ENV: development
       DATABASE_URL: postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci
       REDIS_URL: redis://127.0.0.1:6379
+      SHQIPSHOP_REQUIRE_REDIS: "true"
+      SHQIPSHOP_ENFORCE_PAYMENT_TOTAL_MATCH: "true"
       STORE_CORS: http://localhost:8000
       ADMIN_CORS: http://localhost:9000,http://localhost:5173
       AUTH_CORS: http://localhost:9000,http://localhost:5173
@@ -74,13 +76,32 @@ jobs:
         run: npm install -g pnpm@10.11.1
       - name: Generate per-run development secrets
         run: |
-          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-          echo "COOKIE_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          set -euo pipefail
+          jwt_secret="$(openssl rand -hex 32)"
+          cookie_secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$jwt_secret"
+          echo "::add-mask::$cookie_secret"
+          echo "JWT_SECRET=$jwt_secret" >> "$GITHUB_ENV"
+          echo "COOKIE_SECRET=$cookie_secret" >> "$GITHUB_ENV"
           echo "SHQIPSHOP_FX_AS_OF=$(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
       - name: Install locked Medusa backend dependencies
         run: pnpm install --frozen-lockfile --filter '@dtc/backend...'
       - name: Run Medusa PostgreSQL migrations
         run: pnpm --filter @dtc/backend exec medusa db:migrate
+      - name: Assert payment amount match and stale/ambiguous session rejection (F07f)
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07f-payment-amount-guard-ci.ts
+      - name: Assert bounded buyer-accepted checkout quote contract (F07g stage 1, CI-only)
+        env:
+          SHQIPSHOP_F07G_CONTRACT_CI: "true"
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-quote-contract-ci.ts
+      - name: Prove server-verified guest and authenticated-customer quote identity (F07g stage 2B-2A)
+        env:
+          SHQIPSHOP_F07G_PRINCIPAL_CI: "true"
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-principal-binding-ci.ts
+      - name: Prove atomic tenant-bound quote persistence with disposable PostgreSQL (F07g stage 2A)
+        env:
+          SHQIPSHOP_F07G_TRANSACTION_CI: "true"
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-persisted-quote-ci.ts
       - name: Assert Albania region, ALL currency, products and shipping
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-albania-seed.ts
       - name: Export ephemeral publishable key into runner-local file
@@ -98,11 +119,21 @@ jobs:
           SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
           SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE: ${{ runner.temp }}/shqipshop-empty-channel-key.txt
           SHQIPSHOP_CI_ORDER_ID_FILE: ${{ runner.temp }}/shqipshop-order-id.txt
+          SHQIPSHOP_CI_CART_ID_FILE: ${{ runner.temp }}/shqipshop-cart-id.txt
+          SHQIPSHOP_F07E_REPRICE_PROBE: "true"
+          SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
+          SHQIPSHOP_F07G_REAL_CART_CI: "true"
+          SHQIPSHOP_F07G_HTTP_CI: "true"
+          SHQIPSHOP_F08_REVOCATION_CI: "true"
+          SHQIPSHOP_F08_OWNER_CART_CI: "true"
+          SHQIPSHOP_F07G_REAL_CART_PROOF_FILE: ${{ runner.temp }}/shqipshop-f07g-medusa-cart-snapshot.json
+          SHQIPSHOP_F07G_REGISTERED_QUOTE_PROOF_FILE: ${{ runner.temp }}/shqipshop-f07g-registered-quote.json
         run: |
           set -euo pipefail
+          SHQIPSHOP_F08_CI_FIXTURE_ACTION=create pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
           pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/medusa-backend.log" 2>&1 &
           backend_pid=$!
-          trap 'kill "$backend_pid" 2>/dev/null || true' EXIT
+          trap 'status=$?; if [ "$status" -ne 0 ]; then grep -E "SHQIPSHOP_F08_CI_DEBUG_" "$RUNNER_TEMP/medusa-backend.log" | tail -35 || true; fi; kill "$backend_pid" 2>/dev/null || true' EXIT
           for i in $(seq 1 90); do
             if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:9000/health > "$RUNNER_TEMP/health.json" 2>/dev/null; then
               echo "Medusa API health endpoint returned HTTP 200"
@@ -114,6 +145,23 @@ jobs:
                 > "$RUNNER_TEMP/indicative-fx.json"
               node -e "const q=require(process.env.RUNNER_TEMP+'/indicative-fx.json'); if(q.available!==true || q.all_per_eur!==100 || q.indicative_only!==true || !q.source?.includes('CI')) process.exit(1); console.log('SHQIPSHOP_INDICATIVE_FX_HTTP_PASSED')"
               node scripts/store-api-checkout.mjs
+              node scripts/store-api-cart-totals-ci.mjs
+              node scripts/store-api-reprice-ci.mjs prepare
+              node scripts/f07g-http-quote-boundary-ci.mjs
+              node scripts/f07g-http-registered-customer-ci.mjs
+              pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-live-cart-snapshot-ci.ts before
+              node scripts/f07g-http-registered-quote-ci.mjs setup
+              pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-registered-http-quote-fixture-ci.ts
+              node scripts/f07g-http-registered-quote-ci.mjs verify
+              node scripts/f07g-http-review-accept-ci.mjs before
+              pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07e-store-reprice-ci.ts
+              node scripts/f07g-http-registered-quote-ci.mjs after
+              node scripts/f07g-http-review-accept-ci.mjs after
+              node scripts/f08-jwt-revocation-ci.mjs
+              SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+              node scripts/f08-jwt-revocation-ci.mjs outage
+              pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-live-cart-snapshot-ci.ts after
+              node scripts/store-api-reprice-ci.mjs verify
               exit 0
             fi
             if ! kill -0 "$backend_pid" 2>/dev/null; then
@@ -135,6 +183,40 @@ jobs:
           SHQIPSHOP_CI_INVENTORY_SNAPSHOT: ${{ runner.temp }}/shqipshop-inventory-before.json
           SHQIPSHOP_CI_INVENTORY_MODE: after
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-ci-inventory.ts
+      - name: Verify repriced active-cart final order and protected guest receipt using mock payment
+        env:
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+          SHQIPSHOP_F07E_REPRICE_PROBE: "true"
+          SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
+          SHQIPSHOP_F07F_INJECT_TEST: "true"
+          SHQIPSHOP_F07F_PROOF_FILE: ${{ runner.temp }}/shqipshop-f07f-stale-amount.json
+        run: |
+          set -euo pipefail
+          pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/f07e-checkout-backend.log" 2>&1 &
+          backend_pid=$!
+          cleanup() {
+            kill "$backend_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for i in $(seq 1 90); do
+            if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:9000/health > /dev/null 2>&1; then
+              node scripts/store-api-reprice-ci.mjs complete
+              node scripts/f07f-post-session-cart-mutation-ci.mjs
+              node scripts/f07f-stale-amount-http-ci.mjs prepare
+              pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07f-inject-stale-ci.ts
+              node scripts/f07f-stale-amount-http-ci.mjs verify
+              exit 0
+            fi
+            if ! kill -0 "$backend_pid" 2>/dev/null; then
+              echo "::error::Disposable Medusa backend exited during repricing checkout proof"
+              tail -100 "$RUNNER_TEMP/f07e-checkout-backend.log"
+              exit 1
+            fi
+            sleep 4
+          done
+          echo "::error::Medusa API not healthy for repricing checkout proof"
+          tail -100 "$RUNNER_TEMP/f07e-checkout-backend.log"
+          exit 1
       - name: CI state
         if: always()
         run: |

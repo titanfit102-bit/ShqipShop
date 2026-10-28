@@ -112,6 +112,20 @@ assert(paymentCollectionId, "Payment collection was not created")
 await request("POST", `/store/payment-collections/${paymentCollectionId}/payment-sessions`, {
   provider_id: "pp_system_default",
 })
+// F05: the mobile checkout only enters Review after this cart representation
+// shows an active Medusa payment session, not merely because total > 0.
+const preparedCart = await request(
+  "GET",
+  "/store/carts/" + encodeURIComponent(cartId) +
+    "?fields=" + encodeURIComponent("+payment_collection.payment_sessions,+shipping_methods.name"),
+)
+const verifiedSessions = preparedCart.cart?.payment_collection?.payment_sessions ?? []
+assert(
+  verifiedSessions.some(s => s.provider_id === "pp_system_default" &&
+    ["pending", "authorized"].includes(s.status)),
+  "Cart retrieve lacks the pending/authorized payment session needed by native checkout",
+)
+console.log("SHQIPSHOP_F05_CART_PAYMENT_SESSION_VERIFIED")
 console.log("SHQIPSHOP_STORE_HTTP_MANUAL_PAYMENT_PASSED")
 
 const completion = await request("POST", `/store/carts/${cartId}/complete`, {})
@@ -122,6 +136,27 @@ const orderIdFile = process.env.SHQIPSHOP_CI_ORDER_ID_FILE
 assert(orderIdFile, "Missing CI test order id path")
 const { writeFileSync } = await import("node:fs")
 writeFileSync(orderIdFile, completion.order.id, {encoding:"utf8",mode:0o600,flag:"wx"})
+const cartIdFile = process.env.SHQIPSHOP_CI_CART_ID_FILE
+assert(cartIdFile, "Missing CI test cart proof output path")
+writeFileSync(cartIdFile, cartId, { encoding: "utf8", mode: 0o600, flag: "wx" })
+
+const receiptPath = "/store/orders/" + encodeURIComponent(completion.order.id)
+const header = { "x-publishable-api-key": publishableKey }
+const noProof = await fetch(base + receiptPath, { headers: header, signal: AbortSignal.timeout(20000) })
+assert([401,403,404].includes(noProof.status), "Order ID alone exposed a private receipt")
+const wrongProof = await fetch(base + receiptPath, {
+  headers: { ...header, "x-shqipshop-cart-proof": "cart_wrong_credential" },
+  signal: AbortSignal.timeout(20000),
+})
+assert([401,403,404].includes(wrongProof.status), "Invalid guest cart proof exposed receipt")
+const ownReceipt = await fetch(base + receiptPath, {
+  headers: { ...header, "x-shqipshop-cart-proof": cartId },
+  signal: AbortSignal.timeout(20000),
+})
+assert.equal(ownReceipt.status, 200, "Genuine guest checkout cannot retrieve receipt")
+const ownData = await ownReceipt.json()
+assert.equal(ownData.order?.id, completion.order.id, "Guest receipt returned wrong order")
+console.log("SHQIPSHOP_GUEST_RECEIPT_CART_PROOF_PASSED")
 console.log("SHQIPSHOP_STORE_HTTP_ORDER_PASSED", JSON.stringify({
   currency: completion.order.currency_code,
   items: completion.order.items.length,

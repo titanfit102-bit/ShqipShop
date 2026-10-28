@@ -1,6 +1,6 @@
 import React from 'react';
 import { useColors } from '@styles/hooks';
-import { ActivityIndicator, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, TouchableOpacity, View } from 'react-native';
 import Icon from '@react-native-vector-icons/ant-design';
 import { useLocalization } from '@fluent/react';
 import Text from '@components/common/text';
@@ -32,17 +32,23 @@ const LineItemQuantity = ({
     return updateQuantity(newQuantity);
   };
 
-  const deleteLineItem = async () => {
+  const changeQuantity = async (newQuantity: number) => {
+    if (updating) return;
     setUpdating(true);
-    await updateLineItem(lineItemId, 0);
-    setUpdating(false);
+    try {
+      await updateLineItem(lineItemId, newQuantity);
+    } catch (error) {
+      Alert.alert(
+        l10n.getString('error'),
+        error instanceof Error ? error.message : l10n.getString('an-error-occurred'),
+      );
+    } finally {
+      setUpdating(false);
+    }
   };
 
-  const updateQuantity = async (newQuantity: number) => {
-    setUpdating(true);
-    await updateLineItem(lineItemId, newQuantity);
-    setUpdating(false);
-  };
+  const deleteLineItem = () => changeQuantity(0);
+  const updateQuantity = (newQuantity: number) => changeQuantity(newQuantity);
 
   return (
     <View className="flex-row items-center gap-4">
@@ -50,6 +56,7 @@ const LineItemQuantity = ({
         <View className="flex flex-row gap-2 bg-background border-hairline border-primary rounded-lg self-start p-1 items-center">
           <TouchableOpacity
             onPress={decrement}
+            disabled={updating}
             className="justify-center items-center px-1 py-1"
           >
             <Icon name="minus" size={12} color={colors.primary} />
@@ -57,6 +64,7 @@ const LineItemQuantity = ({
           <Text className="text-base">{quantity}</Text>
           <TouchableOpacity
             onPress={increment}
+            disabled={updating}
             className="justify-center items-center px-1 py-1"
           >
             <Icon name="plus" size={12} color={colors.primary} />
@@ -70,7 +78,7 @@ const LineItemQuantity = ({
       {updating ? (
         <ActivityIndicator size="small" color={colors.primary} />
       ) : mode === 'cart' ? (
-        <TouchableOpacity onPress={deleteLineItem} className="opacity-75">
+        <TouchableOpacity onPress={deleteLineItem} disabled={updating} className="opacity-75">
           <Icon name="delete" size={16} color={colors.content} />
         </TouchableOpacity>
       ) : null}

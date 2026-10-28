@@ -19,6 +19,7 @@ const merchant = (id, port) => {
     base: "http://127.0.0.1:" + port,
     key: read("KEY"),
     order: read("ORDER"),
+    cart: read("CART"),
   }
 }
 const a = merchant("A", 9000)
@@ -28,9 +29,12 @@ assert(/^order_[a-zA-Z0-9]+$/.test(a.order))
 assert(/^order_[a-zA-Z0-9]+$/.test(b.order))
 assert.notEqual(a.order, b.order, "Merchants generated identical order IDs")
 
-async function query(m, path, key) {
+async function query(m, path, key, cartProof) {
   const response = await fetch(m.base + path, {
-    headers: key ? { "x-publishable-api-key": key } : {},
+    headers: {
+      ...(key ? { "x-publishable-api-key": key } : {}),
+      ...(cartProof ? { "x-shqipshop-cart-proof": cartProof } : {}),
+    },
     signal: AbortSignal.timeout(20000),
   })
   const data = response.ok ? await response.json() : null
@@ -47,13 +51,18 @@ for (const own of [a, b]) {
   own.product = catalog.data.products[0].id
   assert(own.product?.startsWith("prod_"), "Missing product ID on " + own.name)
 
-  const ownOrder = await query(own, "/store/orders/" + encodeURIComponent(own.order), own.key)
+  const ownOrder = await query(own, "/store/orders/" + encodeURIComponent(own.order), own.key, own.cart)
   assert.equal(ownOrder.status, 200, own.name + " cannot fetch own order")
+
+  const noProof = await query(own, "/store/orders/" + encodeURIComponent(own.order), own.key)
+  assert([401,403,404].includes(noProof.status), "Order ID alone exposed private customer data")
+  const otherCartProof = await query(own, "/store/orders/" + encodeURIComponent(own.order), own.key, other.cart)
+  assert([401,403,404].includes(otherCartProof.status), "Foreign cart proof accessed private receipt")
 
   const wrongKey = await query(own, "/store/products", other.key)
   assert([400, 401, 403].includes(wrongKey.status), "Foreign publishable key accepted on " + own.name)
 
-  const foreignOrder = await query(own, "/store/orders/" + encodeURIComponent(other.order), own.key)
+  const foreignOrder = await query(own, "/store/orders/" + encodeURIComponent(other.order), own.key, own.cart)
   assert.equal(foreignOrder.status, 404, "Cross-merchant order visible at " + own.name)
 
   const absentKey = await query(own, "/store/products")
