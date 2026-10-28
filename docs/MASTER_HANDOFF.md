@@ -1,5 +1,10 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-10-28 — F08 Stage 8: cart line-item edit/remove CI proof
+
+[Code 35d4fe5](https://github.com/titanfit102-bit/ShqipShop/commit/35d4fe576c12f4afde854abd49c8425ea7671d64), [Medusa CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40605531224), **8/8 success** at code SHA: exact CI guard added registered-cart POST quantity update and DELETE line item; owner allowed/persisted; missing/foreign/invalid/revoked bearer denied, no denied changes; guest edit/remove preserved. Four scoped cart operations only, **NOT Production**. Remaining cart update, transfer, shipping, checkout, guest capability expiry, token lifecycle and F08 P0/G3/G5 remain blocked.
+
+
 ## 2026-10-27 — F08 Stage 7: registered cart CI-only boundary
 
 [code `c33b16a`](https://github.com/titanfit102-bit/ShqipShop/commit/c33b16a9254c4c791a4a6b08627b0313dd350a67); **8/8 workflows PASS** incl. [Medusa CI 40544959985](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40544959985). Exact disposable CI middleware guards registered (`customer.has_account=true`) cart GET and line-item POST: owner allowed, missing/foreign/invalid/revoked JWT denied, deny-list outage 503; guest checkout stays operational. `customer_id` alone is insufficient because guest checkout also generates a customer record. Other cart routes, guest capability expiry, cookie/CSRF, device/global logout and production controls remain OPEN. F08 P0 and release BLOCKED, no merge/deploy.
