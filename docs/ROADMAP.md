@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-01 — F08 Stage 11E: lost checkout acknowledgement, CI ONLY
+
+[Code b968399](https://github.com/titanfit102-bit/ShqipShop/commit/b9683993e4bdb924ab763376147eae6c7997be16), [CI 41330729685](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41330729685), **8/8 PASS at code SHA**. Mock registered checkout persisted one order while synthetic client discarded its acknowledgement. After genuine API restart, owner replay caused no duplicate; independent PostgreSQL queries before/after confirmed the identical order ID and cart/customer link. Anonymous replay denied. Not a real PSP/network-drop test. Provider idempotency, settlement/reconciliation, in-commit failures and production F08 remain OPEN; G3/G5 BLOCKED.
+
+
 ## 2026-11-01 — F08 Stage 11D: Redis pause and crash recovery (CI ONLY)
 
 [Code 9e58a14](https://github.com/titanfit102-bit/ShqipShop/commit/9e58a14d9dc306f85e31a3ff83e2aebb3ff50d1e), [CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41328337308), **8/8 PASS**. Paused disposable Redis during an in-flight registered checkout, force-killed API, verified 0 orders in PostgreSQL, then restarted API and verified one owner-only mock-payment order persisted. Other crash locations, Redis HA, PSP, global revocation, cookie/CSRF and Production remain OPEN; G3/G5 BLOCKED.
