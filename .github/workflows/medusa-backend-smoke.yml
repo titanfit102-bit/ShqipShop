@@ -267,7 +267,7 @@ jobs:
           pid_b=""
           cleanup() {
             for p in "$pid_a" "$pid_b"; do
-              if [ -n "$p" ]; then kill "$p" 2>/dev/null || true; fi
+              if [ -n "$p" ]; then kill -TERM -- "-$p" 2>/dev/null || true; fi
             done
           }
           trap cleanup EXIT
@@ -280,15 +280,16 @@ jobs:
             return 1
           }
           SHQIPSHOP_F08_CI_FIXTURE_ACTION=create pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
-          pnpm --filter @dtc/backend exec medusa develop --port 9000 > "$RUNNER_TEMP/f08-multiproc-a.log" 2>&1 &
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9000 > "$RUNNER_TEMP/f08-multiproc-a.log" 2>&1 &
           pid_a=$!
           ready 9000
           node scripts/f08-multiprocess-complete-ci.mjs prepare
-          pnpm --filter @dtc/backend exec medusa develop --port 9001 > "$RUNNER_TEMP/f08-multiproc-b.log" 2>&1 &
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9001 > "$RUNNER_TEMP/f08-multiproc-b.log" 2>&1 &
           pid_b=$!
           ready 9001
           node scripts/f08-multiprocess-complete-ci.mjs race
-          kill "$pid_a" "$pid_b" 2>/dev/null || true
+          kill -TERM -- "-$pid_a" 2>/dev/null || true
+          kill -TERM -- "-$pid_b" 2>/dev/null || true
           wait "$pid_a" 2>/dev/null || true
           wait "$pid_b" 2>/dev/null || true
           pid_a=""
@@ -300,11 +301,11 @@ jobs:
               exit 1
             fi
           done
-          pnpm --filter @dtc/backend exec medusa develop --port 9000 > "$RUNNER_TEMP/f08-restarted.log" 2>&1 &
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9000 > "$RUNNER_TEMP/f08-restarted.log" 2>&1 &
           pid_a=$!
           ready 9000
           node scripts/f08-multiprocess-complete-ci.mjs replay
-          kill "$pid_a" 2>/dev/null || true
+          kill -TERM -- "-$pid_a" 2>/dev/null || true
           wait "$pid_a" 2>/dev/null || true
           pid_a=""
           pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
