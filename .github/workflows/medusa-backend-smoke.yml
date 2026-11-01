@@ -280,13 +280,13 @@ jobs:
             return 1
           }
           SHQIPSHOP_F08_CI_FIXTURE_ACTION=create pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
-          setsid pnpm --filter @dtc/backend exec medusa develop --port 9000 > "$RUNNER_TEMP/f08-multiproc-a.log" 2>&1 &
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-multiproc-a.log" 2>&1 &
           pid_a=$!
-          ready 9000
+          ready 9220
           node scripts/f08-multiprocess-complete-ci.mjs prepare
-          setsid pnpm --filter @dtc/backend exec medusa develop --port 9001 > "$RUNNER_TEMP/f08-multiproc-b.log" 2>&1 &
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9221 > "$RUNNER_TEMP/f08-multiproc-b.log" 2>&1 &
           pid_b=$!
-          ready 9001
+          ready 9221
           node scripts/f08-multiprocess-complete-ci.mjs race
           kill -TERM -- "-$pid_a" 2>/dev/null || true
           kill -TERM -- "-$pid_b" 2>/dev/null || true
@@ -295,15 +295,15 @@ jobs:
           pid_a=""
           pid_b=""
           sleep 2
-          for port in 9000 9001; do
+          for port in 9220 9221; do
             if curl -fsS --max-time 3 "http://127.0.0.1:$port/health" > /dev/null 2>&1; then
               echo "::error::An old Medusa API remains active after stop"
               exit 1
             fi
           done
-          setsid pnpm --filter @dtc/backend exec medusa develop --port 9000 > "$RUNNER_TEMP/f08-restarted.log" 2>&1 &
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-restarted.log" 2>&1 &
           pid_a=$!
-          ready 9000
+          ready 9220
           node scripts/f08-multiprocess-complete-ci.mjs replay
           kill -TERM -- "-$pid_a" 2>/dev/null || true
           wait "$pid_a" 2>/dev/null || true

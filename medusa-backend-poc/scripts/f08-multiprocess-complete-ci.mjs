@@ -64,46 +64,46 @@ if(phase==="prepare"){
  assert(validId(variant,"variant_"))
  const email="stage11c-"+randomBytes(8).toString("hex")+"@example.invalid"
  const password=randomBytes(20).toString("hex")
- const reg=await ok(9000,"POST","/auth/customer/emailpass/register",null,{email,password})
+ const reg=await ok(9220,"POST","/auth/customer/emailpass/register",null,{email,password})
  assert(reg?.token?.length>20)
- const created=await ok(9000,"POST","/store/customers",reg.token,{
+ const created=await ok(9220,"POST","/store/customers",reg.token,{
   email,first_name:"Synthetic",last_name:"Customer"})
  const customerId=created?.customer?.id
  assert(validId(customerId,"cus_"))
- const tokenA=(await ok(9000,"POST","/auth/customer/emailpass",null,{email,password})).token
+ const tokenA=(await ok(9220,"POST","/auth/customer/emailpass",null,{email,password})).token
  assert(tokenA?.length>20)
  await new Promise(r=>setTimeout(r,1500))
- const tokenB=(await ok(9000,"POST","/auth/customer/emailpass",null,{email,password})).token
+ const tokenB=(await ok(9220,"POST","/auth/customer/emailpass",null,{email,password})).token
  assert(tokenB?.length>20&&tokenB!==tokenA)
- const regions=await ok(9000,"GET","/store/regions")
+ const regions=await ok(9220,"GET","/store/regions")
  const region=regions?.regions?.find(r=>r.currency_code==="all"&&r.name==="Shqipëri")
  assert(region?.id)
- const providers=await ok(9000,"GET",
+ const providers=await ok(9220,"GET",
   "/store/payment-providers?region_id="+encodeURIComponent(region.id))
  assert(providers?.payment_providers?.some(p=>p.id==="pp_system_default"))
- const cart=await ok(9000,"POST","/store/carts",tokenA,{region_id:region.id})
+ const cart=await ok(9220,"POST","/store/carts",tokenA,{region_id:region.id})
  const id=cart?.cart?.id
  assert(validId(id,"cart_"))
- await ok(9000,"POST","/store/carts/"+id+"/customer",tokenA)
- await ok(9000,"POST","/store/carts/"+id+"/line-items",tokenA,
+ await ok(9220,"POST","/store/carts/"+id+"/customer",tokenA)
+ await ok(9220,"POST","/store/carts/"+id+"/line-items",tokenA,
   {variant_id:variant,quantity:1})
  const address={first_name:"Synthetic",last_name:"Customer",
   address_1:"Test Address",city:"Tirane",postal_code:"1001",country_code:"al"}
- const update=await ok(9000,"POST","/store/carts/"+id,tokenA,
+ const update=await ok(9220,"POST","/store/carts/"+id,tokenA,
   {email,shipping_address:address,billing_address:address})
  assert.equal(update?.cart?.customer_id,customerId)
- const options=await ok(9000,"GET",
+ const options=await ok(9220,"GET",
   "/store/shipping-options?cart_id="+encodeURIComponent(id),tokenA)
  const shipping=options?.shipping_options?.find(o=>o.name==="Transport standard")??
   options?.shipping_options?.[0]
  assert(shipping?.id)
- await ok(9000,"POST","/store/carts/"+id+"/shipping-methods",tokenA,{option_id:shipping.id})
- const collection=await ok(9000,"POST","/store/payment-collections",tokenA,{cart_id:id})
+ await ok(9220,"POST","/store/carts/"+id+"/shipping-methods",tokenA,{option_id:shipping.id})
+ const collection=await ok(9220,"POST","/store/payment-collections",tokenA,{cart_id:id})
  const paymentId=collection?.payment_collection?.id
  assert(/^pay_?col_[A-Za-z0-9_-]{8,}$/.test(paymentId??""))
- await ok(9000,"POST","/store/payment-collections/"+paymentId+"/payment-sessions",
+ await ok(9220,"POST","/store/payment-collections/"+paymentId+"/payment-sessions",
   tokenA,{provider_id:"pp_system_default"})
- const verify=await ok(9000,"GET","/store/carts/"+id+"?fields="+
+ const verify=await ok(9220,"GET","/store/carts/"+id+"?fields="+
   encodeURIComponent("+payment_collection.payment_sessions"),tokenB)
  assert.equal(verify?.cart?.customer_id,customerId)
  assert.equal(verify?.cart?.items?.length,1)
@@ -119,14 +119,14 @@ if(phase==="prepare"){
  const state=load()
  const route="/store/carts/"+encodeURIComponent(state.cartId)
  const [fromA,fromB]=await Promise.all([
-  ok(9000,"GET",route,state.tokenA),
-  ok(9001,"GET",route,state.tokenB),
+  ok(9220,"GET",route,state.tokenA),
+  ok(9221,"GET",route,state.tokenB),
  ])
  assert.equal(fromA?.cart?.customer_id,state.customerId)
  assert.equal(fromB?.cart?.customer_id,state.customerId)
  assert.equal(fromA?.cart?.items?.length,1)
  assert.equal(fromB?.cart?.items?.length,1)
- for(const [port,token] of [[9000,null],[9001,"invalid_f08_ci_bearer"]]){
+ for(const [port,token] of [[9220,null],[9221,"invalid_f08_ci_bearer"]]){
   const denied=await complete(port,state.cartId,token)
   assert([401,403,404].includes(denied.status),
    "Foreign/anonymous completion must be rejected by both Medusa servers")
@@ -134,8 +134,8 @@ if(phase==="prepare"){
  console.log("SHQIPSHOP_F08_STAGE11C_BOTH_MEDUSA_PROCESSES_SHARE_OWNER_BOUNDARY")
  // Both requests enter two different running Medusa API processes at once.
  const responses=await Promise.all([
-  complete(9000,state.cartId,state.tokenA),
-  complete(9001,state.cartId,state.tokenB),
+  complete(9220,state.cartId,state.tokenA),
+  complete(9221,state.cartId,state.tokenB),
  ])
  assert(responses.every(r=>r.status<500),
   "Concurrent checkout must not produce HTTP 5xx")
@@ -152,7 +152,7 @@ if(phase==="prepare"){
 }else{
  const state=load()
  assert(validId(state.orderId,"order_"))
- const repeated=await complete(9000,state.cartId,state.tokenB)
+ const repeated=await complete(9220,state.cartId,state.tokenB)
  assert(repeated.status<500,"Post-restart replay must not return HTTP 5xx")
  if(repeated.status===200&&repeated.data?.type==="order")
   assert.equal(repeated.data.order.id,state.orderId,
