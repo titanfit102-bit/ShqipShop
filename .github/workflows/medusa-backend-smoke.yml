@@ -384,6 +384,58 @@ jobs:
           api=""
           pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
           SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+      - name: F08 Stage 11E lost client acknowledgement then restart owner retry
+        env:
+          SHQIPSHOP_F08_MULTIPROC_CI: "true"
+          SHQIPSHOP_F08_ACK_LOSS_CI: "true"
+          SHQIPSHOP_F08_REVOCATION_CI: "true"
+          SHQIPSHOP_F08_OWNER_CART_CI: "true"
+          SHQIPSHOP_F07G_HTTP_CI: "true"
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+          SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
+          SHQIPSHOP_F08_MULTIPROC_PROOF_FILE: ${{ runner.temp }}/shqipshop-f08-ack-state.json
+          SHQIPSHOP_F08_ACK_BASELINE_FILE: ${{ runner.temp }}/shqipshop-f08-ack-baseline.json
+          WORKER_MODE: server
+        run: |
+          set -euo pipefail
+          api=""
+          cleanup() {
+            if [ -n "$api" ]; then kill -TERM -- "-$api" 2>/dev/null || true; fi
+            rm -f "$SHQIPSHOP_F08_MULTIPROC_PROOF_FILE" "$SHQIPSHOP_F08_ACK_BASELINE_FILE"
+          }
+          trap cleanup EXIT
+          ready() {
+            for i in $(seq 1 90); do
+              if curl -fsS --max-time 3 http://127.0.0.1:9220/health >/dev/null 2>&1; then return 0; fi
+              sleep 3
+            done
+            echo "::error::Stage 11E disposable Medusa API did not start"
+            return 1
+          }
+          SHQIPSHOP_F08_CI_FIXTURE_ACTION=create pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-ack-initial.log" 2>&1 &
+          api=$!
+          ready
+          node scripts/f08-multiprocess-complete-ci.mjs prepare
+          node scripts/f08-multiprocess-complete-ci.mjs ack-discard
+          kill -TERM -- "-$api" 2>/dev/null || true
+          wait "$api" 2>/dev/null || true
+          api=""
+          sleep 2
+          if curl -fsS --max-time 3 http://127.0.0.1:9220/health >/dev/null 2>&1; then
+            echo "::error::Old Stage 11E API still listening"
+            exit 1
+          fi
+          SHQIPSHOP_F08_ORDER_CHECK_PHASE=ack-before pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-ack-restart.log" 2>&1 &
+          api=$!
+          ready
+          node scripts/f08-multiprocess-complete-ci.mjs ack-retry
+          kill -TERM -- "-$api" 2>/dev/null || true
+          wait "$api" 2>/dev/null || true
+          api=""
+          SHQIPSHOP_F08_ORDER_CHECK_PHASE=ack-after pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
+          SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
       - name: CI state
         if: always()
         run: |

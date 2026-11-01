@@ -17,7 +17,7 @@ for(const [name,value] of Object.entries({
  REDIS_URL:"redis://127.0.0.1:6379",
 })) assert.equal(process.env[name],value)
 const phase=process.argv[2]
-assert(["prepare","race","replay","fault-attempt","recover"].includes(phase))
+assert(["prepare","race","replay","fault-attempt","recover","ack-discard","ack-retry"].includes(phase))
 if(["fault-attempt","recover"].includes(phase))
  assert.equal(process.env.SHQIPSHOP_F08_FAILURE_CI,"true")
 const root=process.env.RUNNER_TEMP
@@ -151,6 +151,27 @@ if(phase==="prepare"){
  state.orderId=unique[0]
  writeFileSync(stateFile,JSON.stringify(state),{flag:"w",mode:0o600,encoding:"utf8"})
  console.log("SHQIPSHOP_F08_STAGE11C_TWO_SERVER_CONCURRENT_HTTP_SINGLE_ORDER_ID")
+}else if(phase==="ack-discard"){
+ const state=load()
+ assert(!state.orderId)
+ const completed=await complete(9220,state.cartId,state.tokenA)
+ assert.equal(completed.status,200,"Synthetic registered checkout must complete")
+ assert.equal(completed.data?.type,"order")
+ assert(validId(completed.data?.order?.id,"order_"))
+ // Simulated lost client acknowledgement: intentionally do NOT persist ID.
+ console.log("SHQIPSHOP_F08_STAGE11E_COMMITTED_ORDER_ACK_DISCARDED")
+}else if(phase==="ack-retry"){
+ const state=load()
+ assert(!state.orderId,"Client must still be unaware of original order ID")
+ const denied=await complete(9220,state.cartId,null)
+ assert([401,403,404].includes(denied.status))
+ const replay=await complete(9220,state.cartId,state.tokenB)
+ assert(replay.status<500,"Owner replay must not return 5xx")
+ if(replay.status===200){
+  assert.equal(replay.data?.type,"order")
+  assert(validId(replay.data?.order?.id,"order_"))
+ }else assert([400,404,409].includes(replay.status))
+ console.log("SHQIPSHOP_F08_STAGE11E_OWNER_RETRY_AFTER_LOST_ACK")
 }else if(phase==="fault-attempt"){
  const state=load()
  assert(!state.orderId)
