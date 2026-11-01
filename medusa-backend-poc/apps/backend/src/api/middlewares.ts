@@ -8,9 +8,15 @@ export default defineMiddlewares({
   routes: [
     {
       // Exact disposable CI-only owner guard: registered-account cart GET,
-      // line-item create/update/delete. Non-CI traffic remains unaffected.
+      // address updates, shipping-method selection, line-item mutations.
+      // Non-CI traffic remains unaffected.
       matcher: '/store/carts/:id',
-      method: ['GET'],
+      method: ['GET', 'POST'],
+      middlewares: [enforceF08CiOwnerCartPolicy],
+    },
+    {
+      matcher: '/store/carts/:id/shipping-methods',
+      method: ['POST'],
       middlewares: [enforceF08CiOwnerCartPolicy],
     },
     {

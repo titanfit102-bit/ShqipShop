@@ -1,7 +1,7 @@
 /** F08: synthetic CI-only token revocation and owner-cart access proofs.
- * Stage 8 extends the disposable registered-account guard to line-item
- * update/delete. Global revocation,
- * guest capability expiry, and production F08 remain UNSOLVED.
+ * Stage 9 extends the disposable registered-account guard to address/cart
+ * updates and shipping-method selection. Global revocation, guest capability
+ * expiry, account-transfer/complete flows and production F08 remain UNSOLVED.
  */
 import assert from "node:assert/strict"
 import {readFileSync} from "node:fs"
@@ -234,6 +234,81 @@ assert.equal((await removeLine(guestCartId,guestLine.id,null)).status,200)
 assert.equal((await readCart(guestCartId,null)).payload?.cart?.items?.length,0)
 console.log("SHQIPSHOP_F08_CI_STAGE8_GUEST_UPDATE_DELETE_UNCHANGED_BASELINE")
 
+// Stage 9: synthetic address and shipping-option mutation authorization.
+// The normal guest checkout already exercises these same Medusa built-in
+// routes; none of these probes completes checkout or creates an order.
+const cartRoute=id=>"/store/carts/"+encodeURIComponent(id)
+const stage9Address={
+  first_name:"CI",last_name:"Buyer",address_1:"Rruga Test 12",
+  city:"Tirane",postal_code:"1001",country_code:"al",
+}
+const stage9ForbiddenAddress={...stage9Address,address_1:"Rruga Other 90"}
+const stage9Update=(id,token,address)=>
+  request("POST",cartRoute(id),token,{body:{shipping_address:address}})
+const stage9Ship=(id,token,optionId)=>
+  request("POST",cartRoute(id)+"/shipping-methods",token,{
+    body:{option_id:optionId},
+  })
+const stage9Options=async(id,token)=>{
+  const response=await request("GET","/store/shipping-options?cart_id="+encodeURIComponent(id),token)
+  assert.equal(response.status,200)
+  const options=response.payload?.shipping_options
+  assert(Array.isArray(options)&&options.length>0)
+  const standard=options.find(o=>o.name==="Transport standard")??options[0]
+  assert(/^so_[A-Za-z0-9_-]{8,}$/.test(standard.id))
+  return standard.id
+}
+const stage9Id=await newSyntheticOwnedCart()
+assert.equal((await mutateSyntheticCart(stage9Id,owner.token)).status,200)
+for(const [label,token] of [
+  ["ANONYMOUS",null],["FOREIGN_CUSTOMER",stranger.token],
+  ["INVALID_JWT","invalid_f08_ci_token"],
+]){
+  const denied=await stage9Update(stage9Id,token,stage9ForbiddenAddress)
+  assert([401,403,404].includes(denied.status),"Only owner may update shipping address")
+  const current=await readCart(stage9Id,owner.token)
+  assert.equal(current.status,200)
+  assert.notEqual(current.payload?.cart?.shipping_address?.address_1,
+    stage9ForbiddenAddress.address_1,"Denied address write must not persist")
+  assert.equal(current.payload?.cart?.customer_id,owner.id)
+  console.log("SHQIPSHOP_F08_STAGE9_"+label+"_ADDRESS_WRITE_DENIED")
+}
+assert.equal((await stage9Update(stage9Id,owner.token,stage9Address)).status,200)
+const ownerAddress=await readCart(stage9Id,owner.token)
+assert.equal(ownerAddress.payload?.cart?.shipping_address?.address_1,stage9Address.address_1)
+assert.equal(ownerAddress.payload?.cart?.customer_id,owner.id)
+console.log("SHQIPSHOP_F08_STAGE9_OWNER_ADDRESS_PERSISTED")
+const stage9Option=await stage9Options(stage9Id,owner.token)
+for(const [label,token] of [
+  ["ANONYMOUS",null],["FOREIGN_CUSTOMER",stranger.token],
+  ["INVALID_JWT","invalid_f08_ci_token"],
+]){
+  const denied=await stage9Ship(stage9Id,token,stage9Option)
+  assert([401,403,404].includes(denied.status),"Only owner may select shipping method")
+  const current=await readCart(stage9Id,owner.token)
+  assert.equal(current.status,200)
+  assert.equal(current.payload?.cart?.shipping_methods?.length??0,0,
+    "Denied shipping-method mutation must have no persisted effect")
+  console.log("SHQIPSHOP_F08_STAGE9_"+label+"_SHIPPING_METHOD_DENIED")
+}
+assert.equal((await stage9Ship(stage9Id,owner.token,stage9Option)).status,200)
+const ownerShipped=await readCart(stage9Id,owner.token)
+assert((ownerShipped.payload?.cart?.shipping_methods?.length??0)>=1)
+console.log("SHQIPSHOP_F08_STAGE9_OWNER_SHIPPING_METHOD_PERSISTED")
+// Guest positive control, including customer_id created during anonymous checkout.
+const stage9Guest=await request("POST","/store/carts",null,{body:{region_id:region.id}})
+assert.equal(stage9Guest.status,200)
+const stage9GuestId=stage9Guest.payload?.cart?.id
+assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(stage9GuestId??""))
+assert.equal((await mutateSyntheticCart(stage9GuestId,null)).status,200)
+assert.equal((await stage9Update(stage9GuestId,null,stage9Address)).status,200)
+const guestShipping=await stage9Options(stage9GuestId,null)
+assert.equal((await stage9Ship(stage9GuestId,null,guestShipping)).status,200)
+const guestAfterShip=await readCart(stage9GuestId,null)
+assert.equal(guestAfterShip.payload?.cart?.shipping_address?.address_1,stage9Address.address_1)
+assert((guestAfterShip.payload?.cart?.shipping_methods?.length??0)>=1)
+console.log("SHQIPSHOP_F08_STAGE9_GUEST_ADDRESS_AND_SHIPPING_CONTROL_PASSED")
+
 const done=await revocation(owner.token)
 assert.equal(done.status,200)
 assert.equal(done.payload?.revoked,true)
@@ -262,6 +337,14 @@ assert.equal((await removeLine(controlCart,stillOwnedLine.id,owner.token)).statu
 assert.equal(Number((await lineItemOf(controlCart,owner.secondToken)).quantity),1,
   "Revoked JWT must not update or delete cart items")
 console.log("SHQIPSHOP_F08_CI_STAGE8_REVOKED_OWNER_UPDATE_DELETE_401")
+assert.equal((await stage9Update(stage9Id,owner.token,stage9ForbiddenAddress)).status,401,
+  "Revoked JWT must not modify own shipping address")
+assert.equal((await stage9Ship(stage9Id,owner.token,stage9Option)).status,401,
+  "Revoked JWT must not select shipping option")
+const stage9Unchanged=await readCart(stage9Id,owner.secondToken)
+assert.equal(stage9Unchanged.status,200)
+assert.equal(stage9Unchanged.payload?.cart?.shipping_address?.address_1,stage9Address.address_1)
+console.log("SHQIPSHOP_F08_STAGE9_REVOKED_ADDRESS_AND_SHIPPING_401")
 assert.equal((await revocation(owner.secondToken)).status,200,
   "Second device must be revocable independently on explicit request")
 assert.equal((await protectedQuote(owner.secondToken)).status,401,
