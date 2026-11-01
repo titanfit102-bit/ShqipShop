@@ -356,6 +356,32 @@ for(const token of [null,stranger.token]){
 }
 console.log("SHQIPSHOP_F08_STAGE10_GUEST_TO_OWNER_LINK_PASSED")
 
+// Stage 11 intentionally uses an INCOMPLETE synthetic registered cart.
+// This tests authentication before Medusa's payment/checkout validation;
+// it never creates an order or authorizes a payment.
+const probeComplete=(id,token)=>
+  request("POST",cartRoute(id)+"/complete",token,{body:{}})
+const completeCases=[
+  ["NO_BEARER",null],["FOREIGN_CUSTOMER",stranger.token],
+  ["INVALID_BEARER","invalid_f08_ci_token"],
+]
+const concurrentDenied=await Promise.all(completeCases.map(async ([label,token])=>{
+  const result=await probeComplete(stage9Id,token)
+  assert([401,403,404].includes(result.status),"Unexpected completion authorization: "+label)
+  return label
+}))
+const stage11Unchanged=await readCart(stage9Id,owner.token)
+assert.equal(stage11Unchanged.status,200)
+assert.equal(stage11Unchanged.payload?.cart?.customer_id,owner.id)
+assert.equal(stage11Unchanged.payload?.cart?.items?.length,1)
+console.log("SHQIPSHOP_F08_STAGE11_CONCURRENT_NONOWNER_COMPLETE_DENIED")
+const ownerCompletionProbe=await probeComplete(stage9Id,owner.token)
+assert(![401,403,404].includes(ownerCompletionProbe.status),
+  "Valid owner must pass the CI authorization check before checkout validation")
+assert(!ownerCompletionProbe.payload?.order?.id,
+  "Incomplete disposable cart MUST NOT accidentally produce an order")
+console.log("SHQIPSHOP_F08_STAGE11_OWNER_REACHES_CHECKOUT_VALIDATION_ONLY")
+
 const done=await revocation(owner.token)
 assert.equal(done.status,200)
 assert.equal(done.payload?.revoked,true)
@@ -402,6 +428,12 @@ assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(postRevokeId??""))
 assert.equal((await associateCart(postRevokeId,owner.token)).status,401)
 assert.equal((await readCart(postRevokeId,null)).payload?.cart?.customer_id??null,null)
 console.log("SHQIPSHOP_F08_STAGE10_REVOKED_REGISTERED_AND_GUEST_ASSOCIATION_401")
+assert.equal((await probeComplete(stage9Id,owner.token)).status,401,
+  "Revoked bearer MUST NOT reach built-in cart completion")
+const stage11Second=await readCart(stage9Id,owner.secondToken)
+assert.equal(stage11Second.status,200)
+assert.equal(stage11Second.payload?.cart?.customer_id,owner.id)
+console.log("SHQIPSHOP_F08_STAGE11_REVOKED_COMPLETE_401")
 
 assert.equal((await revocation(owner.secondToken)).status,200,
   "Second device must be revocable independently on explicit request")

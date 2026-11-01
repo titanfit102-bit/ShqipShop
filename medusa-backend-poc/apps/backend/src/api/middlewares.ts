@@ -36,6 +36,12 @@ export default defineMiddlewares({
       middlewares: [enforceF08CiOwnerCartPolicy],
     },
     {
+      // Exact-CI proof only: completion requires registered-cart ownership.
+      matcher: '/store/carts/:id/complete',
+      method: ['POST'],
+      middlewares: [enforceF08CiOwnerCartPolicy],
+    },
+    {
       // CI-only demonstration of guard injection into a BUILT-IN Medusa
       // private customer profile endpoint. Outside exact disposable CI,
       // middleware is a no-op; real production auth behavior is unchanged.
