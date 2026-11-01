@@ -327,7 +327,7 @@ jobs:
           api=""
           client=""
           cleanup() {
-            redis-cli -h 127.0.0.1 -p 6379 CLIENT UNPAUSE > /dev/null 2>&1 || true
+            node scripts/f08-redis-pause-ci.mjs unpause > /dev/null 2>&1 || true
             if [ -n "$api" ]; then
               kill -KILL -- "-$api" 2>/dev/null || true
               wait "$api" 2>/dev/null || true
@@ -352,10 +352,10 @@ jobs:
           api=$!
           ready
           node scripts/f08-multiprocess-complete-ci.mjs prepare
-          test "$(redis-cli -h 127.0.0.1 -p 6379 ping)" = PONG
+          node scripts/f08-redis-pause-ci.mjs ping
           # Pause ONLY runner-local Redis: the in-flight checkout cannot
           # obtain a lock while the owning API is force-terminated.
-          test "$(redis-cli -h 127.0.0.1 -p 6379 CLIENT PAUSE 10000 ALL)" = OK
+          node scripts/f08-redis-pause-ci.mjs pause
           node scripts/f08-multiprocess-complete-ci.mjs fault-attempt &
           client=$!
           for i in $(seq 1 80); do
@@ -369,7 +369,7 @@ jobs:
           api=""
           wait "$client"
           client=""
-          test "$(redis-cli -h 127.0.0.1 -p 6379 CLIENT UNPAUSE)" = OK
+          node scripts/f08-redis-pause-ci.mjs unpause
           if curl -fsS --max-time 3 http://127.0.0.1:9220/health > /dev/null 2>&1; then
             echo "::error::Terminated API still responds"
             exit 1
