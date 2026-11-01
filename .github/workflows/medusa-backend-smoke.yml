@@ -374,7 +374,7 @@ jobs:
             echo "::error::Terminated API still responds"
             exit 1
           fi
-          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts before
+          SHQIPSHOP_F08_ORDER_CHECK_PHASE=before pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
           setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-fault-recovery.log" 2>&1 &
           api=$!
           ready

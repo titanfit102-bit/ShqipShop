@@ -25,7 +25,7 @@ export default async function verifyMultiProcess({container}:ExecArgs){
  assert(/^cus_[A-Za-z0-9_-]{8,}$/.test(proof.customerId))
  assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(proof.cartId))
  const query=container.resolve(ContainerRegistrationKeys.QUERY)
- const before=process.argv[2]==="before"
+ const before=process.env.SHQIPSHOP_F08_ORDER_CHECK_PHASE==="before"
  if(before){
   assert.equal(process.env.SHQIPSHOP_F08_FAILURE_CI,"true")
   assert(!proof.orderId)
