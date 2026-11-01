@@ -1,5 +1,10 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-01 — F08 Stage 9: address/shipping boundary
+
+[Code 2fcdf1d](https://github.com/titanfit102-bit/ShqipShop/commit/2fcdf1daade115fa3b35feac34bceba3f513ffec) + [Medusa CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41307945868): **8/8 PASS**. Exact synthetic CI owner guard now covers POST cart address and POST cart shipping-method selection; only registered owner authorized, missing/foreign/invalid/revoked JWT denied without persisted mutation, guest checkout unchanged. Transfer/account association, complete/payment, cookies/CSRF, guest expiry, global revocation and Production remain OPEN. F08 P0 and G3/G5 BLOCKED.
+
+
 ## 2026-10-28 — F08 Stage 8: cart line-item edit/remove CI proof
 
 [Code 35d4fe5](https://github.com/titanfit102-bit/ShqipShop/commit/35d4fe576c12f4afde854abd49c8425ea7671d64), [Medusa CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40605531224), **8/8 success** at code SHA: exact CI guard added registered-cart POST quantity update and DELETE line item; owner allowed/persisted; missing/foreign/invalid/revoked bearer denied, no denied changes; guest edit/remove preserved. Four scoped cart operations only, **NOT Production**. Remaining cart update, transfer, shipping, checkout, guest capability expiry, token lifecycle and F08 P0/G3/G5 remain blocked.

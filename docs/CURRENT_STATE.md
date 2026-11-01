@@ -1,5 +1,12 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-01 — F08 Stage 9: cart address + shipping method (disposable CI)
+
+**VERIFIED:** [code 2fcdf1d](https://github.com/titanfit102-bit/ShqipShop/commit/2fcdf1daade115fa3b35feac34bceba3f513ffec) passed **8/8 GitHub Actions**, including [Medusa HTTP run 41307945868](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41307945868). The exact-CI-gated registered-account owner guard now additionally covers built-in **POST /store/carts/:id** (shipping address) and **POST /store/carts/:id/shipping-methods** (shipping-option selection). Owner mutations were persisted; anonymous, foreign-account and invalid-bearer attempts were denied with no persisted change; revoked owner JWT received HTTP 401. Guest address and shipping workflows passed, as did existing mock checkout and other tenant/cache/native/security CI. No real customer data, live orders, payments or stock charge were involved.
+
+**BOUNDARY:** This is disposable CI proof only, NOT production enforcement. Guest cart ID possession and capability expiry/rotation, registered-cart association/transfer, shipping-method DELETE, cart completion/payment hooks, cookie/CSRF, all-device logout, native token security and full Store/Admin coverage remain OPEN. F08 P0, F07g/F09 and RG-02/G3/G5 release still BLOCKED; PR #12 Draft; no merge/main/Production/migration. **NEXT:** isolated customer association and checkout authorization/race diagnostic before any approved production policy. Documentation HEAD requires its own CI result.
+
+
 ## 2026-10-28 — F08 Stage 8: account-owned cart item update/delete (CI ONLY)
 
 **VERIFIED:** [code 35d4fe5](https://github.com/titanfit102-bit/ShqipShop/commit/35d4fe576c12f4afde854abd49c8425ea7671d64), [Medusa run 40605531224](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40605531224), **8/8 workflows SUCCESS** at exact code SHA. The existing exact-disposable-CI Medusa guard now also protects built-in POST and DELETE `/store/carts/:id/line-items/:line_id`. On separate synthetic registered-customer carts, verified owner POST quantity update and DELETE persisted; missing bearer, foreign customer bearer and invalid bearer were denied, leaving the quantity unchanged; revoked owner JWT received 401 for both operations. Guest cart update/delete remained functional. Existing checkout, price, A/B merchant isolation, cache, native and security CI passed.
