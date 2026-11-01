@@ -104,7 +104,8 @@ assert.equal(single.status,200,"Authenticated Medusa owner must complete mock ch
 assert.equal(single.data?.type,"order")
 const singleId=single.data?.order?.id
 assert(/^order_[A-Za-z0-9_-]{8,}$/.test(singleId??""))
-assert.equal(single.data?.order?.customer_id,customerId)
+// Store response may omit private customer_id. Independently verify it
+// from PostgreSQL with the cart/order link after all HTTP probes.
 assert.equal(single.data?.order?.currency_code,"all")
 console.log("SHQIPSHOP_F08_STAGE11B_OWNER_MOCK_ORDER_HTTP_200")
 const raceCart=await preparedCart()
