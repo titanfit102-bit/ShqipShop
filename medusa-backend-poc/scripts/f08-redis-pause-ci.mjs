@@ -22,7 +22,8 @@ await new Promise((resolve,reject)=>{
  const socket=createConnection({host:"127.0.0.1",port:6379})
  let result=""
  const fail=e=>{socket.destroy();reject(e)}
- socket.setTimeout(8000,()=>fail(new Error("Disposable Redis control timed out")))
+ socket.setTimeout(mode==="unpause"?15000:8000,
+  ()=>fail(new Error("Disposable Redis control timed out")))
  socket.once("error",fail)
  socket.once("connect",()=>socket.write(resp))
  socket.on("data",b=>{
