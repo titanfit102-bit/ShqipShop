@@ -1,5 +1,10 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-01 — F08 Stage 10: customer association boundary
+
+[Code 43a82b6](https://github.com/titanfit102-bit/ShqipShop/commit/43a82b6fb032b053df23c698a96214b08231ce2f); [Medusa CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41309903565); **8/8 PASS at code SHA**. Disposable CI guard now checks POST `/store/carts/:id/customer`: registered owner preserved, foreign/anonymous/invalid JWT denied; verified guest-to-owner association allowed, followed by owner-only read; revoked JWT denied for owner relink and guest claim. No production rule deployed. Guest capability expiry, concurrent claims/merges and checkout-complete authorization remain OPEN; F08 P0, G3/G5 BLOCKED.
+
+
 ## 2026-11-01 — F08 Stage 9: address/shipping boundary
 
 [Code 2fcdf1d](https://github.com/titanfit102-bit/ShqipShop/commit/2fcdf1daade115fa3b35feac34bceba3f513ffec) + [Medusa CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41307945868): **8/8 PASS**. Exact synthetic CI owner guard now covers POST cart address and POST cart shipping-method selection; only registered owner authorized, missing/foreign/invalid/revoked JWT denied without persisted mutation, guest checkout unchanged. Transfer/account association, complete/payment, cookies/CSRF, guest expiry, global revocation and Production remain OPEN. F08 P0 and G3/G5 BLOCKED.
