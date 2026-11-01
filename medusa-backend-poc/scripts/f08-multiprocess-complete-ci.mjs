@@ -17,7 +17,9 @@ for(const [name,value] of Object.entries({
  REDIS_URL:"redis://127.0.0.1:6379",
 })) assert.equal(process.env[name],value)
 const phase=process.argv[2]
-assert(["prepare","race","replay"].includes(phase))
+assert(["prepare","race","replay","fault-attempt","recover"].includes(phase))
+if(["fault-attempt","recover"].includes(phase))
+ assert.equal(process.env.SHQIPSHOP_F08_FAILURE_CI,"true")
 const root=process.env.RUNNER_TEMP
 const keyFile=process.env.SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE
 const variantFile=process.env.SHQIPSHOP_F07E_REPRICE_PROOF_FILE
@@ -149,6 +151,46 @@ if(phase==="prepare"){
  state.orderId=unique[0]
  writeFileSync(stateFile,JSON.stringify(state),{flag:"w",mode:0o600,encoding:"utf8"})
  console.log("SHQIPSHOP_F08_STAGE11C_TWO_SERVER_CONCURRENT_HTTP_SINGLE_ORDER_ID")
+}else if(phase==="fault-attempt"){
+ const state=load()
+ assert(!state.orderId)
+ const marker=process.env.SHQIPSHOP_F08_INFLIGHT_STARTED_FILE
+ assert(marker&&resolve(marker).startsWith(resolve(root)+sep))
+ writeFileSync(marker,"request-issued",{mode:0o600,flag:"wx"})
+ // The workflow pauses disposable Redis and terminates the API process
+ // while this request is pending. No actual PSP charge can occur.
+ try {
+  const response=await fetch(base(9220)+"/store/carts/"+
+   encodeURIComponent(state.cartId)+"/complete",{
+   method:"POST",
+   headers:{"x-publishable-api-key":key,
+    authorization:"Bearer "+state.tokenA,
+    "content-type":"application/json"},
+   body:"{}",cache:"no-store",signal:AbortSignal.timeout(7000),
+  })
+  assert(response.status>=400,
+   "A Redis-paused, interrupted checkout must not return success")
+ }catch(err){
+  if(!(err instanceof TypeError)&&
+     !(err instanceof DOMException&&
+       ["AbortError","TimeoutError"].includes(err.name)))
+   throw err
+ }
+ console.log("SHQIPSHOP_F08_STAGE11D_INTERRUPTED_CLIENT_DID_NOT_COMPLETE")
+}else if(phase==="recover"){
+ const state=load()
+ assert(!state.orderId)
+ const denied=await complete(9220,state.cartId,null)
+ assert([401,403,404].includes(denied.status),
+  "Restart must not bypass registered-cart owner policy")
+ const response=await complete(9220,state.cartId,state.tokenB)
+ assert.equal(response.status,200,"Valid owner must recover incomplete cart")
+ assert.equal(response.data?.type,"order")
+ assert(validId(response.data?.order?.id,"order_"))
+ state.orderId=response.data.order.id
+ writeFileSync(stateFile,JSON.stringify(state),{
+  mode:0o600,flag:"w",encoding:"utf8"})
+ console.log("SHQIPSHOP_F08_STAGE11D_RESTARTED_OWNER_COMPLETES_ONCE")
 }else{
  const state=load()
  assert(validId(state.orderId,"order_"))

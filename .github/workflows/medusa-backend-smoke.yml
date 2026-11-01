@@ -310,6 +310,80 @@ jobs:
           pid_a=""
           pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
           SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+      - name: F08 Stage 11D crash mid-request during disposable Redis pause, then recover
+        env:
+          SHQIPSHOP_F08_MULTIPROC_CI: "true"
+          SHQIPSHOP_F08_FAILURE_CI: "true"
+          SHQIPSHOP_F08_REVOCATION_CI: "true"
+          SHQIPSHOP_F08_OWNER_CART_CI: "true"
+          SHQIPSHOP_F07G_HTTP_CI: "true"
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+          SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
+          SHQIPSHOP_F08_MULTIPROC_PROOF_FILE: ${{ runner.temp }}/shqipshop-f08-fault-proof.json
+          SHQIPSHOP_F08_INFLIGHT_STARTED_FILE: ${{ runner.temp }}/shqipshop-f08-inflight.started
+          WORKER_MODE: server
+        run: |
+          set -euo pipefail
+          api=""
+          client=""
+          cleanup() {
+            redis-cli -h 127.0.0.1 -p 6379 CLIENT UNPAUSE > /dev/null 2>&1 || true
+            if [ -n "$api" ]; then
+              kill -KILL -- "-$api" 2>/dev/null || true
+              wait "$api" 2>/dev/null || true
+            fi
+            if [ -n "$client" ]; then
+              kill "$client" 2>/dev/null || true
+              wait "$client" 2>/dev/null || true
+            fi
+            rm -f "$SHQIPSHOP_F08_MULTIPROC_PROOF_FILE" "$SHQIPSHOP_F08_INFLIGHT_STARTED_FILE"
+          }
+          trap cleanup EXIT
+          ready() {
+            for i in $(seq 1 90); do
+              if curl -fsS --max-time 3 http://127.0.0.1:9220/health > /dev/null 2>&1; then return 0; fi
+              sleep 3
+            done
+            echo "::error::Disposable Medusa API did not start"
+            return 1
+          }
+          SHQIPSHOP_F08_CI_FIXTURE_ACTION=create pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-fault-api.log" 2>&1 &
+          api=$!
+          ready
+          node scripts/f08-multiprocess-complete-ci.mjs prepare
+          test "$(redis-cli -h 127.0.0.1 -p 6379 ping)" = PONG
+          # Pause ONLY runner-local Redis: the in-flight checkout cannot
+          # obtain a lock while the owning API is force-terminated.
+          test "$(redis-cli -h 127.0.0.1 -p 6379 CLIENT PAUSE 10000 ALL)" = OK
+          node scripts/f08-multiprocess-complete-ci.mjs fault-attempt &
+          client=$!
+          for i in $(seq 1 80); do
+            if [ -f "$SHQIPSHOP_F08_INFLIGHT_STARTED_FILE" ]; then break; fi
+            sleep 0.1
+          done
+          test -f "$SHQIPSHOP_F08_INFLIGHT_STARTED_FILE"
+          sleep 1
+          kill -KILL -- "-$api"
+          wait "$api" 2>/dev/null || true
+          api=""
+          wait "$client"
+          client=""
+          test "$(redis-cli -h 127.0.0.1 -p 6379 CLIENT UNPAUSE)" = OK
+          if curl -fsS --max-time 3 http://127.0.0.1:9220/health > /dev/null 2>&1; then
+            echo "::error::Terminated API still responds"
+            exit 1
+          fi
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts before
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-fault-recovery.log" 2>&1 &
+          api=$!
+          ready
+          node scripts/f08-multiprocess-complete-ci.mjs recover
+          kill -TERM -- "-$api" 2>/dev/null || true
+          wait "$api" 2>/dev/null || true
+          api=""
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
+          SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
       - name: CI state
         if: always()
         run: |
