@@ -14,7 +14,7 @@ import Navbar from '@components/common/navbar';
 
 const RegionSelect = () => {
   const colors = useColors();
-  const { region, setRegion } = useRegion();
+  const { region, setRegion, regionError, retryRegion } = useRegion();
   const [_, startTransition] = useTransition();
   const navigation = useNavigation();
 
@@ -60,6 +60,20 @@ const RegionSelect = () => {
   return (
     <View className="flex-1 bg-background">
       <Navbar title="Select Region" />
+      {regionError ? (
+        <View className="p-4 gap-2">
+          <Text accessibilityRole="alert">
+            Unable to save the selected region. Please retry.
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Retry saving region"
+            onPress={retryRegion}
+          >
+            <Text className="text-primary">Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
       <FlatList
         data={data.regions}
         renderItem={renderItem}

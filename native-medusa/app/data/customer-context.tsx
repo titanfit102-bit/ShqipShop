@@ -1,7 +1,14 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { HttpTypes } from '@medusajs/types';
 import apiClient from '@api/client';
+import {
+  blockAuthForLogin,
+  clearNativeCustomerToken,
+  confirmNewLoginToken,
+} from '@api/auth-token-storage';
 import { useCart } from './cart-context';
+import { clearPrivateCustomerQueries } from './private-customer-queries';
 
 type CustomerContextType = {
   customer?: HttpTypes.StoreCustomer;
@@ -26,50 +33,79 @@ type CustomerProviderProps = {
 export const CustomerProvider = ({ children }: CustomerProviderProps) => {
   const [customer, setCustomer] = useState<HttpTypes.StoreCustomer>();
   const { linkCartToCustomer, resetCart } = useCart();
+  const queryClient = useQueryClient();
+  // Ignore responses from a previous login/logout generation.
+  const identityEpoch = useRef(0);
+  const currentPrincipalId = useRef<string | undefined>(undefined);
 
-  useEffect(() => {
-    // Check for existing session on mount
-    refreshCustomer();
-  }, []);
+  const applyCustomer = useCallback(async (
+    nextCustomer: HttpTypes.StoreCustomer | undefined,
+    epoch: number,
+  ) => {
+    if (epoch !== identityEpoch.current) return;
+    if (currentPrincipalId.current !== nextCustomer?.id) {
+      currentPrincipalId.current = nextCustomer?.id;
+      await clearPrivateCustomerQueries(queryClient);
+    }
+    if (epoch === identityEpoch.current) setCustomer(nextCustomer);
+  }, [queryClient]);
 
-  const refreshCustomer = async () => {
+  const refreshCustomer = useCallback(async () => {
+    const epoch = identityEpoch.current;
     try {
       const { customer: existingCustomer } =
         await apiClient.store.customer.retrieve();
-      setCustomer(existingCustomer);
+      await applyCustomer(existingCustomer, epoch);
     } catch {
-      // Customer isn't logged in
-      setCustomer(undefined);
+      // Failed or expired identity must not leave previous private data visible.
+      await applyCustomer(undefined, epoch);
     }
-  };
+  }, [applyCustomer]);
+
+  useEffect(() => {
+    // The identity generation rejects late responses from previous logins.
+    refreshCustomer();
+  }, [refreshCustomer]);
 
   const login = async (email: string, password: string) => {
-    try {
-      // Authenticate using the auth endpoint
-      const response = await apiClient.auth.login('customer', 'emailpass', {
-        email,
-        password,
-      });
+    ++identityEpoch.current;
+    // Hide the previous account before making any request with new credentials.
+    setCustomer(undefined);
+    currentPrincipalId.current = undefined;
+    await clearPrivateCustomerQueries(queryClient);
 
-      // Check if the response is a string
-      if (typeof response === 'string') {
-        await Promise.all([refreshCustomer(), linkCartToCustomer()]);
-      } else {
-        // Handle third party auth
-        console.log('Third party auth', response);
-      }
-    } catch (error) {
-      throw error;
+    blockAuthForLogin();
+    const response = await apiClient.auth.login('customer', 'emailpass', {
+      email,
+      password,
+    });
+
+    if (typeof response === 'string') {
+      await confirmNewLoginToken(response);
+      await Promise.all([refreshCustomer(), linkCartToCustomer()]);
+    } else {
+      // Third-party authentication is not completed here.
+      console.log('Third party auth', response);
     }
   };
 
   const logout = async () => {
+    ++identityEpoch.current;
+    // Remove private data immediately, even if the SDK's logout fails.
+    setCustomer(undefined);
+    currentPrincipalId.current = undefined;
+    await clearPrivateCustomerQueries(queryClient);
     try {
-      await apiClient.auth.logout();
-      await resetCart();
-      setCustomer(undefined);
-    } catch (error) {
-      throw error;
+      // This JWT-specific SDK client operation is awaited; auth.logout()
+      // does not await its custom-storage remove in SDK v2.21.2.
+      await clearNativeCustomerToken(apiClient.client);
+    } finally {
+      try {
+        await resetCart();
+      } finally {
+        await clearPrivateCustomerQueries(queryClient);
+        setCustomer(undefined);
+      }
     }
   };
 
@@ -101,12 +137,9 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
   };
 
   const updateCustomer = async (data: HttpTypes.StoreUpdateCustomer) => {
-    try {
-      const response = await apiClient.store.customer.update(data);
-      setCustomer(response.customer);
-    } catch (error) {
-      throw error;
-    }
+    const epoch = identityEpoch.current;
+    const response = await apiClient.store.customer.update(data);
+    await applyCustomer(response.customer, epoch);
   };
 
   return (

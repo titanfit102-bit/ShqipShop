@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, ScrollView, Alert } from 'react-native';
 import { useLocalization } from '@fluent/react';
 import { useCart } from '@data/cart-context';
@@ -30,10 +30,12 @@ import {
 } from '@data/hooks';
 import { StoreCartAddress } from '@medusajs/types';
 import utils from '@utils/common';
+import { activeCheckoutPaymentSession } from '@data/checkout-progress';
+import { CART_FIELDS } from '@data/cart-recovery';
 
 const Checkout = () => {
   const { l10n } = useLocalization();
-  const { cart, updateCart, resetCart } = useCart();
+  const { cart, setCart, updateCart, resetCart } = useCart();
   const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdatingShipping, setIsUpdatingShipping] = useState(false);
@@ -45,6 +47,15 @@ const Checkout = () => {
   );
 
   const [activeStep, setActiveStep] = useState(currentStep);
+
+  // An expired/changed cart cannot keep the old Review screen active.
+  useEffect(() => {
+    const allowed = CHECKOUT_STEPS.findIndex(step => step.id === currentStep);
+    setActiveStep(previous => {
+      const selected = CHECKOUT_STEPS.findIndex(step => step.id === previous);
+      return selected > allowed ? currentStep : previous;
+    });
+  }, [currentStep]);
 
   const getAddressFromCart = (
     cartAddress?: StoreCartAddress,
@@ -173,12 +184,27 @@ const Checkout = () => {
     await apiClient.store.payment.initiatePaymentSession(cart, {
       provider_id: selectedPaymentProviderId,
     });
+    // Refresh from Medusa; local selection is not evidence of a valid session.
+    const { cart: refreshed } = await apiClient.store.cart.retrieve(cart.id, {
+      fields: CART_FIELDS,
+    });
+    const session = activeCheckoutPaymentSession(refreshed);
+    if (!session || session.provider_id !== selectedPaymentProviderId) {
+      setActiveStep('payment');
+      throw new Error('The payment session was not confirmed; retry payment');
+    }
+    setCart(refreshed);
     setActiveStep('review');
   };
 
   const handleOrderComplete = async () => {
     if (!cart?.id) {
       throw new Error(l10n.getString('no-cart-found'));
+    }
+    const session = activeCheckoutPaymentSession(cart);
+    if (!session || session.provider_id !== selectedPaymentProviderId) {
+      setActiveStep('payment');
+      throw new Error('Payment session is missing or outdated; select a payment method again');
     }
 
     const selectedProvider = selectedPaymentProviderId
@@ -211,7 +237,7 @@ const Checkout = () => {
             },
             {
               name: 'OrderDetail',
-              params: { orderId: response.order.id },
+              params: { orderId: response.order.id, cartProof: cart.id },
             },
           ],
         }),
