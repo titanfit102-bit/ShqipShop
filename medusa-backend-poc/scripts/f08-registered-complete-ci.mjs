@@ -85,7 +85,8 @@ async function preparedCart(){
  await required("POST","/store/carts/"+id+"/shipping-methods",tokenA,{option_id:shipping.id})
  const payment=await required("POST","/store/payment-collections",tokenA,{cart_id:id})
  const paymentId=payment?.payment_collection?.id
- assert(/^paycol_[A-Za-z0-9_-]{8,}$/.test(paymentId??""))
+ assert(/^pay_?col_[A-Za-z0-9_-]{8,}$/.test(paymentId??""),
+  "Disposable payment collection must have a Medusa-generated ID")
  await required("POST","/store/payment-collections/"+paymentId+"/payment-sessions",tokenA,{
   provider_id:"pp_system_default"})
  const verified=await required("GET","/store/carts/"+id+"?fields="+
