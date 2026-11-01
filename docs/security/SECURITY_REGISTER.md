@@ -1,5 +1,10 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-01 — F08 Stage 11C: two servers plus restart, scoped CI
+
+[Code 3133a2d](https://github.com/titanfit102-bit/ShqipShop/commit/3133a2d0f536fc2bea5a194ce4c3d02bc14c8527); [CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41325424595), **8/8 PASS**. Two Medusa API processes shared disposable Redis/PostgreSQL; concurrent registered-owner completions returned one ID. After stopping both, restart/replay generated no second order; PostgreSQL independently confirmed one cart/one order. Manual mock payment only. Real PSP, crash mid-commit, load/Redis failover, cookie/CSRF and production F08 remain OPEN; G3/G5 BLOCKED.
+
+
 ## 2026-11-01 — F08 Stage 11B: registered checkout concurrency, synthetic
 
 [Code f1373f2](https://github.com/titanfit102-bit/ShqipShop/commit/f1373f2b922ee76745085c7d4c2b27a3fdc2bca5), [Medusa CI 41323388777](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41323388777), **8/8 success at code SHA**. Distinct-owner-JWT concurrent completion on one registered mock-payment cart produced at most one order ID; independent PostgreSQL Query confirmed exactly two orders for two separate synthetic carts, correct bidirectional cart/order ownership, currency ALL and positive totals. Anonymous/invalid bearer denied; existing exact-one-unit inventory regression was preserved by executing Stage 11B afterward. Prior test-only red CI was fixed. **Partial CI proof only:** real PSP, multi-process atomicity/replay, stock locking, guest expiry, production F08 and G3/G5 remain blocked.
