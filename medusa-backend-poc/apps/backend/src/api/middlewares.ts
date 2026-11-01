@@ -20,6 +20,12 @@ export default defineMiddlewares({
       middlewares: [enforceF08CiOwnerCartPolicy],
     },
     {
+      // CI only: protect registered-cart association and validate guest claims.
+      matcher: '/store/carts/:id/customer',
+      method: ['POST'],
+      middlewares: [enforceF08CiOwnerCartPolicy],
+    },
+    {
       matcher: '/store/carts/:id/line-items',
       method: ['POST'],
       middlewares: [enforceF08CiOwnerCartPolicy],

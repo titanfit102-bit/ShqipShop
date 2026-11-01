@@ -1,7 +1,7 @@
 /** F08: synthetic CI-only token revocation and owner-cart access proofs.
- * Stage 9 extends the disposable registered-account guard to address/cart
- * updates and shipping-method selection. Global revocation, guest capability
- * expiry, account-transfer/complete flows and production F08 remain UNSOLVED.
+ * Stage 10 verifies CI-only cart/customer association (guest to authenticated
+ * account and registered owner preservation). Guest capability expiry,
+ * completion/payment and production F08 remain UNSOLVED.
  */
 import assert from "node:assert/strict"
 import {readFileSync} from "node:fs"
@@ -309,6 +309,53 @@ assert.equal(guestAfterShip.payload?.cart?.shipping_address?.address_1,stage9Add
 assert((guestAfterShip.payload?.cart?.shipping_methods?.length??0)>=1)
 console.log("SHQIPSHOP_F08_STAGE9_GUEST_ADDRESS_AND_SHIPPING_CONTROL_PASSED")
 
+// Stage 10 — customer association is protected by a separate synthetic
+// positive/negative test; guest capability/claim expiry is NOT decided here.
+const associateCart=(id,token)=>
+  request("POST",cartRoute(id)+"/customer",token)
+for(const [label,token] of [
+  ["ANONYMOUS",null],
+  ["FOREIGN_BEARER",stranger.token],
+  ["INVALID_BEARER","invalid_f08_ci_token"],
+]){
+  const response=await associateCart(controlCart,token)
+  assert([401,403,404].includes(response.status),
+    "Registered customer cart association must deny "+label)
+  const checked=await readCart(controlCart,owner.token)
+  assert.equal(checked.status,200)
+  assert.equal(checked.payload?.cart?.customer_id,owner.id)
+  console.log("SHQIPSHOP_F08_STAGE10_REGISTERED_CART_"+label+"_DENIED")
+}
+assert.equal((await associateCart(controlCart,owner.token)).status,200)
+assert.equal((await readCart(controlCart,owner.token)).payload?.cart?.customer_id,owner.id)
+console.log("SHQIPSHOP_F08_STAGE10_OWNER_IDEMPOTENT_ASSOCIATION_PASSED")
+const unlinked=await request("POST","/store/carts",null,{body:{region_id:region.id}})
+assert.equal(unlinked.status,200)
+const unlinkedId=unlinked.payload?.cart?.id
+assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(unlinkedId??""))
+assert.equal((await mutateSyntheticCart(unlinkedId,null)).status,200)
+for(const [label,token] of [
+  ["ANONYMOUS",null],["INVALID_BEARER","invalid_f08_ci_token"],
+]){
+  const result=await associateCart(unlinkedId,token)
+  assert([401,403,404].includes(result.status,
+    "Unverified guest to account link must fail: "+label))
+  const unchanged=await readCart(unlinkedId,null)
+  assert.equal(unchanged.status,200)
+  assert.equal(unchanged.payload?.cart?.customer_id??null,null)
+  console.log("SHQIPSHOP_F08_STAGE10_GUEST_CLAIM_"+label+"_DENIED")
+}
+assert.equal((await associateCart(unlinkedId,owner.token)).status,200)
+const nowOwned=await readCart(unlinkedId,owner.token)
+assert.equal(nowOwned.status,200)
+assert.equal(nowOwned.payload?.cart?.customer_id,owner.id)
+assert.equal(nowOwned.payload?.cart?.items?.length,1)
+for(const token of [null,stranger.token]){
+  assert([401,403,404].includes((await readCart(unlinkedId,token)).status),
+    "Claimed registered cart must no longer be accessible as a guest/foreign customer")
+}
+console.log("SHQIPSHOP_F08_STAGE10_GUEST_TO_OWNER_LINK_PASSED")
+
 const done=await revocation(owner.token)
 assert.equal(done.status,200)
 assert.equal(done.payload?.revoked,true)
@@ -345,6 +392,17 @@ const stage9Unchanged=await readCart(stage9Id,owner.secondToken)
 assert.equal(stage9Unchanged.status,200)
 assert.equal(stage9Unchanged.payload?.cart?.shipping_address?.address_1,stage9Address.address_1)
 console.log("SHQIPSHOP_F08_STAGE9_REVOKED_ADDRESS_AND_SHIPPING_401")
+// Revocation must cover association whether or not a guest cart has
+// registered ownership before the request.
+assert.equal((await associateCart(controlCart,owner.token)).status,401)
+const postRevokeCart=await request("POST","/store/carts",null,{body:{region_id:region.id}})
+assert.equal(postRevokeCart.status,200)
+const postRevokeId=postRevokeCart.payload?.cart?.id
+assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(postRevokeId??""))
+assert.equal((await associateCart(postRevokeId,owner.token)).status,401)
+assert.equal((await readCart(postRevokeId,null)).payload?.cart?.customer_id??null,null)
+console.log("SHQIPSHOP_F08_STAGE10_REVOKED_REGISTERED_AND_GUEST_ASSOCIATION_401")
+
 assert.equal((await revocation(owner.secondToken)).status,200,
   "Second device must be revocable independently on explicit request")
 assert.equal((await protectedQuote(owner.secondToken)).status,401,

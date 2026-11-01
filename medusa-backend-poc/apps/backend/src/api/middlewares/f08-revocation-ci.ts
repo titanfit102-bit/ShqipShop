@@ -76,7 +76,7 @@ export const enforceF08CiProfilePolicy = (
 }
 
 /**
- * F08 Stages 7–9 — disposable CI ONLY: prove that a known cart ID does not
+ * F08 Stages 7–10 — disposable CI ONLY: prove that a known cart ID does not
  * authorize reading or modifying a cart once it belongs to a customer.
  * Guest carts deliberately retain original Medusa semantics in this probe;
  * their capability/expiry contract is NOT a production security decision.
@@ -94,7 +94,7 @@ export const enforceF08CiOwnerCartPolicy = (
       // Medusa may run a matcher before its final route populates req.params;
       // extract only from the exact normalized path, never from a client header.
       const rawPath=String(req.originalUrl ?? req.path ?? "").split("?")[0]
-      const pathMatch=/^\/store\/carts\/(cart_[A-Za-z0-9_-]{8,})(?:\/(?:line-items(?:\/cali_[A-Za-z0-9_-]{8,})?|shipping-methods))?\/?$/.exec(rawPath)
+      const pathMatch=/^\/store\/carts\/(cart_[A-Za-z0-9_-]{8,})(?:\/(?:line-items(?:\/cali_[A-Za-z0-9_-]{8,})?|shipping-methods|customer))?\/?$/.exec(rawPath)
       const cartId=pathMatch?.[1]
       if (!cartId || (req.params?.id && req.params.id !== cartId)) {
         console.log("SHQIPSHOP_F08_CI_DEBUG_CART_ROUTE_MISMATCH")
@@ -130,6 +130,7 @@ export const enforceF08CiOwnerCartPolicy = (
         registeredAccount=customers[0].has_account
       }
       const attempted=Boolean(req.headers.authorization || req.headers.cookie)
+      const isAssociation=/\/customer\/?$/.test(rawPath)
       const actor=req.auth_context?.actor_type==="customer"
         ? req.auth_context?.actor_id : null
       // A failed bearer/cookie is not a valid guest possession credential.
@@ -137,6 +138,8 @@ export const enforceF08CiOwnerCartPolicy = (
         console.log("SHQIPSHOP_F08_CI_DEBUG_AUTHENTICATION_REJECTED")
         return res.sendStatus(401)
       }
+      // A cart-to-customer link is not an anonymous guest operation.
+      if (isAssociation && !actor) return res.sendStatus(401)
       if (registeredAccount && (!actor || actor!==customerId)) {
         console.log("SHQIPSHOP_F08_CI_DEBUG_REGISTERED_OWNER_MISMATCH")
         return res.sendStatus(404)
@@ -146,7 +149,9 @@ export const enforceF08CiOwnerCartPolicy = (
         : "SHQIPSHOP_F08_CI_DEBUG_GUEST_CART_ALLOWED")
       // Only registered accounts are protected by the experimental bearer
       // deny-list. Guest cart possession/expiry remains unapproved/open.
-      if (registeredAccount && req.headers.authorization)
+      // Registered-cart and guest-to-account association must both reject
+      // a revoked JWT. Do not treat a revoked bearer as guest possession.
+      if ((registeredAccount || isAssociation) && req.headers.authorization)
         return enforceF08CiBearerPolicy(req,res,next)
       return next()
     } catch {
