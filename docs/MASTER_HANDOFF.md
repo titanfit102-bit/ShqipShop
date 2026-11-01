@@ -1,5 +1,10 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-01 — F08 Stage 11A: completion authorization CI-only
+
+[Code 827170f](https://github.com/titanfit102-bit/ShqipShop/commit/827170feaca62082e9fde9cc35e793b4c06f8e4c); [Medusa CI 41320392940](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41320392940), **8/8 PASS at code SHA**. Built-in POST `/store/carts/:id/complete` is guarded ONLY under exact disposable CI: concurrent anonymous/foreign/invalid bearer attempts denied without cart mutation, revoked bearer 401; owner reaches checkout validation on an intentionally unprepared cart and creates no order. Guest checkout regression unaffected. **PARTIAL**: actual authorized order concurrency, DB exactly-once, PSP, durable locks and guest expiry remain OPEN; F08 P0, G3/G5 blocked.
+
+
 ## 2026-11-01 — F08 Stage 10: customer association boundary
 
 [Code 43a82b6](https://github.com/titanfit102-bit/ShqipShop/commit/43a82b6fb032b053df23c698a96214b08231ce2f); [Medusa CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41309903565); **8/8 PASS at code SHA**. Disposable CI guard now checks POST `/store/carts/:id/customer`: registered owner preserved, foreign/anonymous/invalid JWT denied; verified guest-to-owner association allowed, followed by owner-only read; revoked JWT denied for owner relink and guest claim. No production rule deployed. Guest capability expiry, concurrent claims/merges and checkout-complete authorization remain OPEN; F08 P0, G3/G5 BLOCKED.
