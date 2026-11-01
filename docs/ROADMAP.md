@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-01 — F08 Stage 11B: registered checkout concurrency, synthetic
+
+[Code f1373f2](https://github.com/titanfit102-bit/ShqipShop/commit/f1373f2b922ee76745085c7d4c2b27a3fdc2bca5), [Medusa CI 41323388777](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41323388777), **8/8 success at code SHA**. Distinct-owner-JWT concurrent completion on one registered mock-payment cart produced at most one order ID; independent PostgreSQL Query confirmed exactly two orders for two separate synthetic carts, correct bidirectional cart/order ownership, currency ALL and positive totals. Anonymous/invalid bearer denied; existing exact-one-unit inventory regression was preserved by executing Stage 11B afterward. Prior test-only red CI was fixed. **Partial CI proof only:** real PSP, multi-process atomicity/replay, stock locking, guest expiry, production F08 and G3/G5 remain blocked.
+
+
 ## 2026-11-01 — F08 Stage 11A: completion authorization CI-only
 
 [Code 827170f](https://github.com/titanfit102-bit/ShqipShop/commit/827170feaca62082e9fde9cc35e793b4c06f8e4c); [Medusa CI 41320392940](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41320392940), **8/8 PASS at code SHA**. Built-in POST `/store/carts/:id/complete` is guarded ONLY under exact disposable CI: concurrent anonymous/foreign/invalid bearer attempts denied without cart mutation, revoked bearer 401; owner reaches checkout validation on an intentionally unprepared cart and creates no order. Guest checkout regression unaffected. **PARTIAL**: actual authorized order concurrency, DB exactly-once, PSP, durable locks and guest expiry remain OPEN; F08 P0, G3/G5 blocked.
