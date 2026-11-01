@@ -1,5 +1,12 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-01 — F08 Stage 11D: interrupted checkout with Redis pause and recovery (CI ONLY)
+
+**VERIFIED:** [code 9e58a14](https://github.com/titanfit102-bit/ShqipShop/commit/9e58a14d9dc306f85e31a3ff83e2aebb3ff50d1e), [Medusa CI 41328337308](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41328337308), **8/8 GitHub Actions SUCCESS**. A synthetic registered cart with `pp_system_default` mock payment was prepared. During a 10-second disposable Redis pause, its Medusa HTTP completion began and the API process was force-terminated. The client obtained no successful response. Once Redis resumed, independent PostgreSQL Query found **0 orders**, an unchanged customer-bound cart and no cart/order association. A fresh API instance rejected anonymous completion, allowed its verified owner to complete, and PostgreSQL confirmed **exactly 1 linked order** (correct owner/cart, positive total and ALL currency). Existing Stage 11B/11C, guest checkout, inventory, A/B merchant and Redis checks remained green.
+
+**LIMITS:** This proves only one bounded interruption before persistence, not arbitrary transaction/PSP phases, high-load failures, Redis HA, webhook/refund/stock idempotency, guest capability expiry, CSRF/cookie and production token revocation. F08 P0, F07g/F09, RG-02/RG-03/G3/G5 BLOCKED. PR #12 Draft, no merge/main/Production/real PSP. **NEXT:** bounded failpoint matrix around order/payment commit and PSP sandbox reconciliation.
+
+
 ## 2026-11-01 — F08 Stage 11C: two Medusa APIs, shared Redis, restart/replay (CI ONLY)
 
 **VERIFIED:** [code 3133a2d](https://github.com/titanfit102-bit/ShqipShop/commit/3133a2d0f536fc2bea5a194ce4c3d02bc14c8527), [Medusa CI 41325424595](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41325424595), **8/8 GitHub Actions SUCCESS**. Two Medusa API processes on disposable ports 9220/9221 shared PostgreSQL, Redis locks/workflow engine and a per-run JWT secret. Concurrent registered-owner completion requests to separate servers returned one order ID. Both old servers were stopped, and a restarted server handled replay without a new ID. An independent PostgreSQL Query verified exactly one order linked to that cart/customer with original ID, positive server total and ALL currency. Mock `pp_system_default` only; existing inventory, guest, two-merchant and Redis CI passed.

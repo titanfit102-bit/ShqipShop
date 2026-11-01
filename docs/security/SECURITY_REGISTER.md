@@ -1,5 +1,10 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-01 — F08 Stage 11D: Redis pause and crash recovery (CI ONLY)
+
+[Code 9e58a14](https://github.com/titanfit102-bit/ShqipShop/commit/9e58a14d9dc306f85e31a3ff83e2aebb3ff50d1e), [CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41328337308), **8/8 PASS**. Paused disposable Redis during an in-flight registered checkout, force-killed API, verified 0 orders in PostgreSQL, then restarted API and verified one owner-only mock-payment order persisted. Other crash locations, Redis HA, PSP, global revocation, cookie/CSRF and Production remain OPEN; G3/G5 BLOCKED.
+
+
 ## 2026-11-01 — F08 Stage 11C: two servers plus restart, scoped CI
 
 [Code 3133a2d](https://github.com/titanfit102-bit/ShqipShop/commit/3133a2d0f536fc2bea5a194ce4c3d02bc14c8527); [CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41325424595), **8/8 PASS**. Two Medusa API processes shared disposable Redis/PostgreSQL; concurrent registered-owner completions returned one ID. After stopping both, restart/replay generated no second order; PostgreSQL independently confirmed one cart/one order. Manual mock payment only. Real PSP, crash mid-commit, load/Redis failover, cookie/CSRF and production F08 remain OPEN; G3/G5 BLOCKED.
