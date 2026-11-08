@@ -145,4 +145,58 @@ export default async function provePaymentLifecycle({container}:ExecArgs){
  assert.equal(current.captures[0].id,captureId)
  console.log("SHQIPSHOP_F08_STAGE11G_SAME_KEY_REFUND_REPLAY_NO_DUPLICATE")
  console.log("SHQIPSHOP_F08_STAGE11G_REFUND_KEY_AMOUNT_CONFLICT_DENIED")
+
+ // Stage 11I: sequential cumulative refund bound with one real disposable
+ // Medusa payment collection and independent PostgreSQL Query snapshots.
+ // This does NOT test multi-process races or any external PSP ledger.
+ const remaining=total-refundAmount
+ assert(remaining>0)
+ await assert.rejects(
+  ()=>paymentService.refundPayment({
+   payment_id:paymentId,amount:remaining+1,
+   idempotency_key:refundKey+"-exceeds-remaining",
+  }),
+  "A new refund key MUST NOT over-refund the remaining captured amount")
+ current=await retrieve()
+ assert.equal(current.refunds.length,1,
+  "Over-refund attempt must not persist a successful refund")
+ assert.equal(current.refunds[0].id,refundId)
+ assert.equal(Number(current.refunds[0].amount),refundAmount)
+ console.log("SHQIPSHOP_F08_STAGE11I_OVER_REMAINING_REFUND_DENIED")
+
+ const remainingKey=refundKey+"-remaining"
+ await paymentService.refundPayment({
+  payment_id:paymentId,amount:remaining,idempotency_key:remainingKey,
+ })
+ current=await retrieve()
+ assert.equal(current.refunds.length,2,
+  "Two distinct valid refund operations must persist two refund rows")
+ const secondRefund=current.refunds.find(ref=>ref.id!==refundId)
+ assert(secondRefund,"A distinct second refund ID is mandatory")
+ assert(/^ref_[A-Za-z0-9_-]{8,}$/.test(secondRefund.id))
+ assert.equal(Number(secondRefund.amount),remaining)
+ assert.equal(secondRefund.status,"succeeded")
+ assert.equal(current.refunds.reduce((sum,ref)=>sum+Number(ref.amount),0),total,
+  "Sum of successful refunds must equal, not exceed, captured amount")
+ const acceptedRefundIds=current.refunds.map(ref=>ref.id).sort()
+ await paymentService.refundPayment({
+  payment_id:paymentId,amount:remaining,idempotency_key:remainingKey,
+ })
+ current=await retrieve()
+ assert.deepEqual(current.refunds.map(ref=>ref.id).sort(),acceptedRefundIds,
+  "Replaying final valid refund key must not create new rows")
+ assert.equal(current.refunds.reduce((sum,ref)=>sum+Number(ref.amount),0),total)
+ await assert.rejects(
+  ()=>paymentService.refundPayment({
+   payment_id:paymentId,amount:1,idempotency_key:refundKey+"-after-full-refund",
+  }),
+  "A new refund after fully refunding captured total MUST be rejected")
+ current=await retrieve()
+ assert.deepEqual(current.refunds.map(ref=>ref.id).sort(),acceptedRefundIds)
+ assert.equal(current.refunds.reduce((sum,ref)=>sum+Number(ref.amount),0),total)
+ assert.equal(current.captures.length,1)
+ assert.equal(current.captures[0].id,captureId)
+ assert.equal(Number(current.captures[0].amount),total)
+ console.log("SHQIPSHOP_F08_STAGE11I_SEQUENTIAL_FULL_REFUND_CAP_AND_REPLAY_PASSED")
+
 }

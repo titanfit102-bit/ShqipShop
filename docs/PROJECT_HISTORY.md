@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-08 — F08 Stage 11I: sequential cumulative refund limit (DISPOSABLE CI ONLY)
+
+Added bounded sequential cumulative refund verification to the existing `f08-psp-contract-ci.ts` disposable Medusa test; no application/payment policy, migration, provider or live environment changed. CI result pending at this checkpoint. Prior SHA `8b4a7c3` had 8/8 green. Further details in CURRENT_STATE and MASTER_HANDOFF.
+
+
 ## 2026-11-08 — F08 Stage 11H-2: verified Albanian PSP eligibility constraints (RESEARCH ONLY)
 
 Primary-source update for PSP provider feasibility was recorded on the existing F07g checkout design and continuity documents; no code change, provider choice, actual sandbox, credentials, payments or migration. Critical qualifiers: Paysera Checkout Modern not currently listed for Albania; Paysera Classic does not establish Albania card acceptance; BKT's published merchant website-ownership requirement and published fees; Fibank hosted POS/capture/refund claims. Prior [0a3428e](https://github.com/titanfit102-bit/ShqipShop/commit/0a3428e3b2a58e632e8d6997821d31c8811dda28) CI 8/8 PASS. All release gates BLOCKED.
