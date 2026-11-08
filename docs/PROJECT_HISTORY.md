@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-08 — Stage 11J-1: ALL rounding tolerance diagnostic
+
+Preserved the direct-module Stage 11I failing assertion and made the new refund workflow regression inspect PostgreSQL for the zero-decimal 1 ALL boundary. The first Stage 11J CI run failed its rejection assertion before DB verification. In the same existing Medusa workflow both negative/positive workflow probe and direct-module sentinel now always execute, and either failure keeps CI RED. No release/payment policy, schema or provider change.
+
+
 ## 2026-11-08 — F08 Stage 11J: test fixture separation
 
 Added one separate synthetic workflow regression script with Stage 11B fixture and one extra invocation in the existing Medusa smoke CI, preceding the preserved Stage 11I failing direct-module check. Updated existing continuity docs; no parallel docs, migration, production payment adapter or release change. CI at new commit pending.

@@ -442,10 +442,18 @@ jobs:
           api=""
           SHQIPSHOP_F08_ORDER_CHECK_PHASE=ack-after pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
           SHQIPSHOP_F08_PAYMENT_CHECK_PHASE=after pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-payment-ledger-ci.ts
-          # Run validated higher-level workflow on the separate Stage 11B payment.
-          # Keep the known-red direct module regression immediately afterward.
-          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-workflow-ci.ts
-          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-psp-contract-ci.ts
+          # Both tests are mandatory: execute independent Stage 11B workflow
+          # and known-red Stage 11I direct-module sentinel on separate orders.
+          # Preserve each nonzero exit and fail the job after collecting BOTH
+          # outcomes; never suppress or bypass the critical money assertions.
+          workflow_rc=0
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-workflow-ci.ts || workflow_rc=$?
+          module_rc=0
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-psp-contract-ci.ts || module_rc=$?
+          if [ "$workflow_rc" -ne 0 ] || [ "$module_rc" -ne 0 ]; then
+            echo "::error::F08 Stage 11J or Stage 11I invariant failed; financial release remains blocked"
+            exit 1
+          fi
           SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
       - name: CI state
         if: always()

@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-08 — F08 Stage 11J-1: distinguish ALL epsilon from over-refund (CI PENDING)
+
+[First workflow attempt a59b1ff](https://github.com/titanfit102-bit/ShqipShop/commit/a59b1ff88f01c0b554ea4cbcc3af09f09bd06192) was RED because `total + 1 ALL` did not reject; pinned Medusa source sets ALL decimal digits to 0 and epsilon to 1. No DB effect had been checked. New exact CI covers `+2 ALL` material denial, valid partial/remainder refunds and explicitly checks whether `+1 ALL` after full refund persisted, while independently running the known-red Stage 11I direct module test regardless of the first script result. Neither is allowed to yield a green job on failure. All release gates BLOCKED.
+
+
 ## 2026-11-08 — F08 Stage 11J: independent workflow test before known-red direct module (CI PENDING)
 
 Implemented a disposable Medusa 2.22.0 `refundPaymentsWorkflow` positive/negative integration check using the separate Stage 11B synthetic payment, run before the existing Stage 11I direct-module over-refund sentinel. Negative/positive amount controls and independent PostgreSQL state assertions. **No CI result yet; security gate remains BLOCKED.** No production, PSP or auth policy changes.

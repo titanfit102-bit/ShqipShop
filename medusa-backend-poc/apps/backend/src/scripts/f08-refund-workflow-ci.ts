@@ -114,8 +114,8 @@ export default async function verifyRefundWorkflow({container}:ExecArgs){
  const run=async(amount:number)=>
   refundPaymentsWorkflow(container).run({input:[{payment_id:paymentId,amount}]})
 
- // Negative control: first attempted refund already exceeds total.
- await assert.rejects(()=>run(total+1),
+ // Negative control: exceed the 1 ALL zero-decimal tolerance by 2 ALL.
+ await assert.rejects(()=>run(total+2),
   "Workflow must reject a new refund larger than captured total")
  assert.deepEqual(await assertPersisted([]),[])
  console.log("SHQIPSHOP_F08_STAGE11J_WORKFLOW_INITIAL_OVER_REFUND_DENIED")
@@ -128,7 +128,7 @@ export default async function verifyRefundWorkflow({container}:ExecArgs){
  console.log("SHQIPSHOP_F08_STAGE11J_WORKFLOW_PARTIAL_REFUND_PERSISTED")
 
  const remaining=total-partial
- await assert.rejects(()=>run(remaining+1),
+ await assert.rejects(()=>run(remaining+2),
   "Workflow must reject a new refund greater than remaining amount")
  assert.deepEqual(await assertPersisted([partial]),firstIds)
  console.log("SHQIPSHOP_F08_STAGE11J_WORKFLOW_CUMULATIVE_OVER_REFUND_DENIED")
@@ -140,8 +140,32 @@ export default async function verifyRefundWorkflow({container}:ExecArgs){
   "Original valid refund must remain unchanged")
  console.log("SHQIPSHOP_F08_STAGE11J_WORKFLOW_EXACT_REMAINING_REFUND_PERSISTED")
 
- await assert.rejects(()=>run(1),
-  "Workflow must reject new refund after full return")
+ // ALL has zero fractional digits in Medusa 2.22.0 and
+ // getEpsilonFromDecimalPrecision(0) returns 1. Explicitly measure
+ // the 1 ALL borderline after full refund. A tolerant workflow
+ // response must NOT be mistaken for safe persisted financial effects.
+ let oneAllRequestAccepted=false
+ try {
+  await run(1)
+  oneAllRequestAccepted=true
+ } catch {
+  // An actual rejection is desirable; confirm PostgreSQL regardless.
+ }
+ const afterOneAll=await snapshot()
+ const totalRefunded=afterOneAll.refunds.reduce(
+  (sum,ref)=>sum+Number(ref.amount),0)
+ if(oneAllRequestAccepted){
+  console.log("SHQIPSHOP_F08_STAGE11J_ZERO_DECIMAL_ONE_ALL_CALL_ACCEPTED")
+ }
+ if(afterOneAll.refunds.length!==2||totalRefunded!==total){
+  console.log("SHQIPSHOP_F08_STAGE11J_ZERO_DECIMAL_ONE_ALL_REFUND_PERSISTED")
+ }
+ assert.deepEqual(afterOneAll.refunds.map(ref=>ref.id).sort(),bothIds,
+  "CRITICAL: 1 ALL extra request cannot change the persisted refund IDs")
+ assert.equal(totalRefunded,total,
+  "CRITICAL: 1 ALL epsilon cannot exceed the captured order amount")
+ assert(!oneAllRequestAccepted,
+  "CRITICAL: refund workflow accepted an over-total 1 ALL refund request")
  assert.deepEqual(await assertPersisted([partial,remaining]),bothIds)
  console.log("SHQIPSHOP_F08_STAGE11J_WORKFLOW_AFTER_FULL_REFUND_DENIED")
  console.log("SHQIPSHOP_F08_STAGE11J_WORKFLOW_SCOPED_POSITIVE_AND_NEGATIVE_PASSED")
