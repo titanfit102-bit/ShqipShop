@@ -41,6 +41,11 @@ Primary sources:
 
 **Research outcome:** official public sources make **BKT and Fibank qualified contacts, not approved suppliers**. No provider-specific API credentials or integrations are present in this codebase. For BKT the online published fees are **indicative at review date, not a confirmed quotation**. A written onboarding/technical answer from a concrete merchant is the necessary next piece of evidence. Existing P01–P14 remain **UNEXECUTED** for an external PSP; every production gate remains BLOCKED.
 
+
+### Stage 11I — confirmed direct Payment Module refund boundary failure (CI only, 2026-11-08)
+
+[Code ae65f20](https://github.com/titanfit102-bit/ShqipShop/commit/ae65f201bda12718184391d1d4ec3dfc57f5f777) + [Medusa CI 42533394638](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42533394638) **FAILED** after the direct `paymentService.refundPayment` accepted a new-key over-remaining request and a second refund was persisted by PostgreSQL Query with the system/manual provider. **Do not generalize to all Medusa workflows, real PSP settlement or production endpoints.** The amount of the external financial effect is unknown; no external provider was used. Preserve this red regression and require independent positive/negative tests of the higher-level [`refundPaymentsWorkflow`](https://docs.medusajs.com/resources/references/medusa-workflows/refundPaymentsWorkflow) on fresh disposable payment fixtures. Any production merchant refund path must have verified authorization, remaining-refund bound, safe idempotency, provider reconciliation, concurrency protection and role-based approval before separate authorization. P01–P14 remain pending with real PSP; all release gates BLOCKED.
+
 ### Required provider/Medusa reconciliation boundary (PROPOSED)
 
 1. Resolve tenant from trusted merchant deployment and use only its dedicated PSP account/secrets. Bind operation to Medusa order/cart/customer ownership, immutable accepted server quote fingerprint/version, currency, provider currency precision, and server-computed charge total; reject unaccepted repricing and client amount.
