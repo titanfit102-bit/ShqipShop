@@ -1,5 +1,10 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — F08 Stage 11J: zero-decimal ALL workflow over-refund persisted (CONFIRMED CI FAILURE)
+
+**S13/T05 updated, P0:** [CI 42534844309](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42534844309) confirmed a persisted extra `+1 ALL` refund through `refundPaymentsWorkflow` on a fully refunded separate Stage 11B mock payment, and independently confirmed direct module over-refund in Stage 11I. Normal partial/full workflow paths and `+2 ALL` denial passed. Zero-decimal epsilon=1 from pinned Medusa. **Status remains FAILED/PARTIAL, release BLOCKED**; no live PSP/sandbox, concurrent race, Admin authorization or real settlement proof. Keep both regressions enabled.
+
+
 ## 2026-11-08 — Stage 11J additional S13 workflow test (IMPLEMENTED, UNVERIFIED)
 
 `f08-refund-workflow-ci.ts` uses the independent Stage 11B disposable payment with `refundPaymentsWorkflow` for over-total, partial, over-remaining, exact remaining, and fully-refunded negative checks; PostgreSQL Query proves persisted records. Runs **before** the existing Stage 11I direct-Payment-Module confirmed-red regression. Its passing log markers must be checked at exact SHA; the documented red low-level module risk and S13 **FAILED/PARTIAL** release status cannot be changed by a narrower green workflow.
@@ -32,7 +37,7 @@ The **minimum security tests depend on changed trust boundaries**. These are poi
 | S10 | Dependency security and provenance | Existing `native-dependency-audit.yml` is **report-only**, frozen installs and SHA-pinned actions in tested workflows | PARTIAL | risk-tuned blocking advisories, SBOM, verified CodeQL |
 | S11 | High-confidence credential markers in tracked plaintext | `scripts/security/guard.py --scan`, 5 unittest cases, [run 40181786360](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40181786360): 601 files, no matches | VERIFIED (narrow PR guard only) | Add historical/entropy/host secret scanning and workflow privilege/security scanning; never treat as complete secret audit |
 | S12 | Live production domain/TLS/CSRF/rate limit/observability | No live environment evidence | UNKNOWN | independent staging/production validation |
-| S13 | Real PSP charge/refund/webhook exactly-once and reconciliation | [CI 42529315731](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42529315731): Medusa Payment Module `pp_system_default` synthetic capture/refund + independent PostgreSQL | PARTIAL Stage 11G mock same-key replay; **FAILED Stage 11I** direct Payment Module over-remaining refund accepted and second row persisted ([CI 42533394638](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42533394638)); standard workflow not yet tested | PSP sandbox: external provider ID/ledger, signed webhook replay and 3DS, ambiguous timeout after external success, crash during PSP call, durable keys, merchant currency/stock reconciliation UNKNOWN/BLOCKED |
+| S13 | Real PSP charge/refund/webhook exactly-once and reconciliation | [CI 42529315731](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42529315731): Medusa Payment Module `pp_system_default` synthetic capture/refund + independent PostgreSQL | PARTIAL Stage 11G mock same-key replay; **FAILED Stage 11I** direct module over-refund persisted; **FAILED Stage 11J** validated workflow persisted +1 ALL after full refund (zero-decimal epsilon=1); +2 ALL rejected and valid partial/full persisted ([CI 42534844309](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42534844309)); Admin/PSP unverified | PSP sandbox: external provider ID/ledger, signed webhook replay and 3DS, ambiguous timeout after external success, crash during PSP call, durable keys, merchant currency/stock reconciliation UNKNOWN/BLOCKED |
 | S14 | Privacy retention/media upload/backup/restore | No live infra evidence | UNKNOWN | tenant-aware operator runbooks and drill |
 
 ## Incremental test selection

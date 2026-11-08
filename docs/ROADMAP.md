@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-09 — F08 Stage 11J: zero-decimal ALL workflow over-refund persisted (CONFIRMED CI FAILURE)
+
+Pinned 2.22.0 CI [42534844309](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42534844309) established **positive** valid partial/full refund and *material* `+2 ALL` rejections at the validated workflow; **negative persisted** `+1 ALL` beyond fully refunded amount due zero-decimal epsilon=1. The independently executed direct Payment Module sentinel also persisted excess. Backend smoke RED as required; other seven distinct checks PASS. **NEXT gated work:** design and separately approve an exact server-side refund remaining-balance authorization/locking/idempotency guard; test valid and invalid Admin, customer/tenant, concurrent and PSP cases before any payment integration. All release gates BLOCKED.
+
+
 ## 2026-11-08 — F08 Stage 11J-1: distinguish ALL epsilon from over-refund (CI PENDING)
 
 [First workflow attempt a59b1ff](https://github.com/titanfit102-bit/ShqipShop/commit/a59b1ff88f01c0b554ea4cbcc3af09f09bd06192) was RED because `total + 1 ALL` did not reject; pinned Medusa source sets ALL decimal digits to 0 and epsilon to 1. No DB effect had been checked. New exact CI covers `+2 ALL` material denial, valid partial/remainder refunds and explicitly checks whether `+1 ALL` after full refund persisted, while independently running the known-red Stage 11I direct module test regardless of the first script result. Neither is allowed to yield a green job on failure. All release gates BLOCKED.

@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-09 — F08 Stage 11J: zero-decimal ALL workflow over-refund persisted (CONFIRMED CI FAILURE)
+
+Replayed both independent financial checks at [903211c](https://github.com/titanfit102-bit/ShqipShop/commit/903211ccf09db0d0340668bfde4021a84aa9db99): Stage 11J workflow persisted a 1 ALL excess on a completely refunded Stage 11B mock payment (while rejecting material +2 ALL); Stage 11I direct module also persisted its over-refund on a separate mock order. Workflow and direct tests ran despite failure; CI backend smoke RED by design. Root cause linked to pinned ALL decimal_digits=0/epsilon=1, production effects unverified. Register/matrix/continuity docs updated; no functional/payment/production changes.
+
+
 ## 2026-11-08 — Stage 11J-1: ALL rounding tolerance diagnostic
 
 Preserved the direct-module Stage 11I failing assertion and made the new refund workflow regression inspect PostgreSQL for the zero-decimal 1 ALL boundary. The first Stage 11J CI run failed its rejection assertion before DB verification. In the same existing Medusa workflow both negative/positive workflow probe and direct-module sentinel now always execute, and either failure keeps CI RED. No release/payment policy, schema or provider change.
