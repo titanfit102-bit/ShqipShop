@@ -1,0 +1,110 @@
+/**
+ * F08 Stage 11F — independent READ-ONLY payment-chain integrity proof.
+ * Only disposable Medusa CI; the system/manual provider never charges money.
+ * Compare persisted payment/session/capture identities across a lost checkout
+ * acknowledgment and a restart/retry. No real PSP or production mutations.
+ */
+import assert from "node:assert/strict"
+import {readFileSync,writeFileSync} from "node:fs"
+import {resolve,sep} from "node:path"
+import type {ExecArgs} from "@medusajs/framework/types"
+import {ContainerRegistrationKeys} from "@medusajs/framework/utils"
+
+export default async function verifyPaymentLedger({container}:ExecArgs) {
+ for(const [key,value] of Object.entries({
+  CI:"true",NODE_ENV:"development",SHQIPSHOP_REQUIRE_REDIS:"true",
+  SHQIPSHOP_F08_MULTIPROC_CI:"true",SHQIPSHOP_F08_ACK_LOSS_CI:"true",
+  SHQIPSHOP_F08_PAYMENT_CHAIN_CI:"true",WORKER_MODE:"server",
+  DATABASE_URL:"postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci",
+  REDIS_URL:"redis://127.0.0.1:6379",
+ })) assert.equal(process.env[key],value,key)
+ const phase=process.env.SHQIPSHOP_F08_PAYMENT_CHECK_PHASE
+ assert(["before","after"].includes(phase),"Explicit payment proof phase required")
+ const root=process.env.RUNNER_TEMP
+ const input=process.env.SHQIPSHOP_F08_MULTIPROC_PROOF_FILE
+ const orderEvidence=process.env.SHQIPSHOP_F08_ACK_BASELINE_FILE
+ const baseline=process.env.SHQIPSHOP_F08_PAYMENT_BASELINE_FILE
+ assert(root&&input&&orderEvidence&&baseline)
+ for(const file of [input,orderEvidence,baseline]){
+  assert(resolve(file).startsWith(resolve(root)+sep),
+   "Never read payment evidence outside disposable runner")
+ }
+ const proof=JSON.parse(readFileSync(input,"utf8")) as {
+  customerId:string;cartId:string;orderId?:string
+ }
+ const known=JSON.parse(readFileSync(orderEvidence,"utf8")) as {orderId:string}
+ assert(/^cus_[A-Za-z0-9_-]{8,}$/.test(proof.customerId))
+ assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(proof.cartId))
+ assert(!proof.orderId,"Simulated client must have discarded acknowledgment")
+ assert(/^order_[A-Za-z0-9_-]{8,}$/.test(known.orderId))
+ const query=container.resolve(ContainerRegistrationKeys.QUERY)
+ const {data:orders}=await query.graph({
+  entity:"order",
+  fields:["id","customer_id","currency_code","total","cart.id",
+   "payment_collections.id"],
+  filters:{customer_id:proof.customerId},
+ })
+ assert.equal(orders.length,1,"A single synthetic customer must have one order")
+ const order=orders[0]
+ assert.equal(order.id,known.orderId)
+ assert.equal(order.cart?.id,proof.cartId)
+ assert.equal(order.customer_id,proof.customerId)
+ assert.equal(order.currency_code,"all")
+ const amount=Number(order.total)
+ assert(Number.isSafeInteger(amount)&&amount>0)
+ const links=order.payment_collections??[]
+ assert.equal(links.length,1,"Exactly one order-linked payment collection required")
+ const collectionId=links[0].id
+ assert(/^pay_?col_[A-Za-z0-9_-]{8,}$/.test(collectionId))
+ const {data:collections}=await query.graph({
+  entity:"payment_collection",
+  fields:["id","currency_code","amount",
+   "payment_sessions.id","payment_sessions.provider_id",
+   "payment_sessions.amount","payment_sessions.status",
+   "payments.id","payments.provider_id","payments.amount",
+   "payments.captures.id","payments.captures.amount"],
+  filters:{id:collectionId},
+ })
+ assert.equal(collections.length,1)
+ const collection=collections[0]
+ assert.equal(collection.id,collectionId)
+ assert.equal(collection.currency_code,"all")
+ assert.equal(Number(collection.amount),amount)
+ const sessions=collection.payment_sessions??[]
+ const payments=collection.payments??[]
+ assert.equal(sessions.length,1,"One synthetic checkout must have exactly one payment session")
+ assert.equal(payments.length,1,"One authorized mock checkout must have exactly one payment")
+ const session=sessions[0],payment=payments[0]
+ assert(/^payses_[A-Za-z0-9_-]{8,}$/.test(session.id))
+ assert(/^pay_[A-Za-z0-9_-]{8,}$/.test(payment.id))
+ assert.equal(session.provider_id,"pp_system_default")
+ assert.equal(payment.provider_id,"pp_system_default")
+ assert.equal(Number(session.amount),amount,"Payment session amount must equal server order total")
+ assert.equal(Number(payment.amount),amount,"Authorized payment amount must equal server order total")
+ assert(["authorized","captured"].includes(String(session.status)),
+  "Checkout session must have been authorized by manual mock provider")
+ const captures=payment.captures??[]
+ assert(captures.length<=1,"One mock payment cannot have duplicate capture records")
+ const snapshot={
+  orderId:order.id,collectionId,sessionId:session.id,paymentId:payment.id,
+  amount,sessionStatus:String(session.status),
+  captureRecords:captures.map(c=>({id:c.id,amount:Number(c.amount)}))
+   .sort((a,b)=>a.id.localeCompare(b.id)),
+ }
+ for(const cap of snapshot.captureRecords){
+  assert(/^paycap_[A-Za-z0-9_-]{8,}$/.test(cap.id),
+   "Capture ID must be generated by the Medusa payment module")
+  assert(cap.amount>=0&&cap.amount<=amount)
+ }
+ if(phase==="before"){
+  writeFileSync(baseline,JSON.stringify(snapshot),{
+   flag:"wx",mode:0o600,encoding:"utf8",
+  })
+  console.log("SHQIPSHOP_F08_STAGE11F_PAYMENT_COLLECTION_SESSION_AND_AUTHORIZED_PAYMENT_VERIFIED")
+ }else{
+  const original=JSON.parse(readFileSync(baseline,"utf8"))
+  assert.deepEqual(snapshot,original,
+   "Lost-ack restart/retry must not create or mutate payment sessions, authorized payments or captures")
+  console.log("SHQIPSHOP_F08_STAGE11F_RESTART_RETRY_PAYMENT_CHAIN_IDENTICAL")
+ }
+}

@@ -388,6 +388,7 @@ jobs:
         env:
           SHQIPSHOP_F08_MULTIPROC_CI: "true"
           SHQIPSHOP_F08_ACK_LOSS_CI: "true"
+          SHQIPSHOP_F08_PAYMENT_CHAIN_CI: "true"
           SHQIPSHOP_F08_REVOCATION_CI: "true"
           SHQIPSHOP_F08_OWNER_CART_CI: "true"
           SHQIPSHOP_F07G_HTTP_CI: "true"
@@ -395,13 +396,14 @@ jobs:
           SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
           SHQIPSHOP_F08_MULTIPROC_PROOF_FILE: ${{ runner.temp }}/shqipshop-f08-ack-state.json
           SHQIPSHOP_F08_ACK_BASELINE_FILE: ${{ runner.temp }}/shqipshop-f08-ack-baseline.json
+          SHQIPSHOP_F08_PAYMENT_BASELINE_FILE: ${{ runner.temp }}/shqipshop-f08-payment-baseline.json
           WORKER_MODE: server
         run: |
           set -euo pipefail
           api=""
           cleanup() {
             if [ -n "$api" ]; then kill -TERM -- "-$api" 2>/dev/null || true; fi
-            rm -f "$SHQIPSHOP_F08_MULTIPROC_PROOF_FILE" "$SHQIPSHOP_F08_ACK_BASELINE_FILE"
+            rm -f "$SHQIPSHOP_F08_MULTIPROC_PROOF_FILE" "$SHQIPSHOP_F08_ACK_BASELINE_FILE" "$SHQIPSHOP_F08_PAYMENT_BASELINE_FILE"
           }
           trap cleanup EXIT
           ready() {
@@ -427,6 +429,7 @@ jobs:
             exit 1
           fi
           SHQIPSHOP_F08_ORDER_CHECK_PHASE=ack-before pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
+          SHQIPSHOP_F08_PAYMENT_CHECK_PHASE=before pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-payment-ledger-ci.ts
           setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-ack-restart.log" 2>&1 &
           api=$!
           ready
@@ -435,6 +438,7 @@ jobs:
           wait "$api" 2>/dev/null || true
           api=""
           SHQIPSHOP_F08_ORDER_CHECK_PHASE=ack-after pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
+          SHQIPSHOP_F08_PAYMENT_CHECK_PHASE=after pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-payment-ledger-ci.ts
           SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
       - name: CI state
         if: always()
