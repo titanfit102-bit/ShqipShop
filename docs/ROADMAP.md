@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-08 — F08 Stage 11F: payment-chain consistency over lost-ack retry (disposable CI)
+
+[Code fdb2e06](https://github.com/titanfit102-bit/ShqipShop/commit/fdb2e06c545e90b52f00991d4a334e023b7e6427), [Medusa CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42527305785), **8/8 PASS at code SHA**. Independent PostgreSQL checks found one order-linked payment collection, one mock session/payment, matching order amount in ALL and no additional payment/session/capture identity or amount change after restart and retry. Manual/system provider only; real PSP charges, capture/refund/webhooks, provider-failure windows and production auth remain UNVERIFIED. RG-02/RG-03, F08 P0, G3/G5 BLOCKED.
+
+
 ## 2026-11-01 — F08 Stage 11E: lost checkout acknowledgement, CI ONLY
 
 [Code b968399](https://github.com/titanfit102-bit/ShqipShop/commit/b9683993e4bdb924ab763376147eae6c7997be16), [CI 41330729685](https://github.com/titanfit102-bit/ShqipShop/actions/runs/41330729685), **8/8 PASS at code SHA**. Mock registered checkout persisted one order while synthetic client discarded its acknowledgement. After genuine API restart, owner replay caused no duplicate; independent PostgreSQL queries before/after confirmed the identical order ID and cart/customer link. Anonymous replay denied. Not a real PSP/network-drop test. Provider idempotency, settlement/reconciliation, in-commit failures and production F08 remain OPEN; G3/G5 BLOCKED.
