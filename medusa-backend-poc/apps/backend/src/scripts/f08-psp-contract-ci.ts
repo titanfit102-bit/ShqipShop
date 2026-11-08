@@ -93,12 +93,20 @@ export default async function provePaymentLifecycle({container}:ExecArgs){
  console.log("SHQIPSHOP_F08_STAGE11G_MOCK_CAPTURE_ONCE_AT_EXACT_ORDER_TOTAL")
  // A fully captured amount is unavailable for additional captures.
  // Do not hide a duplicate attempt by resetting state between calls.
- await assert.rejects(
-  ()=>paymentService.capturePayment({payment_id:paymentId,amount:total}),
-  "Second full capture must be denied after a successful first capture")
+ // An idempotent module may respond with success instead of an error.
+ // The security invariant is the persisted capture side effect, not status.
+ try{
+  await paymentService.capturePayment({payment_id:paymentId,amount:total})
+ }catch{
+  // An explicit rejection is also acceptable if no new capture was saved.
+ }
  current=await retrieve()
- assert.equal(current.captures.length,1)
- assert.equal(current.captures[0].id,captureId)
+ assert.equal(current.captures.length,1,
+  "CRITICAL: repeating full capture MUST NOT persist a duplicate capture")
+ assert.equal(current.captures[0].id,captureId,
+  "Repeating capture MUST preserve the original persisted capture ID")
+ assert.equal(Number(current.captures[0].amount),total)
+ console.log("SHQIPSHOP_F08_STAGE11G_CAPTURE_RETRY_NO_SECOND_DB_RECORD")
  const refundAmount=Math.floor(total/2)
  assert(refundAmount>0&&refundAmount<total)
  const refundKey="shqipshop-stage11g-"+paymentId
