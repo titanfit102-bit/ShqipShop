@@ -1,5 +1,10 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-08 — F08 Stage 11H acceptance design pointer
+
+[Existing F07g checkout design](../checkout/F07G_DURABLE_QUOTE_DESIGN.md) now enumerates provider eligibility and P01–P14 sandbox reconciliation/negative conditions. **No new execution evidence:** S13 remains PARTIAL and all relevant release gates remain BLOCKED; Stage 11G manual `pp_system_default` remains the last verified capture/refund scope.
+
+
 The **minimum security tests depend on changed trust boundaries**. These are pointers to existing executable evidence and open acceptance conditions; do not duplicate entire scripts. Exact SHA/run needed before marking VERIFIED. CI jobs use synthetic tenants and disposable keys only.
 
 | Test ID | Requirement / layer | Existing automated proof (scope) | Status | Next gate |

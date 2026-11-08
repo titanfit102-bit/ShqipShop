@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-08 — F08 Stage 11H — PSP merchant eligibility and sandbox acceptance contract
+
+Documentation-only checkpoint on Draft PR #12: official public BKT/Fibank/Paysera/Stripe provider screening and fourteen future PSP acceptance scenarios were added to [existing checkout design](checkout/F07G_DURABLE_QUOTE_DESIGN.md); current-state, handoff, roadmap and security test matrix were synchronized. No merchant approved, payment adapter implemented or real PSP tested. Production/release remains BLOCKED.
+
+
 ## 2026-10-27 — F08 Stage 4: CI-gated guard on built-in Medusa customer profile
 
 **VERIFIED CODE:** [cd43db8](https://github.com/titanfit102-bit/ShqipShop/commit/cd43db8f9b3aab4ed2a2ad14f6210016ae148cf9), Draft [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12), **8/8 GitHub Actions SUCCESS** at this exact code SHA. [Medusa CI 40525688304](https://github.com/titanfit102-bit/ShqipShop/actions/runs/40525688304) logged `SHQIPSHOP_F08_CI_BUILTIN_PROFILE_REVOKED_JWT_401`, `SHQIPSHOP_F08_CI_GUARDED_BUILTIN_PROFILE_OUTAGE_FAIL_CLOSED_503`, `SHQIPSHOP_F08_CI_OUTAGE_PRIVATE_CART_STILL_UNGUARDED`, and `SHQIPSHOP_F08_GLOBAL_BEARER_REVOCATION_REMAINS_OPEN_STORE_CART_200`; prior scoped F07g and two-device tests passed.

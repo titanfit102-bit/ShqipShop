@@ -1,5 +1,10 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-08 — F08 Stage 11H — PSP merchant eligibility and sandbox acceptance contract (DESIGN ONLY)
+
+**DOCUMENTED, NOT IMPLEMENTED OR PSP-TESTED.** Existing [checkout design](checkout/F07G_DURABLE_QUOTE_DESIGN.md) now contains screened public provider candidates (BKT/Fibank/Paysera/Stripe jurisdiction constraints), merchant-owned PSP/settlement boundaries, an unknown-response reconciliation contract and fourteen independent sandbox acceptance cases (P01–P14). Stage 11G `pp_system_default` remains the last **executed** capture/refund proof ([code ecbd3ff](https://github.com/titanfit102-bit/ShqipShop/commit/ecbd3ffaa5c0a8dbdd6ca1676d5062b19ee26512), [CI 42529315731](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42529315731), 8/8 at that SHA). **NO PSP chosen**, new passing provider tests, financial effect, SDK, secrets, schema, production policy, merge or deploy. F08/F07g/F09, RG-02/RG-03 and G3/G5 **BLOCKED**. NEXT: merchant eligibility, provider API/sandbox access, separate authorization for any payment integration, then P01–P14 executable verification. CI of this documentation commit must be checked at its own SHA.
+
+
 ## 2026-11-08 — F08 Stage 11G: mock capture and keyed refund (CI ONLY)
 
 [Code ecbd3ff](https://github.com/titanfit102-bit/ShqipShop/commit/ecbd3ffaa5c0a8dbdd6ca1676d5062b19ee26512), [CI 42529315731](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42529315731), **8/8 PASS**. Internal Medusa `pp_system_default` test verified one persisted full capture despite duplicate request; one successful partial refund despite same-key retry; mismatched same-key amount and zero values denied. PostgreSQL checked capture/refund IDs and amounts. No external PSP sandbox proof. Provider failure, webhooks/3DS, merchant eligibility/settlement and live financial reconciliation remain OPEN; F08 P0/RG-02/RG-03/G3/G5 BLOCKED.

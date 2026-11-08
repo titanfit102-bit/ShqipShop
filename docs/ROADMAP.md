@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-08 — F08 Stage 11H — PSP merchant eligibility and sandbox acceptance contract (DESIGN ONLY)
+
+Candidate eligibility and P01–P14 external PSP ledger, webhook signature, timeout, refund, reconciliation and merchant isolation cases documented in existing [checkout design](checkout/F07G_DURABLE_QUOTE_DESIGN.md). **No provider chosen or integrated, no new test passed.** NEXT: eligible merchant contract/API sandbox evidence and separately authorized implementation. All RG-02/RG-03/G3/G5 remain BLOCKED.
+
+
 ## 2026-11-08 — F08 Stage 11G: mock capture and keyed refund (CI ONLY)
 
 [Code ecbd3ff](https://github.com/titanfit102-bit/ShqipShop/commit/ecbd3ffaa5c0a8dbdd6ca1676d5062b19ee26512), [CI 42529315731](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42529315731), **8/8 PASS**. Internal Medusa `pp_system_default` test verified one persisted full capture despite duplicate request; one successful partial refund despite same-key retry; mismatched same-key amount and zero values denied. PostgreSQL checked capture/refund IDs and amounts. No external PSP sandbox proof. Provider failure, webhooks/3DS, merchant eligibility/settlement and live financial reconciliation remain OPEN; F08 P0/RG-02/RG-03/G3/G5 BLOCKED.
