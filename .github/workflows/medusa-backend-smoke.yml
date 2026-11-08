@@ -389,6 +389,7 @@ jobs:
           SHQIPSHOP_F08_MULTIPROC_CI: "true"
           SHQIPSHOP_F08_ACK_LOSS_CI: "true"
           SHQIPSHOP_F08_PAYMENT_CHAIN_CI: "true"
+          SHQIPSHOP_F08_PSP_CONTRACT_CI: "true"
           SHQIPSHOP_F08_REVOCATION_CI: "true"
           SHQIPSHOP_F08_OWNER_CART_CI: "true"
           SHQIPSHOP_F07G_HTTP_CI: "true"
@@ -439,6 +440,7 @@ jobs:
           api=""
           SHQIPSHOP_F08_ORDER_CHECK_PHASE=ack-after pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
           SHQIPSHOP_F08_PAYMENT_CHECK_PHASE=after pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-payment-ledger-ci.ts
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-psp-contract-ci.ts
           SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
       - name: CI state
         if: always()
