@@ -151,15 +151,33 @@ export default async function provePaymentLifecycle({container}:ExecArgs){
  // This does NOT test multi-process races or any external PSP ledger.
  const remaining=total-refundAmount
  assert(remaining>0)
- await assert.rejects(
-  ()=>paymentService.refundPayment({
+ let invalidRequestRejected=false
+ try {
+  await paymentService.refundPayment({
    payment_id:paymentId,amount:remaining+1,
    idempotency_key:refundKey+"-exceeds-remaining",
-  }),
-  "A new refund key MUST NOT over-refund the remaining captured amount")
+  })
+ } catch {
+  invalidRequestRejected=true
+ }
+ // Always read independent persisted state BEFORE failing the regression:
+ // assertion order must distinguish accepted invalid call from a real
+ // over-refund ledger mutation. No refund IDs/PII are printed in CI.
  current=await retrieve()
+ const effectiveRefunds=current.refunds.reduce(
+  (sum,ref)=>sum+Number(ref.amount),0)
+ if(!invalidRequestRejected) {
+  console.log("SHQIPSHOP_F08_STAGE11I_DIRECT_MODULE_OVER_REFUND_CALL_ACCEPTED")
+ }
+ if(current.refunds.length!==1 || effectiveRefunds!==refundAmount) {
+  console.log("SHQIPSHOP_F08_STAGE11I_DIRECT_MODULE_OVER_REFUND_PERSISTED")
+ }
  assert.equal(current.refunds.length,1,
-  "Over-refund attempt must not persist a successful refund")
+  "CRITICAL: invalid new-key over-refund must not persist a second refund")
+ assert.equal(effectiveRefunds,refundAmount,
+  "CRITICAL: invalid new-key over-refund must not change refunded total")
+ assert(invalidRequestRejected,
+  "CRITICAL: direct Payment Module accepted an over-remaining new-key refund")
  assert.equal(current.refunds[0].id,refundId)
  assert.equal(Number(current.refunds[0].amount),refundAmount)
  console.log("SHQIPSHOP_F08_STAGE11I_OVER_REMAINING_REFUND_DENIED")

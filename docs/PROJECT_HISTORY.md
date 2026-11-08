@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-08 — F08 Stage 11I failure triage: direct module over-refund probe
+
+**FAILED (independent scoped Medusa CI):** [code aabc500](https://github.com/titanfit102-bit/ShqipShop/commit/aabc500365d9d68b5670867c56a4a072d3e8fe81), [Medusa smoke run 42532781716](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42532781716), failed in existing `f08-psp-contract-ci.ts` at Stage 11I after prior Stage 11G capture and keyed partial refund checks passed. The direct `paymentService.refundPayment` call for a **new key and amount greater than the remaining captured amount** resolved instead of rejecting; the first test stopped on `assert.rejects` **BEFORE** reading PostgreSQL, so whether an extra refund persisted is **NOT YET VERIFIED**. This is an exposed gap for this particular **direct module invocation**, NOT evidence of an actual external PSP charge, production endpoint exploit or bypass of Medusa's higher-level refund workflows. Other seven distinct CI checks succeeded. **Response:** preserved the fail-closed requirement; a narrow CI-only diagnostic now reads the payment/refund graph BEFORE rejecting, prints only redacted status markers and still fails if the request was accepted or any extra persisted refund/amount is observed. Next CI on diagnostic SHA must establish the DB effect without concealing the failed assertion. Do NOT disable/skip checks. **RG-03/F08/G3/G5 remain BLOCKED**; real PSP, production refund authorization/races and guest/JWT policy remain OPEN.
+
+
 ## 2026-11-08 — F08 Stage 11I: sequential cumulative refund limit (DISPOSABLE CI ONLY)
 
 Added bounded sequential cumulative refund verification to the existing `f08-psp-contract-ci.ts` disposable Medusa test; no application/payment policy, migration, provider or live environment changed. CI result pending at this checkpoint. Prior SHA `8b4a7c3` had 8/8 green. Further details in CURRENT_STATE and MASTER_HANDOFF.
