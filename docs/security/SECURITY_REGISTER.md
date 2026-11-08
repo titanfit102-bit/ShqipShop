@@ -1,5 +1,10 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-09 — F08 Stage 11K: strict serial ALL refund guard verified (DISPOSABLE CI ONLY)
+
+**Narrow serial CI control demonstrably works; release remains P0 BLOCKED.** [CI 42536108473](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42536108473) ran an independent second Stage 11B `pp_system_default` order through pre-call strict positive integer ALL amount validation. Bad/fractional/over-remaining/post-full cases were denied before Payment Module mutation, valid partial and full were persisted, and PostgreSQL capture/refund IDs/status and totals were checked. **Not wired into any production/Admin API and not safe under multi-process concurrency without a real transaction lock and durable provider ledger.** Stage 11J and 11I direct/workflow unsafe calls were independently executed in this same run and still persisted over-refunds, leaving Medusa smoke RED. All payment release gates remain BLOCKED; do not downgrade the finding based on a serial CI demonstration.
+
+
 ## 2026-11-09 — F08 Stage 11J: zero-decimal ALL workflow over-refund persisted (CONFIRMED CI FAILURE)
 
 **P0 release-blocking payment integrity finding, scoped to disposable Medusa 2.22.0 and `pp_system_default`**. [Run 42534844309](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42534844309): `refundPaymentsWorkflow` persisted a third over-limit refund for `+1 ALL` after full refund while normal partial/remnant refunds and material `+2 ALL` negative controls passed. `getEpsilonFromDecimalPrecision(0)=1` and the strict less-than comparator permit the edge. Same run independently reproduced persisted Stage 11I direct-module over-refund. **Do not equate this with public exploitability, real PSP settlement or Admin-route behavior.** Both negative regressions remain RED and financial release blocked. Exact server-side bound/locking, RBAC and provider reconciliation require separate approved design and full re-test. F08/F07g/F09 RG-02/RG-03/G3/G5 BLOCKED.

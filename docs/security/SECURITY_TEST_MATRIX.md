@@ -1,5 +1,10 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — F08 Stage 11K: strict serial ALL refund guard verified (DISPOSABLE CI ONLY)
+
+**VERIFIED scope: TEST-ONLY serial pre-call amount guard, NOT fixed S13.** [CI 42536108473](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42536108473) Stage 11K showed successful exact integer ALL remaining-balance validation and PostgreSQL effects for positive partial/full and negative invalid/+1 ALL requests on independent second Stage 11B mock order. Known-red Stage 11J and 11I still persisted extra refunds and failed backend smoke. **S13/T05 remains FAILED/PARTIAL; RG-03 BLOCKED.** NEXT: scoped server RBAC/tenant, transactional idempotent serialization across processes, real PSP and webhook test suite.
+
+
 ## 2026-11-09 — Stage 11K narrow S13 guard test (IMPLEMENTED, CI PENDING)
 
 `f08-refund-exact-bound-ci.ts` checks positive partial/full and negative invalid/over-remaining requests before the `pp_system_default` direct module call on an independent synthetic order. **Serial CI-only amount policy**; no production enforcement, auth, distributed lock or PSP evidence. Both confirmed 11I/11J regressions remain mandatory and red. S13/T05 remain FAILED/PARTIAL; RG-03 BLOCKED.

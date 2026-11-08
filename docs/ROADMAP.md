@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-09 — F08 Stage 11K: strict serial ALL refund guard verified (DISPOSABLE CI ONLY)
+
+[CI 42536108473](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42536108473): second Stage 11B mock payment, strict pre-call whole ALL amount gate, valid partial/full refunds and +1 ALL over-remaining/post-full denied, PostgreSQL independently checked. **VERIFIED serial test-only; NOT deployed**. Stage 11J/11I unsafe Medusa paths still persisted extra refunds and overall Medusa smoke remains RED. **Next:** approved transactionally locked, role/tenant-authorized refund path and multi-process/PSP checks; all production release gates blocked.
+
+
 ## 2026-11-09 — Stage 11K strict ALL refund boundary (CI ONLY; pending)
 
 Added a positive and negative Medusa/Pg proof of pre-call strict integer ALL refund bounds using the second Stage 11B mock payment. No production route/authorization or concurrency lock exists; existing Stage 11J epsilon and Stage 11I direct-module failing regressions remain mandatory and RED. NEXT: verify test markers and then design a properly authorized, atomic, PSP-reconcilable refund entry. All release gates BLOCKED.
