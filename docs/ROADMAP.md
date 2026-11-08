@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-08 — F08 Stage 11G: mock capture and keyed refund (CI ONLY)
+
+[Code ecbd3ff](https://github.com/titanfit102-bit/ShqipShop/commit/ecbd3ffaa5c0a8dbdd6ca1676d5062b19ee26512), [CI 42529315731](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42529315731), **8/8 PASS**. Internal Medusa `pp_system_default` test verified one persisted full capture despite duplicate request; one successful partial refund despite same-key retry; mismatched same-key amount and zero values denied. PostgreSQL checked capture/refund IDs and amounts. No external PSP sandbox proof. Provider failure, webhooks/3DS, merchant eligibility/settlement and live financial reconciliation remain OPEN; F08 P0/RG-02/RG-03/G3/G5 BLOCKED.
+
+
 ## 2026-11-08 — F08 Stage 11F: payment-chain consistency over lost-ack retry (disposable CI)
 
 [Code fdb2e06](https://github.com/titanfit102-bit/ShqipShop/commit/fdb2e06c545e90b52f00991d4a334e023b7e6427), [Medusa CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42527305785), **8/8 PASS at code SHA**. Independent PostgreSQL checks found one order-linked payment collection, one mock session/payment, matching order amount in ALL and no additional payment/session/capture identity or amount change after restart and retry. Manual/system provider only; real PSP charges, capture/refund/webhooks, provider-failure windows and production auth remain UNVERIFIED. RG-02/RG-03, F08 P0, G3/G5 BLOCKED.
