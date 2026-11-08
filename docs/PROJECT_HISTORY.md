@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-09 — Stage 11L transactional refund reservation POC
+
+Added one CI-only Medusa exec script using disposable PostgreSQL balances/claims, transaction/row-lock/unique keys, real distinct DB connections and overlapping refund reservation promises. Wired as a separate early smoke step before any existing checkout tests. Test tables isolated and removed; no migration, merchant refund API, live PSP, deploy or main merge. Tests pending.
+
+
 ## 2026-11-09 — F08 Stage 11K: strict serial ALL refund guard verified (DISPOSABLE CI ONLY)
 
 [Code 13b800f](https://github.com/titanfit102-bit/ShqipShop/commit/13b800f02baaaa4621ed77570c7aaa68fcda9f91), [CI 42536108473](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42536108473) proved positive and negative strict integer ALL pre-refund checks on independent second Stage 11B mock PostgreSQL order; serial only. Existing 11I/11J still failed and persisted over-refunds in their own mock fixtures. 7 distinct workflows green, backend smoke red. No production refund guard or release change.

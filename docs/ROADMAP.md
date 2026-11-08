@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-09 — Stage 11L isolated refund reservation transaction (CI PENDING)
+
+Implemented a PostgreSQL-only row-lock/operation-key reservation test on a disposable fixture. Tests separate DB sessions, NOWAIT contention, same-key replay, mismatched replay, rollback, cross-merchant denial and two overlapping 60-ALL claims against 100 ALL. **Not a Medusa refund integration, provider call, production RBAC, multi-process deployment or release permission**. Existing Stage 11I/J red regressions remain. Next: verify CI markers and gate the transition to a real approved refund service design. All release gates blocked.
+
+
 ## 2026-11-09 — F08 Stage 11K: strict serial ALL refund guard verified (DISPOSABLE CI ONLY)
 
 [CI 42536108473](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42536108473): second Stage 11B mock payment, strict pre-call whole ALL amount gate, valid partial/full refunds and +1 ALL over-remaining/post-full denied, PostgreSQL independently checked. **VERIFIED serial test-only; NOT deployed**. Stage 11J/11I unsafe Medusa paths still persisted extra refunds and overall Medusa smoke remains RED. **Next:** approved transactionally locked, role/tenant-authorized refund path and multi-process/PSP checks; all production release gates blocked.
