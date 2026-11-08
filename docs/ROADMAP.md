@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-08 — F08 Stage 11H-2: verified Albanian PSP eligibility constraints (RESEARCH ONLY)
+
+**Verified external eligibility evidence, not integration:** BKT and Fibank remain the two initial Albanian merchant qualification contacts. Paysera Checkout Modern documents a market rollout **excluding Albania**; Paysera Classic card-payment permission for Albanian entities is not established (Paysera Albania currently states card acceptance for EU-registered persons). Do not assume platform-held Italian PSP credentials can collect for other Albanian merchants. [Existing checkout design and source matrix](checkout/F07G_DURABLE_QUOTE_DESIGN.md) detail the bank website-ownership/merchant-domain blocker, published indicative BKT fees, currency policy and required written validation. Existing Stage 11H acceptance matrix P01–P14 is unexecuted with a real provider. **Next:** eligible merchant and BKT/Fibank contract/API documents, then separate integration authorization; all release gates remain BLOCKED.
+
+
 ## 2026-11-08 — F08 Stage 11H — PSP merchant eligibility and sandbox acceptance contract (DESIGN ONLY)
 
 Candidate eligibility and P01–P14 external PSP ledger, webhook signature, timeout, refund, reconciliation and merchant isolation cases documented in existing [checkout design](checkout/F07G_DURABLE_QUOTE_DESIGN.md). **No provider chosen or integrated, no new test passed.** NEXT: eligible merchant contract/API sandbox evidence and separately authorized implementation. All RG-02/RG-03/G3/G5 remain BLOCKED.
