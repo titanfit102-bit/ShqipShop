@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-09 — Stage 11K synthetic refund limit guard
+
+Added only a runner-local Medusa test using an independent Stage 11B payment and PostgreSQL snapshots to prove zero-decimal ALL strict pre-refund amount bounds under sequential requests; no payment adapter/production policy changed. Existing Stage 11I/11J failures are not bypassed. CI result pending at this commit.
+
+
 ## 2026-11-09 — F08 Stage 11J: zero-decimal ALL workflow over-refund persisted (CONFIRMED CI FAILURE)
 
 Replayed both independent financial checks at [903211c](https://github.com/titanfit102-bit/ShqipShop/commit/903211ccf09db0d0340668bfde4021a84aa9db99): Stage 11J workflow persisted a 1 ALL excess on a completely refunded Stage 11B mock payment (while rejecting material +2 ALL); Stage 11I direct module also persisted its over-refund on a separate mock order. Workflow and direct tests ran despite failure; CI backend smoke RED by design. Root cause linked to pinned ALL decimal_digits=0/epsilon=1, production effects unverified. Register/matrix/continuity docs updated; no functional/payment/production changes.

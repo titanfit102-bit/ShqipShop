@@ -1,5 +1,10 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — Stage 11K narrow S13 guard test (IMPLEMENTED, CI PENDING)
+
+`f08-refund-exact-bound-ci.ts` checks positive partial/full and negative invalid/over-remaining requests before the `pp_system_default` direct module call on an independent synthetic order. **Serial CI-only amount policy**; no production enforcement, auth, distributed lock or PSP evidence. Both confirmed 11I/11J regressions remain mandatory and red. S13/T05 remain FAILED/PARTIAL; RG-03 BLOCKED.
+
+
 ## 2026-11-09 — F08 Stage 11J: zero-decimal ALL workflow over-refund persisted (CONFIRMED CI FAILURE)
 
 **S13/T05 updated, P0:** [CI 42534844309](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42534844309) confirmed a persisted extra `+1 ALL` refund through `refundPaymentsWorkflow` on a fully refunded separate Stage 11B mock payment, and independently confirmed direct module over-refund in Stage 11I. Normal partial/full workflow paths and `+2 ALL` denial passed. Zero-decimal epsilon=1 from pinned Medusa. **Status remains FAILED/PARTIAL, release BLOCKED**; no live PSP/sandbox, concurrent race, Admin authorization or real settlement proof. Keep both regressions enabled.

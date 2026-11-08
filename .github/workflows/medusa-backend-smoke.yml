@@ -391,6 +391,7 @@ jobs:
           SHQIPSHOP_F08_PAYMENT_CHAIN_CI: "true"
           SHQIPSHOP_F08_PSP_CONTRACT_CI: "true"
           SHQIPSHOP_F08_REFUND_WORKFLOW_CI: "true"
+          SHQIPSHOP_F08_EXACT_REFUND_CI: "true"
           SHQIPSHOP_F08_COMPLETE_PROOF_FILE: ${{ runner.temp }}/shqipshop-f08-complete-proof.json
           SHQIPSHOP_F08_REVOCATION_CI: "true"
           SHQIPSHOP_F08_OWNER_CART_CI: "true"
@@ -446,12 +447,16 @@ jobs:
           # and known-red Stage 11I direct-module sentinel on separate orders.
           # Preserve each nonzero exit and fail the job after collecting BOTH
           # outcomes; never suppress or bypass the critical money assertions.
+          # Independent Stage 11B second-order strict amount guard probe.
+          # This is NOT a production or multi-process locking proof.
+          exact_rc=0
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-exact-bound-ci.ts || exact_rc=$?
           workflow_rc=0
           pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-workflow-ci.ts || workflow_rc=$?
           module_rc=0
           pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-psp-contract-ci.ts || module_rc=$?
-          if [ "$workflow_rc" -ne 0 ] || [ "$module_rc" -ne 0 ]; then
-            echo "::error::F08 Stage 11J or Stage 11I invariant failed; financial release remains blocked"
+          if [ "$exact_rc" -ne 0 ] || [ "$workflow_rc" -ne 0 ] || [ "$module_rc" -ne 0 ]; then
+            echo "::error::F08 Stage 11K/11J/11I invariant failed; financial release remains blocked"
             exit 1
           fi
           SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts

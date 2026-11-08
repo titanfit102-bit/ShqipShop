@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-09 — Stage 11K strict ALL refund boundary (CI ONLY; pending)
+
+Added a positive and negative Medusa/Pg proof of pre-call strict integer ALL refund bounds using the second Stage 11B mock payment. No production route/authorization or concurrency lock exists; existing Stage 11J epsilon and Stage 11I direct-module failing regressions remain mandatory and RED. NEXT: verify test markers and then design a properly authorized, atomic, PSP-reconcilable refund entry. All release gates BLOCKED.
+
+
 ## 2026-11-09 — F08 Stage 11J: zero-decimal ALL workflow over-refund persisted (CONFIRMED CI FAILURE)
 
 Pinned 2.22.0 CI [42534844309](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42534844309) established **positive** valid partial/full refund and *material* `+2 ALL` rejections at the validated workflow; **negative persisted** `+1 ALL` beyond fully refunded amount due zero-decimal epsilon=1. The independently executed direct Payment Module sentinel also persisted excess. Backend smoke RED as required; other seven distinct checks PASS. **NEXT gated work:** design and separately approve an exact server-side refund remaining-balance authorization/locking/idempotency guard; test valid and invalid Admin, customer/tenant, concurrent and PSP cases before any payment integration. All release gates BLOCKED.
