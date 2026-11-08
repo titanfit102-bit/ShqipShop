@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-08 — F08 Stage 11J: test fixture separation
+
+Added one separate synthetic workflow regression script with Stage 11B fixture and one extra invocation in the existing Medusa smoke CI, preceding the preserved Stage 11I failing direct-module check. Updated existing continuity docs; no parallel docs, migration, production payment adapter or release change. CI at new commit pending.
+
+
 ## 2026-11-08 — F08 Stage 11I: direct module over-refund persisted (CONFIRMED CI FAILURE)
 
 **CONFIRMED IN DISPOSABLE MEDUSA 2.22.0 CI, NOT A LIVE PSP TEST:** [diagnostic code ae65f20](https://github.com/titanfit102-bit/ShqipShop/commit/ae65f201bda12718184391d1d4ec3dfc57f5f777), [backend CI run 42533394638](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42533394638). After Stage 11G's full manual-provider capture and one legitimate keyed partial refund, the **direct** Payment Module `paymentService.refundPayment` accepted a fresh-key refund requested at **remaining captured amount + 1**. Independent Medusa PostgreSQL Query immediately found **two persisted refund rows, not one** and the CI emitted both `SHQIPSHOP_F08_STAGE11I_DIRECT_MODULE_OVER_REFUND_CALL_ACCEPTED` and `SHQIPSHOP_F08_STAGE11I_DIRECT_MODULE_OVER_REFUND_PERSISTED`. Its critical no-extra-refund assertion FAILED (2 !== 1). This confirms a persisted extra refund on this **direct low-level module invocation with `pp_system_default`**. It does **NOT** establish an exploitable standard Admin API path, real bank/card refund, external settlement loss, production behavior, or whether Medusa's higher-level workflows enforce the bound.
