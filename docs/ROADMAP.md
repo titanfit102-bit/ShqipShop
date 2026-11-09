@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-09 — Stage 11M fake provider refund ACK loss (CI PENDING)
+
+Implemented a phased PostgreSQL-only mock of refund reservation, independently committed provider effect, locally missing confirmation, same-key retry without duplicate effect, reconciliation via provider lookup, two concurrent reconcilers, fail-closed unknown outcomes and cross-merchant negative cases. Distinct `medusa exec` processes and cleanup; no external PSP, production refund API or real crash test. Next confirm CI evidence and design provider-specific reconciliation before integration approval. F08/S13/G3/G5 remain BLOCKED.
+
+
 ## 2026-11-09 — Stage 11L atomic refund reservation proof VERIFIED (DISPOSABLE PostgreSQL ONLY)
 
 [CI 42537695571](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42537695571) confirmed an isolated PostgreSQL transactional reservation: two distinct sessions, `FOR UPDATE NOWAIT` conflict, one successful of two concurrent 60 ALL claims against 100 ALL, replay-safe composite operation key, rollback without reserved balance, synthetic cross-merchant denial and no over-reservation. **VERIFIED DATABASE POC**, not a Medusa payment adapter/production authority/PSP proof. Stage 11K serial bound passed, 11I/J over-refund regressions still RED. NEXT: tenant/RBAC-authorized atomic refund state machine and provider reconciliation design, then scoped implementation approval and multi-process/PSP checks. Release BLOCKED.

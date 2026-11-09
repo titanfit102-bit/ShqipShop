@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-09 — Stage 11M runner-local fake refund ACK loss
+
+Added a phased disposable PostgreSQL payment-provider simulation script and mandatory Medusa CI job, preserving Stage 11I/J negative red sentinels. Scenarios: separate provider/local ledger commits, discarded confirmation, retry without second fake side effect, unknown PSP state reserved, concurrent reconciliation and strict tenant/key/amount. No actual provider, payment API, migration or main merge. CI pending.
+
+
 ## 2026-11-09 — Stage 11L atomic refund reservation proof VERIFIED (DISPOSABLE PostgreSQL ONLY)
 
 Commit [d2ebe1a](https://github.com/titanfit102-bit/ShqipShop/commit/d2ebe1aa65720f98b57ce030d229d6f1c37946b3), [CI 42537695571](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42537695571) verified exact disposable PostgreSQL two-session refund reservation/unique operation key/rollback and parallel over-cap negative tests. Synthetic tenant A/B ledger isolated; tables removed. Seven distinct remaining workflows passed; Medusa backend smoke red due preserved Stage 11I/J over-refund tests. No production change, real PSP or main merge.

@@ -1,5 +1,10 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — Stage 11M S13 provider acknowledgement ambiguity (IMPLEMENTED; CI PENDING)
+
+A mandatory disposable `medusa exec` script uses five distinct processes with fake provider table, persisted refund reservation and operation key; tests no resend on lost ACK, cross-merchant/key conflict, unknown provider result remaining reserved, repeated/concurrent reconciliation and cleanup. **Not a real PSP/provider, webhook/3DS, production auth or real process crash proof.** Stage 11I/J payment bugs remain RED; S13 FAILED/PARTIAL and RG-03 BLOCKED.
+
+
 ## 2026-11-09 — Stage 11L atomic refund reservation proof VERIFIED (DISPOSABLE PostgreSQL ONLY)
 
 **VERIFIED as isolated DB reservation POC only:** [Medusa CI 42537695571](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42537695571) Stage 11L success with two PG sessions and NOWAIT row-lock proof; atomic new-key reservation, same-key replay, mismatched-key-amount denial, rollback, parallel 60+60 vs 100 ALL yielding at most one accepted, simulated merchant A/B scope checks. **NOT production refund route, RBAC, PSP or multi-process API proof.** Stage 11K serial bound SUCCESS; 11I/J over-refund tests FAILED by design and overall backend smoke RED. S13/T05 remains FAILED/PARTIAL; RG-02/RG-03 release BLOCKED.

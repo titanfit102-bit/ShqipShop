@@ -93,6 +93,21 @@ jobs:
           SHQIPSHOP_F08_RESERVATION_RACE_CI: "true"
           WORKER_MODE: server
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-reservation-race-ci.ts
+      - name: F08 Stage 11M mock provider lost acknowledgement and restart reconciliation (CI only)
+        env:
+          SHQIPSHOP_F08_ACK_RECOVERY_CI: "true"
+          WORKER_MODE: server
+        run: |
+          set -euo pipefail
+          cleanup() {
+            SHQIPSHOP_F08_ACK_RECOVERY_PHASE=cleanup pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-ack-recovery-ci.ts
+          }
+          trap cleanup EXIT
+          for phase in prepare dispatch retry reconcile verify; do
+            SHQIPSHOP_F08_ACK_RECOVERY_PHASE="$phase" pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-ack-recovery-ci.ts
+          done
+          trap - EXIT
+          cleanup
       - name: Assert payment amount match and stale/ambiguous session rejection (F07f)
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07f-payment-amount-guard-ci.ts
       - name: Assert bounded buyer-accepted checkout quote contract (F07g stage 1, CI-only)
