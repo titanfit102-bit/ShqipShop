@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-09 — F08 Stage 11M: synthetic provider ACK-loss reconciliation VERIFIED (CI ONLY)
+
+[CI 42539022390](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42539022390) **VERIFIED** fake provider effect committed with acknowledgement discarded; five new Medusa execution processes, same-key retry with no second effect, fail-closed unknown provider outcome, two reconciler invocations confirming once, cross-tenant synthetic denials and table cleanup. Not real PSP, auth, network outage or production. Existing Stage 11I/J refund defects still reproducible and leave Medusa backend smoke RED. Next: explicitly approved provider-aware persistent refund state machine with real contract, RBAC, outbox and reconciliation. All release gates blocked.
+
+
 ## 2026-11-09 — Stage 11M fake provider refund ACK loss (CI PENDING)
 
 Implemented a phased PostgreSQL-only mock of refund reservation, independently committed provider effect, locally missing confirmation, same-key retry without duplicate effect, reconciliation via provider lookup, two concurrent reconcilers, fail-closed unknown outcomes and cross-merchant negative cases. Distinct `medusa exec` processes and cleanup; no external PSP, production refund API or real crash test. Next confirm CI evidence and design provider-specific reconciliation before integration approval. F08/S13/G3/G5 remain BLOCKED.

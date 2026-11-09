@@ -1,5 +1,10 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-09 — F08 Stage 11M: synthetic provider ACK-loss reconciliation VERIFIED (CI ONLY)
+
+**CI-only recovery simulation verified; P0 payment risk remains OPEN.** [CI 42539022390](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42539022390) passed a staged fake-provider/PostgreSQL test: persisted provider effect but lost local ACK, replay of identical operation with no second effect, conflicting amount/foreign simulated merchant denied, unknown effect remained reserved and pending, two reconcilers marked one known success, cleaned isolated tables. Mock provider data shares CI PostgreSQL and is NOT an independent settlement authority; real PSP API/webhook signature, provider timeout/recovery and monetary exactly-once NOT verified. Stage 11I/J known over-refund persisted again and backend smoke FAILED. S13/T05 P0 and production RG-02/RG-03/G3/G5 remain blocked.
+
+
 ## 2026-11-09 — Stage 11L atomic refund reservation proof VERIFIED (DISPOSABLE PostgreSQL ONLY)
 
 **Narrow positive security primitive verified, no mitigation deployed.** [CI 42537695571](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42537695571) proved a disposable PostgreSQL transactional refund-reservation ledger with separate sessions, row lock/over-cap denial, idempotency-key replay/conflict, rollback and two overlapping requests where only one could reserve 60 ALL from 100 ALL. Synthetic merchant A/B identity boundaries only; no actual Admin/JWT tenant policy or external payment provider. Stage 11K strict sequential refund guard passed; Stage 11I/J direct/workflow over-refunds were **independently reproduced in the same CI**, leaving Medusa smoke RED. P0 S13/T05 still FAILED for application financial effect and RG-03/G3/G5 BLOCKED. Required production authority, durable provider reconciliation and failure recovery remain open.

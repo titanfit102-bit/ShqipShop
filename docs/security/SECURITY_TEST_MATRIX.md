@@ -1,5 +1,10 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — F08 Stage 11M: synthetic provider ACK-loss reconciliation VERIFIED (CI ONLY)
+
+**Stage 11M narrow VERIFIED:** [Medusa CI 42539022390](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42539022390) five processes, separate fake provider/local commits, discarded ACK, same-key replay without duplicate simulated effect, unknown result remaining reserved, dual reconciler idempotency, merchant scope and cleanup. No real PSP/provider lookup, permissions, webhook or production integration. Stage 11K PASS; Stage 11I/J direct/workflow over-refund PERSISTED/FAILED, backend smoke RED. S13/T05 still FAILED/PARTIAL, release BLOCKED.
+
+
 ## 2026-11-09 — Stage 11M S13 provider acknowledgement ambiguity (IMPLEMENTED; CI PENDING)
 
 A mandatory disposable `medusa exec` script uses five distinct processes with fake provider table, persisted refund reservation and operation key; tests no resend on lost ACK, cross-merchant/key conflict, unknown provider result remaining reserved, repeated/concurrent reconciliation and cleanup. **Not a real PSP/provider, webhook/3DS, production auth or real process crash proof.** Stage 11I/J payment bugs remain RED; S13 FAILED/PARTIAL and RG-03 BLOCKED.
