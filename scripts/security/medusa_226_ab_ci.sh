@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 12O: replay existing two-merchant order/JWT/cookie/mutation CI
+# Stage 12O/12P: replay order/JWT/mutation and same-merchant session handoff CI
 # against the separately installed 2.22.6 candidate. Never deploy.
 set -euo pipefail
 if [[ "$CI" != "true" || "$NODE_ENV" != "development" ||
@@ -17,6 +17,7 @@ cd "$candidate_dir"
 node --check scripts/parallel-auth-boundary.mjs
 node --check scripts/parallel-mutation-boundary.mjs
 node --check scripts/parallel-merchant-boundary.mjs
+node --check scripts/verify-redis-session-handoff.mjs
 node --test scripts/boundary-http.test.mjs
 
 # All fixtures are synthetic; separate database users must be unable to
@@ -107,8 +108,9 @@ if curl -fsS --max-time 2 http://127.0.0.1:9000/health >/dev/null 2>&1 ||
 fi
 pid_a=""
 pid_b=""
+pid_clone=""
 cleanup() {
-  for pid in "$pid_a" "$pid_b"; do
+  for pid in "$pid_a" "$pid_b" "$pid_clone"; do
     if [[ -n "$pid" ]]; then
       kill -TERM -- "-$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
     fi
@@ -158,4 +160,40 @@ node scripts/parallel-merchant-boundary.mjs
 node scripts/parallel-auth-boundary.mjs
 kill -0 "$pid_a" && kill -0 "$pid_b"
 echo "SHQIPSHOP_226_AB_DISPOSABLE_ORDERS_JWT_COOKIE_MUTATIONS_PASSED"
+
+# Stage 12P: A's authenticated cookie must be accepted by a NEW, simultaneously
+# running A process with the SAME isolated Redis/DB/session signing keys.
+# B's cookie and no-cookie requests must be denied by the new A process.
+# Reuse the pre-existing verified identity/cookie assertions, no mock server.
+if [[ ! -s "$SHQIPSHOP_CI_SESSION_PROOF_FILE" ]]; then
+  echo "::error::SHQIPSHOP_226_STAGE12P_SESSION_PROOF_MISSING"
+  exit 1
+fi
+if curl -fsS --max-time 2 http://127.0.0.1:9002/health >/dev/null 2>&1; then
+  echo "::error::SHQIPSHOP_226_STAGE12P_CLONE_PORT_OCCUPIED"
+  exit 1
+fi
+setsid env DATABASE_URL="$db_a" REDIS_URL="$redis_a" \
+  JWT_SECRET="$secret_a" COOKIE_SECRET="$cookie_a" \
+  pnpm --filter @dtc/backend exec medusa develop --port 9002 \
+  > "$RUNNER_TEMP/shqipshop226-a-clone-api.log" 2>&1 &
+pid_clone=$!
+clone_ready=0
+for attempt in $(seq 1 100); do
+  if curl -fsS --max-time 3 http://127.0.0.1:9002/health >/dev/null 2>&1; then
+    clone_ready=1
+    break
+  fi
+  if ! kill -0 "$pid_clone" 2>/dev/null; then break; fi
+  sleep 3
+done
+if [[ "$clone_ready" != "1" ]]; then
+  echo "::error::SHQIPSHOP_226_STAGE12P_CLONE_NOT_READY"
+  exit 1
+fi
+node scripts/verify-redis-session-handoff.mjs
+kill -0 "$pid_a" && kill -0 "$pid_b" && kill -0 "$pid_clone"
+curl -fsS --max-time 5 http://127.0.0.1:9000/health >/dev/null
+curl -fsS --max-time 5 http://127.0.0.1:9001/health >/dev/null
+echo "SHQIPSHOP_226_STAGE12P_SAME_MERCHANT_CROSS_PROCESS_COOKIE_PASSED"
 echo "SHQIPSHOP_226_AB_NOT_PRODUCTION_OR_PSP_CERTIFICATION"
