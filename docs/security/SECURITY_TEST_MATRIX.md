@@ -1,5 +1,20 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — Stage 12P session handoff matrix (EXACT-SHA CI VERIFIED)
+
+| Test | Positive / negative condition | Result |
+| --- | --- | --- |
+| A same-merchant process | A customer/Admin cookie issued at :9000 works with correct identity at separate A :9002 using same DB/Redis/session keys | [42705520128](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42705520128) SUCCESS |
+| B cross-merchant cookie | B customer/Admin cookies sent to A :9002 denied | SUCCESS |
+| Missing cookie | Anonymous requests to A clone denied; both original APIs alive | SUCCESS |
+| Revocation and resilience | Post-logout bearer JWT still accepted in Stage 12O; Redis HA/failover/restart not tested by 12P | **OPEN / UNKNOWN** |
+| Native payments | Uncaptured and +1 ALL refunds persist in pinned Medusa 2.22.0 | [42705520489](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42705520489) FAILURE / RELEASE BLOCKED |
+
+**Scope:** Stage 12P changed only `scripts/security/medusa_226_ab_ci.sh` to reuse the existing `medusa-backend-poc/scripts/verify-redis-session-handoff.mjs` in disposable runner CI. It did not change production auth, tenant deployment, API middleware, Medusa pinned dependencies, payment/PSP logic, secrets, release gates, main or PR Draft status. Shared Redis cookie reuse on one host is NOT evidence for Redis failover, cross-region HA, cross-device revocation, TLS/CSRF or the deployed topology. Stage 12O established that customer/Admin **bearer JWTs remain accepted after cookie logout**; this remains an OPEN T02 security risk, not corrected by Stage 12P.
+
+**Next permitted direction:** review (without deployment) disposable Redis outage/restart semantics and session invalidation limitations for a future Stage 12Q; native ALL refund correction, version promotion and production security controls still require distinct explicit approval.
+
+
 ## 2026-11-09 — Stage 12O candidate Medusa 2.22.6 A/B test matrix (EXACT-SHA CI VERIFIED)
 
 | Gate | Positive and negative evidence | Status |
