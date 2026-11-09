@@ -1,5 +1,12 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — Stage 12C static baseline and candidate-only query regression harness (IMPLEMENTED; CI PENDING)
+
+**Implemented:** `scripts/security/medusa_query_preflight.py` checks two direct Medusa package manifests, pnpm v9 importer specifiers/resolved versions, and transitive 2.22.x references. Default `--baseline` behavior is read-only and explicitly reports **pinned 2.22.0 vulnerable/RELEASE BLOCKED**; `--candidate` fails unless all Medusa release-train dependencies consistently resolve to 2.22.6 (excluding independently versioned `@medusajs/ui`). Nine isolated Python positive/negative unit regressions PASS locally (including mixed, missing and transitive older-version fixtures); new baseline workflow step and tests **await exact-head CI**. The separate candidate-only Node harness validates legitimate nested query field composition and rejects unsafe dotted fields in actual `@medusajs/framework/utils` **only once an approved 2.22.6 candidate is installed**; not executed against actual Medusa 2.22.6 yet. No unsafe-payload values are printed in CI logs. This is a source/dependency acceptance scaffold, NOT HTTP/provider/tenant/PSP evidence.
+
+**Unchanged:** Medusa 2.22.0 manifest/lock, existing 11I/J/O/P mandatory-red financial sentinels, P0 and all release gates. Positive runtime candidate, HTTP 4xx malformed query tests, A/B tenant/regression and frozen-dependency install are **NOT VERIFIED** and need separate authorization.
+
+
 ## 2026-11-09 — Stage 12B pinned Medusa query-path hardening acceptance plan (NOT YET TESTED)
 
 [Official Medusa release](https://github.com/medusajs/medusa/releases/tag/v2.22.6) and [merged fix PR #17712](https://github.com/medusajs/medusa/pull/17712): current backend manifest + pnpm lockfile use **2.22.0**; upstream fixes query path handling in **2.22.6**, not the native refund amount policy. These are required tests for a **future, separately authorized, isolated dependency candidate**, not claims that tests have already run.

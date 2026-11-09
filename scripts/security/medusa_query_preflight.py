@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""Stage 12C: read-only Medusa dependency-coherence preflight, not a vulnerability fix.
+
+No downloads, npm/pnpm commands, credential reads, or repository mutation. A
+baseline verdict means that a known-outdated version is STILL BLOCKED.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+import re
+import sys
+
+BASELINE = "2.22.0"
+CANDIDATE = "2.22.6"
+MANIFESTS = ("medusa-backend-poc/package.json", "medusa-backend-poc/apps/backend/package.json")
+LOCKFILE = "medusa-backend-poc/pnpm-lock.yaml"
+
+
+def _tracked_medusa(name: str, version: str) -> bool:
+    """All direct Medusa release-train packages except independently versioned UI."""
+    return name.startswith("@medusajs/") and name != "@medusajs/ui"
+
+
+def _read_json(path: Path) -> dict:
+    doc = json.loads(path.read_text("utf-8"))
+    if not isinstance(doc, dict):
+        raise ValueError("Expected JSON object")
+    return doc
+
+
+def _lock_importers(text: str) -> dict[str, dict[str, tuple[str, str]]]:
+    """Minimal strict reader for pnpm lockfile v9's importers, not a general YAML parser."""
+    importers: dict[str, dict[str, tuple[str, str]]] = {}
+    importer: str | None = None
+    dep: str | None = None
+    spec: str | None = None
+    resolved: str | None = None
+    in_importers = False
+    def save() -> None:
+        if importer is not None and dep is not None:
+            if spec is None or resolved is None:
+                raise ValueError("Incomplete lock entry")
+            importers[importer][dep] = (spec, resolved)
+    for line in text.splitlines():
+        if line == "importers:":
+            in_importers = True
+            continue
+        if not in_importers:
+            continue
+        if line and not line.startswith(" "):
+            save()
+            break
+        if re.fullmatch(r"  ([^ ].*):", line):
+            save()
+            importer = line.strip()[:-1]
+            dep, spec, resolved = None, None, None
+            importers[importer] = {}
+            continue
+        if re.fullmatch(r"      '[^']+':", line) or re.fullmatch(r"      [A-Za-z0-9@/_-]+:", line):
+            save()
+            dep = line.strip().rstrip(":").strip("'")
+            spec, resolved = None, None
+            continue
+        if dep is None:
+            continue
+        match = re.match(r"        (specifier|version):\s+(.+?)\s*$", line)
+        if match:
+            value = match.group(2).strip("'\"")
+            if match.group(1) == "specifier":
+                spec = value
+            else:
+                resolved = value
+    else:
+        save()
+    return importers
+
+
+def inspect(root: Path, version: str) -> list[str]:
+    """Return NON-SECRET error identifiers; never print installed paths/lock content."""
+    errors: list[str] = []
+    if version not in (BASELINE, CANDIDATE):
+        return ["MEDUSA-QUERY-CANDIDATE-UNAPPROVED-VERSION"]
+    try:
+        lock_text = (root / LOCKFILE).read_text("utf-8")
+        if not re.search(r"(?m)^lockfileVersion: ['\"]?9\.0['\"]?$", lock_text):
+            raise ValueError("Not pnpm lock v9")
+        lock = _lock_importers(lock_text)
+        # This is an integrity preflight, so transitive/pnpm snapshot packages
+        # must not retain an older Medusa release even when importers look clean.
+        resolved_versions = set(re.findall(
+            r"@medusajs/(?!ui@)[A-Za-z0-9_.-]+@(2\.22\.[0-9]+)", lock_text))
+        if resolved_versions and resolved_versions != {version}:
+            errors.append("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH")
+    except (OSError, ValueError):
+        return ["MEDUSA-QUERY-LOCK-UNREADABLE"]
+    for manifest_rel in MANIFESTS:
+        try:
+            doc = _read_json(root / manifest_rel)
+        except (OSError, ValueError, json.JSONDecodeError):
+            errors.append("MEDUSA-QUERY-MANIFEST-UNREADABLE")
+            continue
+        importer = "." if manifest_rel == MANIFESTS[0] else "apps/backend"
+        imp = lock.get(importer)
+        if imp is None:
+            errors.append("MEDUSA-QUERY-LOCK-IMPORTER-MISSING")
+            continue
+        required = (("@medusajs/eslint-plugin",) if importer == "." else
+                    ("@medusajs/framework", "@medusajs/medusa"))
+        direct = {**doc.get("dependencies", {}), **doc.get("devDependencies", {})}
+        for name in required:
+            if name not in direct:
+                errors.append("MEDUSA-QUERY-REQUIRED-PACKAGE-MISSING")
+        for scope in ("dependencies", "devDependencies"):
+            table = doc.get(scope, {})
+            if not isinstance(table, dict):
+                errors.append("MEDUSA-QUERY-MANIFEST-INVALID")
+                continue
+            for name, specifier in table.items():
+                if not isinstance(specifier, str):
+                    errors.append("MEDUSA-QUERY-UNEXPECTED-SPECIFIER")
+                    continue
+                if not _tracked_medusa(name, specifier):
+                    continue
+                if specifier != version:
+                    errors.append("MEDUSA-QUERY-MIXED-RELEASE-TRAIN")
+                entry = imp.get(name)
+                if entry is None:
+                    errors.append("MEDUSA-QUERY-LOCK-ENTRY-MISSING")
+                    continue
+                declared, resolved = entry
+                if declared != specifier or not re.match(re.escape(version) + r"(?:$|\()", resolved):
+                    errors.append("MEDUSA-QUERY-LOCK-VERSION-MISMATCH")
+    if not (root / MANIFESTS[1]).is_file():
+        errors.append("MEDUSA-QUERY-NO-BACKEND-MANIFEST")
+    return sorted(set(errors))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--candidate", action="store_true", help="Require all pinned Medusa train packages and pnpm importers to be 2.22.6")
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
+    args = parser.parse_args()
+    version = CANDIDATE if args.candidate else BASELINE
+    errors = inspect(args.root, version)
+    if errors:
+        for item in errors:
+            print(f"::error::{item}")
+        return 1
+    if args.candidate:
+        print("SHQIPSHOP_STAGE12C_CANDIDATE_MANIFEST_LOCK_COHERENCE_PASSED_NOT_RUNTIME_SECURITY")
+    else:
+        print("SHQIPSHOP_STAGE12C_PINNED_2_22_0_CONFIRMED_KNOWN_QUERY_SECURITY_GAP_RELEASE_BLOCKED")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
