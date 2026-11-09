@@ -11,7 +11,7 @@ import {randomBytes} from "node:crypto"
 import {readFileSync} from "node:fs"
 import {resolve,sep} from "node:path"
 import type {ExecArgs} from "@medusajs/framework/types"
-import {ContainerRegistrationKeys,Modules} from "@medusajs/framework/utils"
+import {ContainerRegistrationKeys} from "@medusajs/framework/utils"
 import {refundPaymentWorkflow} from "@medusajs/medusa/core-flows"
 
 const whole=(v:unknown):bigint=>{
@@ -214,20 +214,75 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
   assert.equal(original.captures.length,0)
   assert.equal(original.refunds.length,0)
 
-  // New, unlinked, disposable Payment Module collection solely for Stage 11P.
-  // Pinned Medusa's pp_system_default creates an authorized mock payment.
-  // It is deliberately NOT captured, and never reaches a real PSP.
-  const paymentService=container.resolve(Modules.PAYMENT)
-  const collection=await paymentService.createPaymentCollections({
-   currency_code:"all",amount:10,
+  // Create a THIRD, fully linked but independent synthetic Medusa order.
+  // Registration/login was already validated above. This new customer is
+  // distinct from Stage 11B and 11E customers; do not contaminate their
+  // exact-quantity payment/refund assertions.
+  const keyProof=process.env.SHQIPSHOP_F07E_REPRICE_PROOF_FILE
+  assert(root&&keyProof&&resolve(keyProof).startsWith(resolve(root)+sep))
+  const variant=JSON.parse(readFileSync(keyProof,"utf8")).variantId
+  assert(/^variant_[A-Za-z0-9_-]{8,}$/.test(variant))
+  const customerId=(await created.json()).customer?.id
+  assert(/^cus_[A-Za-z0-9_-]{8,}$/.test(customerId??""))
+  const store=async(method:"GET"|"POST",path:string,body?:unknown)=>{
+   const headers:Record<string,string>={
+    "x-publishable-api-key":publishableKey,
+    authorization:"Bearer "+customerAuthJwt,
+   }
+   if(body!==undefined)headers["content-type"]="application/json"
+   const res=await fetch(base+path,{
+    method,headers,...(body===undefined?{}:{body:JSON.stringify(body)}),
+    signal:AbortSignal.timeout(30000),
+   })
+   assert.equal(res.status,200,
+    "Stage 11P independent Medusa Store route failed: "+method+" "+path.split("?")[0])
+   return res.json()
+  }
+  const regions=await store("GET","/store/regions")
+  const region=regions.regions?.find((r:any)=>r.currency_code==="all"&&r.name==="Shqipëri")
+  assert(typeof region?.id==="string")
+  const initial=await store("POST","/store/carts",{region_id:region.id})
+  const cartId=initial.cart?.id
+  assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(cartId??""))
+  await store("POST","/store/carts/"+cartId+"/customer",{})
+  await store("POST","/store/carts/"+cartId+"/line-items",{
+   variant_id:variant,quantity:1,
   })
-  assert(/^pay_?col_[A-Za-z0-9_-]{8,}$/.test(collection.id))
-  const session=await paymentService.createPaymentSession(collection.id,{
-   provider_id:"pp_system_default",currency_code:"all",amount:10,data:{},
+  const address={first_name:"Synthetic",last_name:"AuthBoundary",
+   address_1:"Rruga Test 12",city:"Tirane",postal_code:"1001",country_code:"al"}
+  const updated=await store("POST","/store/carts/"+cartId,{
+   email,shipping_address:address,billing_address:address,
   })
-  assert(typeof session.id==="string"&&session.id.length>8)
-  const authorized=await paymentService.authorizePaymentSession(session.id,{})
-  assert(authorized&&/^pay_[A-Za-z0-9_-]{8,}$/.test(authorized.id))
+  assert.equal(updated.cart?.customer_id,customerId)
+  const options=await store("GET","/store/shipping-options?cart_id="+encodeURIComponent(cartId))
+  const method=options.shipping_options?.find((o:any)=>o.name==="Transport standard")??
+   options.shipping_options?.[0]
+  assert(typeof method?.id==="string")
+  await store("POST","/store/carts/"+cartId+"/shipping-methods",{option_id:method.id})
+  const coll=await store("POST","/store/payment-collections",{cart_id:cartId})
+  const collectionId=coll.payment_collection?.id
+  assert(/^pay_?col_[A-Za-z0-9_-]{8,}$/.test(collectionId??""))
+  await store("POST","/store/payment-collections/"+collectionId+"/payment-sessions",{
+   provider_id:"pp_system_default",
+  })
+  const finished=await store("POST","/store/carts/"+cartId+"/complete",{})
+  assert.equal(finished.type,"order")
+  const orderId=finished.order?.id
+  assert(/^order_[A-Za-z0-9_-]{8,}$/.test(orderId??""))
+  const {data:orderRows}=await query.graph({
+   entity:"order",fields:["id","customer_id","currency_code","total","cart.id",
+    "payment_collections.id"],
+   filters:{id:orderId},
+  })
+  assert.equal(orderRows.length,1)
+  const o=orderRows[0]
+  assert.equal(o.customer_id,customerId)
+  assert.equal(o.cart?.id,cartId)
+  assert.equal(o.currency_code,"all")
+  assert.equal(o.payment_collections?.length,1)
+  assert.equal(o.payment_collections[0].id,collectionId)
+  const orderTotal=whole(o.total)
+  assert(orderTotal>=3n&&orderTotal<=BigInt(Number.MAX_SAFE_INTEGER))
 
   const readDedicated=async():Promise<View>=>{
    const {data}=await query.graph({
@@ -236,25 +291,25 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
      "payments.provider_id","payments.amount","payments.captures.id",
      "payments.captures.amount","payments.refunds.id",
      "payments.refunds.amount","payments.refunds.status"],
-    filters:{id:collection.id},
+    filters:{id:collectionId},
    })
    assert.equal(data.length,1)
    const c=data[0]
-   assert.equal(c.id,collection.id)
+   assert.equal(c.id,collectionId)
    assert.equal(c.currency_code,"all")
-   assert.equal(whole(c.amount),10n)
+   assert.equal(whole(c.amount),orderTotal)
    assert.equal(c.payments?.length,1)
    const p=c.payments[0]
-   assert.equal(p.id,authorized.id)
+   assert(/^pay_[A-Za-z0-9_-]{8,}$/.test(p.id))
    assert.equal(p.provider_id,"pp_system_default")
-   assert.equal(whole(p.amount),10n)
-   return {id:p.id,total:10n,captures:p.captures??[],refunds:p.refunds??[]}
+   assert.equal(whole(p.amount),orderTotal)
+   return {id:p.id,total:orderTotal,captures:p.captures??[],refunds:p.refunds??[]}
   }
   const before=await readDedicated()
   assert.equal(before.captures.length,0,
    "Stage 11P fixture must have no capture at first")
   assert.equal(before.refunds.length,0)
-  console.log("SHQIPSHOP_F08_STAGE11P_INDEPENDENT_UNCAPTURED_MOCK_PAYMENT_READY")
+  console.log("SHQIPSHOP_F08_STAGE11P_INDEPENDENT_LINKED_UNCAPTURED_ORDER_READY")
   const route="/admin/payments/"+encodeURIComponent(before.id)+"/refund"
   const customerAttempt=await send(route,{amount:1},customerAuthJwt)
   assert([401,403].includes(customerAttempt.status),
