@@ -224,6 +224,53 @@ packages:
             self.assertIn("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH",
                           inspect(root, CANDIDATE))
 
+
+    def test_lock_comment_cannot_forge_a_missing_critical_package(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = p.read_text("utf-8").replace(
+                f"  '@medusajs/query@{CANDIDATE}': {{}}",
+                f"  # removed '@medusajs/query@{CANDIDATE}': {{}}")
+            body += f"\n# fake reference @medusajs/query@{CANDIDATE}\n"
+            p.write_text(body, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH",
+                          inspect(root, CANDIDATE))
+
+    def test_nested_peer_reference_does_not_count_as_installed_module(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = p.read_text("utf-8")
+            body += (f"\nsnapshots:\n"
+                     f"  'unrelated@1.0.0(@medusajs/auth@{BASELINE})': {{}}\n")
+            p.write_text(body, encoding="utf-8")
+            self.assertEqual(inspect(root, CANDIDATE), [])
+
+    def test_real_stale_snapshot_with_peer_suffix_is_denied(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = p.read_text("utf-8")
+            body += (f"\nsnapshots:\n"
+                     f"  '@medusajs/query@{BASELINE}(@medusajs/framework@{CANDIDATE})': {{}}\n")
+            p.write_text(body, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH",
+                          inspect(root, CANDIDATE))
+
+    def test_missing_packages_section_is_denied_even_if_importers_exist(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            p.write_text(p.read_text("utf-8").replace(
+                "\npackages:\n", "\nunknown:\n"), encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH",
+                          inspect(root, CANDIDATE))
+
     def test_lock_parser_does_not_treat_packages_as_importers(self):
         text = """importers:
   apps/backend:

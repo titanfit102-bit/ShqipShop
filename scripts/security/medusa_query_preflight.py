@@ -77,6 +77,33 @@ def _lock_importers(text: str) -> dict[str, dict[str, tuple[str, str]]]:
     return importers
 
 
+
+def _lock_package_records(text: str) -> dict[str, set[tuple[str, str]]]:
+    """Read only actual pnpm v9 package/snapshot keys, never free-text peers.
+
+    Narrow structural scanner, NOT a complete YAML parser or lockfile signature.
+    Comments, importer values and peer references in unrelated package keys
+    must not manufacture installed Medusa packages.
+    """
+    records: dict[str, set[tuple[str, str]]] = {
+        "packages": set(),
+        "snapshots": set(),
+    }
+    section: str | None = None
+    for line in text.splitlines():
+        if line and not line.startswith(" "):
+            section = line[:-1] if line in ("packages:", "snapshots:") else None
+            continue
+        if section not in records:
+            continue
+        match = re.match(
+            r"^  '@medusajs/([A-Za-z0-9_.-]+)@([0-9]+\.[0-9]+\.[0-9]+)(?:\([^\r\n]*\))?':(?:\s|$)",
+            line,
+        )
+        if match:
+            records[section].add((match.group(1), match.group(2)))
+    return records
+
 def inspect(root: Path, version: str) -> list[str]:
     """Return NON-SECRET error identifiers; never print installed paths/lock content."""
     errors: list[str] = []
@@ -94,17 +121,18 @@ def inspect(root: Path, version: str) -> list[str]:
         # That is NOT a second copy of the query-security-bearing runtime.
         # Keep critical utils/query/framework/medusa strictly version-pinned,
         # and require the other NON-UI Medusa packages to match as well.
-        installed = re.findall(
-            r"@medusajs/([A-Za-z0-9_.-]+)@([0-9]+\.[0-9]+\.[0-9]+)",
-            lock_text)
+        records = _lock_package_records(lock_text)
+        installed = records["packages"] | records["snapshots"]
         critical = {"utils", "query", "framework", "medusa"}
         for name in critical:
-            found = {v for package, v in installed if package == name}
+            # Critical modules must have a real pnpm package record, not just
+            # a snapshot reference, comment or peer-dependency substring.
+            found = {v for package, v in records["packages"] if package == name}
             if found != {version}:
                 errors.append("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH")
         for name, resolved in installed:
             if name in {"ui", "icons"}:
-                continue  # UI package and independently versioned icon asset
+                continue  # Independently versioned UI assets, not query runtime
             if resolved != version:
                 errors.append("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH")
     except (OSError, ValueError):
