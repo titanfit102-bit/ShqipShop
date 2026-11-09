@@ -101,7 +101,7 @@ def _lock_importers(text: str) -> dict[str, dict[str, dict[str, tuple[str, str]]
             continue
         match = re.match(r"        (specifier|version):\s+(.+?)\s*$", line)
         if match:
-            value = match.group(2).strip("'\\"")
+            value = match.group(2).strip("'\"")
             if match.group(1) == "specifier":
                 if spec is not None:
                     raise ValueError("Duplicate pnpm specifier")
