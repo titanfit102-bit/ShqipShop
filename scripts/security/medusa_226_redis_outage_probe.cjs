@@ -164,12 +164,27 @@ async function main() {
     }
     console.log("SHQIPSHOP_226_STAGE12Q_B_SESSIONS_INDEPENDENT_DURING_A_STALL");
   } finally {
-    // CLIENT UNPAUSE is accepted on a fresh control connection while paused.
-    // The 16s Redis pause also auto-expires if an assertion fails. Never
-    // leave a stalled Redis endpoint intentionally.
+    // CLIENT PAUSE ALL defers even a second control connection's UNPAUSE
+    // response in this Redis runner. Do not mistake that command's timeout
+    // for session recovery. The bounded 16s PAUSE expires automatically.
+    // Explicitly require a fresh, successful PING before any recovery claim.
     if (pauseStarted) {
-      probePhase = "A_REDIS_UNPAUSE";
-      await redis(6379, ["CLIENT", "UNPAUSE"], 5000);
+      probePhase = "A_REDIS_AUTORESUME";
+      const deadline = Date.now() + 25000;
+      let resumed = false;
+      while (Date.now() < deadline) {
+        try {
+          if (await redis(6379, ["PING"], 800) === "+PONG") {
+            resumed = true;
+            break;
+          }
+        } catch (err) {
+          if (err?.message !== "Redis control timeout") throw err;
+        }
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
+      assert.equal(resumed, true, "Redis A did not automatically recover after bounded pause");
+      console.log("SHQIPSHOP_226_STAGE12Q_REDIS_A_AUTORESUME_CONFIRMED");
     }
   }
 
