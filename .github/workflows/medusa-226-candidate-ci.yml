@@ -9,6 +9,7 @@ on:
       - scripts/security/medusa_226_query_probe.cjs
       - scripts/security/medusa_226_http_probe.cjs
       - scripts/security/medusa_226_ab_ci.sh
+      - scripts/security/medusa_226_redis_outage_probe.cjs
   workflow_dispatch:
 
 permissions:
@@ -142,7 +143,7 @@ jobs:
           set -euo pipefail
           cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
           pnpm --filter @dtc/backend exec medusa db:migrate
-      - name: Stage 12O real A/B merchant JWT, orders and mutation checks on isolated 2.22.6
+      - name: Stage 12O/P/Q A/B merchant JWT, cookie process and controlled Redis stall on 2.22.6
         run: bash "$GITHUB_WORKSPACE/scripts/security/medusa_226_ab_ci.sh"
       - name: Export disposable Medusa publishable key for real HTTP paths
         env:
