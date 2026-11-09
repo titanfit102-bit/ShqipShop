@@ -69,10 +69,10 @@ class SecretGuardTest(unittest.TestCase):
                              ["FIN-RELEASE-RG03-UNKNOWN"])
             gate = root / "docs/security/SECURITY_RELEASE_GATES.md"
             gate.parent.mkdir(parents=True)
-            gate.write_text("| RG-03 cart/order/payment | proof | **BLOCKED (P0)** |\\n")
+            gate.write_text("| RG-03 cart/order/payment | proof | **BLOCKED (P0)** |\n")
             self.assertEqual(financial_release_gate_failures(root),
                              ["FIN-RELEASE-RG03-NOT-APPROVED"])
-            gate.write_text("| RG-03 cart/order/payment | proof | PASS |\\n")
+            gate.write_text("| RG-03 cart/order/payment | proof | PASS |\n")
             self.assertEqual(financial_release_gate_failures(root), [])
 
     def test_financial_release_gate_rejects_approval_placed_before_blocked(self):
@@ -124,6 +124,17 @@ class SecretGuardTest(unittest.TestCase):
             gate = root / "docs/security/SECURITY_RELEASE_GATES.md"
             gate.parent.mkdir(parents=True)
             gate.write_text("| RG-03 cart/order/payment | PASS |\n",
+                            encoding="utf-8")
+            self.assertEqual(financial_release_gate_failures(root),
+                             ["FIN-RELEASE-RG03-UNKNOWN"])
+
+    def test_financial_release_gate_invalid_trailing_escape_is_not_approval(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            gate = root / "docs/security/SECURITY_RELEASE_GATES.md"
+            gate.parent.mkdir(parents=True)
+            # Literal backslash+n is not a newline and does not end a table row.
+            gate.write_text("| RG-03 cart/order/payment | evidence | PASS |\\n",
                             encoding="utf-8")
             self.assertEqual(financial_release_gate_failures(root),
                              ["FIN-RELEASE-RG03-UNKNOWN"])

@@ -1,5 +1,12 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-09 — Stage 12K test fixture correction (IMPLEMENTED; CI PENDING; RELEASE BLOCKED)
+
+[First Stage12K security run 42685065083](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42685065083) on [3a7cc1c](https://github.com/titanfit102-bit/ShqipShop/commit/3a7cc1c581301588646663bbc0b0ce175ed25922) executed **59 Python tests: 58 PASS, 1 FAIL**. The failed case was a **pre-existing fixture defect**, not an observed financial release bypass: `test_financial_release_gate_blocks_p0_and_unknown` wrote a literal backslash followed by `n` after the trailing pipe rather than a real newline. With the strengthened Stage12K row parser, this malformed row correctly returned UNKNOWN rather than NOT-APPROVED. All five new duplicate/malformed tests passed. Security preflight and finance source steps were SKIPPED after unit failure and MUST NOT be described as passing on 3a7cc1c.
+
+**Correction:** change only that test's two intended lines (single BLOCKED and single PASS fixtures) to use real `\\n` Python newline escapes, keeping the production code fail-closed. Add a new explicit negative fixture asserting that an invalid literal `\\\\n` suffix cannot impersonate a valid PASS table row. **Expected 60 Python tests; exact corrective CI PENDING.** No gate status, code policy, Medusa versions, lockfile, financial behavior, main or Production changed. Known T05/S13 refund and vulnerable Medusa 2.22.0 P0, RG-01/02/03 G3/G5 remain BLOCKED.
+
+
 ## 2026-11-09 — Stage 12K RG-03 contradictory row fail-closed (IMPLEMENTED; EXACT-HEAD CI PENDING; RELEASE BLOCKED)
 
 **Exact Stage12J predecessor** [00083510](https://github.com/titanfit102-bit/ShqipShop/commit/00083510ef904db59c33642ad0a245fb62f6a84b): [security 42683427421](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42683427421) **54/54 Python tests PASS**, and seven of eight CI workflows SUCCESS. [Backend 42683427749](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42683427749) genuinely FAILED on mandatory native P0 persisted uncaptured Admin refund (11P) and +1 ALL excess/singular/direct module refunds (11J/O/I); mock restart/owner retry 11E/F passed. Native finance defect and version 2.22.0 dependency exposure remain OPEN; no release.
