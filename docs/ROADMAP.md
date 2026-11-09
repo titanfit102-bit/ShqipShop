@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-09 — Stage 11P P0 Admin HTTP financial-integrity regression (CONFIRMED, disposable CI)
+
+[Medusa backend CI 42630328830](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42630328830) / [code 61f8872](https://github.com/titanfit102-bit/ShqipShop/commit/61f88721d6ff6173b31b4a4a6d940e437af77374): valid Medusa Admin login + linked synthetic third checkout with 0 captured ALL followed by built-in Admin refund HTTP 2xx and newly persisted +1 ALL refund row. Customer-auth and negative-amount calls denied/no mutation; original two Stage11B orders remained intact; 11K strict separate guard passed, 11I/J/O known-red refunds reproduced. Omitted amount singular probe denied/no PG change. **No real PSP, actual merchant role/tenant access, or production deployment tested.** NEXT: explicit per-merchant exact captured-minus-reserved/refunded amount guard **at authenticated Admin API/workflow boundary**, with serialized operation/outbox and PSP reconciliation subject to separate authorization; negative role/tenant/fully-refunded HTTP and provider sandbox tests. S13/T05 RG-01/02/03 G3/G5 BLOCKED; PR #12 Draft, `main` unchanged.
+
+
 ## 2026-11-09 — Stage 11O: singular refund workflow +1 ALL persisted; unauthenticated Admin denied (CONFIRMED CI)
 
 [CI 42543583104](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42543583104) Stage 11O: live local Admin no/invalid JWT HTTP calls denied without PostgreSQL mutation; **singular** `refundPaymentWorkflow` denied +2 ALL but accepted/persisted +1 ALL over full capture; plural 11J and direct 11I regressions remained RED. Omitted-amount singular probe ran without accepted/persisted log; needs explicit case classification. **No valid authenticated Admin HTTP positive/role/tenant or real PSP evidence**, so external reachability UNKNOWN. NEXT: Admin auth/RBAC and object-ownership tests plus strict server-side refund guard and provider reconciliation, after scoped approval. All release gates BLOCKED.

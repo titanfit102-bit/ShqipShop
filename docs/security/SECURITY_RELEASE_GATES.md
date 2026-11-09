@@ -2,13 +2,16 @@
 
 **Current decision: BLOCKED — NOT PRODUCTION READY.** Development PR #12 is Draft and stacked on Draft PR #11; no merge, Production deploy, merchant onboarding, real charge, release signing or branch-admin mutation is authorized. A CI-green PR is **not** equivalent to safe release.
 
+
+**Current financial P0 evidence:** Stage 11P [CI 42630328830](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42630328830) reproduced a successful authenticated Admin HTTP refund creating a mock refund row where the linked payment had **zero captured amount**. This is CI-only and does not prove real PSP settlement; it independently blocks RG-03 until reviewed server-side cap and authorized/provider acceptance evidence exist.
+
 ## Gate definitions
 
 | Gate | Required demonstrable evidence | Current decision |
 | --- | --- | --- |
 | RG-01 tenant boundary | Independent merchant Medusa/DB/Redis/secrets/media configuration; signed-in/anonymous/guest/admin negative GET+mutation+refund/fulfillment tests and real staging tenant boundary review | BLOCKED (G3 partial) |
 | RG-02 identity/privacy | Server-side JWT expiry/revocation and logout/device policy, secure native token store, RBAC and object ownership, CSRF/CORS/cookie/TLS tests | BLOCKED (F08 open) |
-| RG-03 cart/order/payment | Server quote+explicit buyer acceptance from authoritative cart; atomic stale/race/replay protections, exactly-once business effects, idempotent retries, PSP sandbox/webhook signature/refund reconciliation | BLOCKED (F07g helper only) |
+| RG-03 cart/order/payment | Server quote+explicit buyer acceptance from authoritative cart; atomic stale/race/replay protections, exactly-once business effects, idempotent retries, PSP sandbox/webhook signature/refund reconciliation | **BLOCKED (P0 Stage 11P: authenticated mock Admin uncaptured refund persisted; F07g not deployed)** |
 | RG-04 mobile | Distinct secure production signing key and rotation procedure, reproducible signed release, no dev HTTP/keys, MASVS/MASTG device review, privacy, safe build artifact provenance | BLOCKED (debug signing in release build config) |
 | RG-05 supply chain | Tracked secret scan with zero validated exposed credentials or revoked findings, SAST/CodeQL and dependency findings triaged; high/critical exploitable issues resolved/explicitly risk-accepted with recorded owner | BLOCKED (insufficient evidence) |
 | RG-06 infrastructure | HTTPS/HSTS, edge rate limiting/WAF, least-privilege DB/Redis/backup IAM, restores, logging/alerts, retention/privacy, disaster recovery and incident tabletop exercise | BLOCKED (no verified production deployment) |
