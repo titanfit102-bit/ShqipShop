@@ -1,5 +1,39 @@
 # ShqipShop — Security Architecture
 
+## 2026-11-09 — Stage 12B: pinned Medusa 2.22.0 versus official 2.22.6 security fix and unchanged ALL refund defect (SOURCE VERIFIED; UPGRADE/PATCH PROPOSED ONLY)
+
+### Pinned-version and release evidence
+
+- ShqipShop currently pins `@medusajs/medusa`, `@medusajs/framework` and other Medusa packages to **2.22.0** in `medusa-backend-poc/apps/backend/package.json` and `medusa-backend-poc/pnpm-lock.yaml`; the root monorepo also pins `@medusajs/eslint-plugin` 2.22.0. **No dependency or lockfile was changed by Stage 12B.**
+- [Official Medusa 2.22.6 release](https://github.com/medusajs/medusa/releases/tag/v2.22.6), published **2026-11-09 16:23:05 UTC**, is the latest non-prerelease confirmed by the official GitHub `releases/latest` endpoint **at the time of this review**. It supersedes [2.22.5](https://github.com/medusajs/medusa/releases/tag/v2.22.5), which was deprecated because files were missing from the published packages. **Do not install 2.22.5.**
+- The release 2.22.5/2.22.6 fixes **unsafe dotted query-parameter path handling** across `@medusajs/utils`, `@medusajs/query`, and `@medusajs/framework` ([upstream merged PR #17712](https://github.com/medusajs/medusa/pull/17712)). It guards unexpected path segments and own-key traversal and returns appropriate client errors for malformed keys; upstream reports its relevant tests passed and recommends self-hosted projects update promptly. The upstream [shared unsafe-path helper](https://github.com/medusajs/medusa/blob/v2.22.6/packages/core/utils/src/common/unsafe-path-keys.ts) **exists at 2.22.6 but does not exist at 2.22.0**; independently inspected query and framework helpers changed from their 2.22.0 versions. No real deployment, attack attempt, or actual exploitation in ShqipShop has been verified. Treat this as **release-critical dependency exposure until remediated**, not a claim of a demonstrated breach.
+
+### Crucial: upgrading does NOT solve T05
+
+- Directly compared [native Payment Module v2.22.0](https://github.com/medusajs/medusa/blob/v2.22.0/packages/modules/payment/src/services/payment-module.ts#L1133-L1149) (blob `206d4649659c41dade0a268f5e8b9c302674af51`) with [v2.22.6](https://github.com/medusajs/medusa/blob/v2.22.6/packages/modules/payment/src/services/payment-module.ts#L1131-L1147) (blob `864b920ab99f798260f7240b0f446b15a3586109`). The exact `MathBN.lt(captured - totalRefunded, -currencyEpsilon)` refund guard is **unchanged**. The module's unrelated formatting change does not correct the financial cap.
+- Independently checked `defaultCurrencies.ALL.decimal_digits = 0` in BOTH tags ([2.22.0](https://github.com/medusajs/medusa/blob/v2.22.0/packages/core/utils/src/defaults/currencies.ts) and [2.22.6](https://github.com/medusajs/medusa/blob/v2.22.6/packages/core/utils/src/defaults/currencies.ts)). Epsilon remains **1 ALL**, hence the known **exactly +1 ALL** bound failure is still possible in the same native path. The refund model's unique payment/key index is identical in both tags. Existing CI unguarded 11I/J/O/P failures remain valid and **MUST NOT be muted after upgrade**.
+
+### Option comparison and controlled decision
+
+| Option | Benefit | Residual risk / operational cost | Decision |
+| --- | --- | --- | --- |
+| A. Upgrade the **entire pinned compatible Medusa package set** to 2.22.6 on a separately reviewed CI-only candidate | Official maintained security hardening; no locally carried query-security patch | Requires consistent manifest+pnpm lock regeneration, API/build/migration/plugin compatibility tests; financial +1 ALL P0 remains | **Preferred for isolated validation, not yet authorized or implemented** |
+| B. Apply the **official 2.20.0–2.22.4 backport** to pinned 2.22.0 | More limited dependency churn if full upgrade is blocked | [Official archive linked from 2.22.5 release](https://github.com/medusajs/medusa/releases/tag/v2.22.5) exists but its **contents/signature/application instructions were NOT independently retrieved or validated here**; manual patch drift, integrity and reinstall repeatability require verification | **Fallback proposal only; do not execute unseen instructions or unreviewed ZIP** |
+| C. A custom route-only filter or unreviewed hotfix | Seemingly quick change | Does not cover every framework/query path and risks bypass; not an adequate substitute for the upstream fix | **Reject** |
+| D. Native Payment Module in-transaction strict-ALL policy correction (see Stage 12A) | Addresses T05 exact +1 ALL and bypass via internal workflows | Separate security-critical finance change requiring finance-role RBAC, PSP ACK-loss reconciliation, native transaction tests and owner approval | **Separate workstream; 2.22.6 upgrade alone is insufficient** |
+
+**Recommended order, without implicit permission:** (1) document and block unpatched self-hosted release; (2) separately authorize and run a clean, disposable, **2.22.6 whole-package CI candidate**, with independent safe/malformed query regression, tenant/auth behavior, Medusa build/lockfile consistency and all old finance P0 tests still active; (3) backport only after reviewing the full official archive if upgrade is infeasible; (4) separately review/authorize strict native finance fix and real provider reconciliation. Neither a CI-only pass nor an upstream tag alone changes release gates.
+
+### Acceptance before any integration
+
+- Confirm all Medusa package versions and lockfile resolution match the approved pinned release, never mix 2.22.0/2.22.6 runtime packages.
+- Positive: legitimate nested field/filter/order queries remain correct; negative: unsafe/malformed dotted parameters are rejected or ignored without modifying shared object state, with expected 4xx behavior and safe tenant isolation. Use upstream regression scope and authorized, disposable tests. Do not put security payload details in public logs.
+- Re-run merchant A/B isolation, JWT/auth, order/payment workflows, PostgreSQL migration compatibility and Redis/worker tests. Existing 11I/J/O/P P0 financial sentinels **must remain RED** until a genuine later native finance fix, not be bypassed to make the upgrade appear successful.
+- Independently check a candidate security patch/upgrade for supply-chain provenance and rollback before production; no production credentials/traffic or unsigned bundles in CI.
+
+**Status: SOURCE VERIFIED / DECISION PREPARED.** Stage12B changed only this existing documentation and canonical status records, not dependencies, production code, CI gates, environment, payments, or deployment. T05/S13 P0 and RG-01/02/03/G3/G5 remain **BLOCKED**; new Medusa query-path hardening is a **separate open dependency release gate**. PR #12 Draft and `main` unchanged.
+
+
 ## 2026-11-09 — F08 Stage 12A: native refund policy and uncertain-PSP-outcome design review (SOURCE VERIFIED / DESIGN PROPOSED; NOT IMPLEMENTED)
 
 **Verified pinned source:** Medusa **v2.22.0**, [Payment Module refundPayment_](https://github.com/medusajs/medusa/blob/v2.22.0/packages/modules/payment/src/services/payment-module.ts#L1054-L1184), [refundPayment and provider call](https://github.com/medusajs/medusa/blob/v2.22.0/packages/modules/payment/src/services/payment-module.ts#L929-L989), [provider dispatch](https://github.com/medusajs/medusa/blob/v2.22.0/packages/modules/payment/src/services/payment-module.ts#L1187-L1209), [Admin route](https://github.com/medusajs/medusa/blob/v2.22.0/packages/medusa/src/api/admin/payments/%5Bid%5D/refund/route.ts), [Admin validation](https://github.com/medusajs/medusa/blob/v2.22.0/packages/medusa/src/api/admin/payments/validators.ts), [refund model unique index](https://github.com/medusajs/medusa/blob/v2.22.0/packages/modules/payment/src/models/refund.ts). These are SOURCE READBACK findings, not a production fix.

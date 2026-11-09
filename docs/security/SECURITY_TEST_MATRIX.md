@@ -1,5 +1,20 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — Stage 12B pinned Medusa query-path hardening acceptance plan (NOT YET TESTED)
+
+[Official Medusa release](https://github.com/medusajs/medusa/releases/tag/v2.22.6) and [merged fix PR #17712](https://github.com/medusajs/medusa/pull/17712): current backend manifest + pnpm lockfile use **2.22.0**; upstream fixes query path handling in **2.22.6**, not the native refund amount policy. These are required tests for a **future, separately authorized, isolated dependency candidate**, not claims that tests have already run.
+
+| Test | Positive | Fail-closed negative | State |
+| --- | --- | --- | --- |
+| Dependency coherence | all runtime Medusa modules on one pinned 2.22.6 train, reproducible frozen lock install | mixed versions / unreviewed tarball rejected | PROPOSED |
+| Query path safety | valid nested fields, filters, sorting, pagination unaffected | unsafe dotted segments and inherited keys rejected/skipped; malformed values result in expected 4xx, no shared-state mutation | PROPOSED |
+| Tenant/auth regression | merchant A/B and genuine JWT admin/customer access still correct | foreign tenant, unauthenticated, revoked principal and forged scope blocked | PROPOSED |
+| Checkout/payment | mock order capture and valid partial/exact full refund still work in disposable native ledger | known-red unguarded exact +1 ALL and no-capture tests 11I/J/O/P **remain unchanged and must still fail** until separate genuine finance fix | PROPOSED |
+| Supply chain/deploy | verified upstream release provenance, diff, lock rebuild and rollback rehearsal | no production access, real PSP, secrets, signing, main merge, deployment or release gate override | PROPOSED |
+
+Original full source comparison is in [SECURITY_ARCHITECTURE.md](SECURITY_ARCHITECTURE.md). **None of these planned candidate tests were executed during Stage12B.** Financial S13/T05 P0 and RG-01/02/03/G3/G5 remain BLOCKED.
+
+
 ## 2026-11-09 — F08 Stage 11Z distinct-key two-API Medusa refund contention VERIFIED (CI ONLY; P0 BLOCKED)
 
 **Proven on exact-source HEAD [fe8f578](https://github.com/titanfit102-bit/ShqipShop/commit/fe8f578d602e574b8b2ec78646ed9b171c248a99), [Medusa CI 42661306711](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42661306711):** two independent locally running Medusa 2.22.0 APIs (9220/9221), same disposable PostgreSQL/Redis, authenticated Admin JWT, linked fully captured mock payment, distinct refund body idempotency keys. Each request was independently within available captured ALL; combined proposed amounts exceeded captured total by at least 3 ALL to avoid conflating this test with the already-confirmed upstream 1 ALL epsilon defect. Observed **200/400**, exactly ONE successful authoritative Medusa refund row for the winning amount, no capture mutation: `SHQIPSHOP_F08_STAGE11Z_ONE_WIN_ONE_DENIED_LEDGER_PASSED`. Winning-key replay returned **409** at the narrow CI preflight (not native replay) with no mutation: `SHQIPSHOP_F08_STAGE11Z_WINNING_KEY_REPLAY_DENIED_NO_MUTATION`. A new, legitimate exact-remaining-ALL refund persisted, then after full refund a fresh +1 ALL was **409** with unchanged ledger. Markers `SHQIPSHOP_F08_STAGE11Z_LEGITIMATE_REMAINDER_PERSISTED`, `SHQIPSHOP_F08_STAGE11Z_AFTER_FULL_ONE_ALL_DENIED`, `SHQIPSHOP_F08_STAGE11Z_DISTINCT_KEY_TWO_API_CONTRACT_PASSED` were present. The first test at 42660058320 proved the 200/400 ledger result but had an incorrect replay-2xx expectation; [9422f70](https://github.com/titanfit102-bit/ShqipShop/commit/9422f7002479b73b088472d35bc6143507916352) correctly requires the CI guard's 409, not a bypass, and this retest passed.
