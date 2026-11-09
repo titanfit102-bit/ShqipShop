@@ -44,6 +44,9 @@ importers:
 
 packages:
   '@medusajs/medusa@{version}': {{}}
+  '@medusajs/framework@{version}': {{}}
+  '@medusajs/utils@{version}': {{}}
+  '@medusajs/query@{version}': {{}}
 """, encoding="utf-8")
 
     def test_baseline_identifies_known_outdated_pin_without_claiming_fix(self):
@@ -189,6 +192,37 @@ packages:
             self.assertNotIn("SEC-MEDUSA-QUERY-PATCHED-TRAIN-UNVERIFIED",
                              output.getvalue())
             # This is a mocked release config fixture, not real release approval.
+
+    def test_legacy_transitive_ui_icons_do_not_mask_query_security_runtime(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, BASELINE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            p.write_text(p.read_text("utf-8") +
+                         "\n  '@medusajs/icons@2.21.2': {}\n", encoding="utf-8")
+            self.assertEqual(inspect(root, BASELINE), [])
+
+    def test_mixed_non_ui_transitive_package_still_fails_closed(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            p.write_text(p.read_text("utf-8") +
+                         "\n  '@medusajs/auth@2.21.2': {}\n", encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH",
+                          inspect(root, CANDIDATE))
+
+    def test_missing_critical_query_module_version_fails_closed(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            text = p.read_text("utf-8")
+            p.write_text(text.replace(
+                f"  '@medusajs/utils@{CANDIDATE}': {{}}", ""),
+                encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH",
+                          inspect(root, CANDIDATE))
 
     def test_lock_parser_does_not_treat_packages_as_importers(self):
         text = """importers:

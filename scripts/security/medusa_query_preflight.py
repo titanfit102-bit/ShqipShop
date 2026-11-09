@@ -89,10 +89,24 @@ def inspect(root: Path, version: str) -> list[str]:
         lock = _lock_importers(lock_text)
         # This is an integrity preflight, so transitive/pnpm snapshot packages
         # must not retain an older Medusa release even when importers look clean.
-        resolved_versions = set(re.findall(
-            r"@medusajs/(?!ui@)[A-Za-z0-9_.-]+@([0-9]+\.[0-9]+\.[0-9]+)", lock_text))
-        if not resolved_versions or resolved_versions != {version}:
-            errors.append("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH")
+        # pnpm legitimately carries an older @medusajs/icons release as a
+        # transitive UI asset (2.21.2 alongside 2.22.0 in the pinned lock).
+        # That is NOT a second copy of the query-security-bearing runtime.
+        # Keep critical utils/query/framework/medusa strictly version-pinned,
+        # and require the other NON-UI Medusa packages to match as well.
+        installed = re.findall(
+            r"@medusajs/([A-Za-z0-9_.-]+)@([0-9]+\.[0-9]+\.[0-9]+)",
+            lock_text)
+        critical = {"utils", "query", "framework", "medusa"}
+        for name in critical:
+            found = {v for package, v in installed if package == name}
+            if found != {version}:
+                errors.append("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH")
+        for name, resolved in installed:
+            if name in {"ui", "icons"}:
+                continue  # UI package and independently versioned icon asset
+            if resolved != version:
+                errors.append("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH")
     except (OSError, ValueError):
         return ["MEDUSA-QUERY-LOCK-UNREADABLE"]
     for manifest_rel in MANIFESTS:
