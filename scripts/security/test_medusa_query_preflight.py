@@ -527,6 +527,41 @@ snapshots:
                          encoding="utf-8")
             self.assertEqual(inspect(root, CANDIDATE), [])
 
+    def test_duplicate_exact_medusa_package_key_is_rejected(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = path.read_text("utf-8").replace(
+                "\nsnapshots:\n",
+                f"  '@medusajs/utils@{CANDIDATE}': {{}}\n\nsnapshots:\n", 1)
+            path.write_text(body, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE",
+                          inspect(root, CANDIDATE))
+
+    def test_duplicate_exact_medusa_snapshot_key_is_rejected(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            path.write_text(
+                path.read_text("utf-8") +
+                f"\n  '@medusajs/framework@{CANDIDATE}(peer@1.0.0)': {{}}\n",
+                encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE",
+                          inspect(root, CANDIDATE))
+
+    def test_distinct_valid_peer_snapshots_same_medusa_version_are_allowed(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            path.write_text(
+                path.read_text("utf-8") +
+                f"\n  '@medusajs/framework@{CANDIDATE}(peer@2.0.0)': {{}}\n",
+                encoding="utf-8")
+            self.assertEqual(inspect(root, CANDIDATE), [])
+
     def test_lock_parser_does_not_treat_packages_as_importers(self):
         text = """importers:
   apps/backend:

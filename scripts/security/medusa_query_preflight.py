@@ -103,6 +103,12 @@ def _lock_package_records(text: str) -> dict[str, set[tuple[str, str]]]:
         "packages": set(),
         "snapshots": set(),
     }
+    # The version set alone cannot distinguish repeated identical YAML keys.
+    # Track complete package keys, including valid snapshot peer suffixes.
+    seen_keys: dict[str, set[str]] = {
+        "packages": set(),
+        "snapshots": set(),
+    }
     section: str | None = None
     seen_sections: set[str] = set()
     for line in text.splitlines():
@@ -116,7 +122,7 @@ def _lock_package_records(text: str) -> dict[str, set[tuple[str, str]]]:
         if section not in records:
             continue
         match = re.match(
-            r"^  '@medusajs/([A-Za-z0-9_.-]+)@([0-9]+\.[0-9]+\.[0-9]+)(?:\([^\r\n]*\))?':(?:\s|$)",
+            r"^  ('@medusajs/([A-Za-z0-9_.-]+)@([0-9]+\.[0-9]+\.[0-9]+)(?:\([^\r\n]*\))?'):(?:\s|$)",
             line,
         )
         if line.startswith("  '@medusajs/") and not match:
@@ -124,7 +130,11 @@ def _lock_package_records(text: str) -> dict[str, set[tuple[str, str]]]:
             # clean pinned train. Reject it rather than silently skipping it.
             raise ValueError("Unrecognized Medusa package/snapshot key")
         if match:
-            records[section].add((match.group(1), match.group(2)))
+            full_key = match.group(1)
+            if full_key in seen_keys[section]:
+                raise ValueError("Duplicate Medusa package/snapshot key")
+            seen_keys[section].add(full_key)
+            records[section].add((match.group(2), match.group(3)))
     if seen_sections != set(records):
         raise ValueError("Missing pnpm package/snapshot section")
     return records
