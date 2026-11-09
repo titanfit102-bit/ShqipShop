@@ -7,6 +7,7 @@ on:
       - scripts/security/medusa_226_ci_candidate.py
       - scripts/security/test_medusa_226_ci_candidate.py
       - scripts/security/medusa_226_query_probe.cjs
+      - scripts/security/medusa_226_http_probe.cjs
   workflow_dispatch:
 
 permissions:
@@ -131,7 +132,17 @@ jobs:
           set -euo pipefail
           cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
           pnpm --filter @dtc/backend exec medusa db:migrate
-      - name: Boot isolated 2.22.6 API and verify HTTP health
+      - name: Export disposable Medusa publishable key for real HTTP paths
+        env:
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-226-publishable-key.txt
+          SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE: ${{ runner.temp }}/shqipshop-226-empty-channel-key.txt
+        run: |
+          set -euo pipefail
+          cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/export-ci-publishable-key.ts
+      - name: Boot isolated 2.22.6 API and check HTTP safe/unsafe queries
+        env:
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-226-publishable-key.txt
         run: |
           set -euo pipefail
           cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
@@ -154,6 +165,7 @@ jobs:
             exit 1
           fi
           echo SHQIPSHOP_MEDUSA_226_DISPOSABLE_API_HEALTH_PASSED
+          node "$GITHUB_WORKSPACE/scripts/security/medusa_226_http_probe.cjs"
       - name: Confirm checked-in 2.22.0 untouched and release still blocked
         run: |
           set -euo pipefail
