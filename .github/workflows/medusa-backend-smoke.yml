@@ -431,14 +431,16 @@ jobs:
         run: |
           set -euo pipefail
           api=""
+          api_second=""
           cleanup() {
             if [ -n "$api" ]; then kill -TERM -- "-$api" 2>/dev/null || true; fi
+            if [ -n "$api_second" ]; then kill -TERM -- "-$api_second" 2>/dev/null || true; fi
             rm -f "$SHQIPSHOP_F08_MULTIPROC_PROOF_FILE" "$SHQIPSHOP_F08_ACK_BASELINE_FILE" "$SHQIPSHOP_F08_PAYMENT_BASELINE_FILE"
           }
           trap cleanup EXIT
           ready() {
             for i in $(seq 1 90); do
-              if curl -fsS --max-time 3 http://127.0.0.1:9220/health >/dev/null 2>&1; then return 0; fi
+              if curl -fsS --max-time 3 http://127.0.0.1:${1:-9220}/health >/dev/null 2>&1; then return 0; fi
               sleep 3
             done
             echo "::error::Stage 11E disposable Medusa API did not start"
@@ -491,11 +493,16 @@ jobs:
           export SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD="$stage11p_admin_password"
           stage11q_rc=0
           SHQIPSHOP_F08_STRICT_REFUND_CI=true SHQIPSHOP_F08_ADMIN_REFUND_PHASE=http-guard pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-admin-boundary-ci.ts || stage11q_rc=$?
-          # Stage 11R: real Admin bearer, disposable balances and atomic
-          # PostgreSQL reservation/outbox only. NO provider or Medusa refund.
-          # Keep Stage 11Q and original 11I/J/O/P outcomes independent.
+          # Stage 11S: a second disposable Medusa API races the first.
+          # Both have independent HTTP processes on shared runner-local PG/Redis.
+          SHQIPSHOP_F08_STRICT_REFUND_CI=true SHQIPSHOP_F08_11R_ATOMIC_CI=true SHQIPSHOP_F08_11R_MERCHANT=merchant_ci_a setsid pnpm --filter @dtc/backend exec medusa develop --port 9221 > "$RUNNER_TEMP/f08-11s-second-api.log" 2>&1 &
+          api_second=$!
+          ready 9221
           stage11r_rc=0
-          SHQIPSHOP_F08_STRICT_REFUND_CI=true SHQIPSHOP_F08_11R_ATOMIC_CI=true SHQIPSHOP_F08_11R_MERCHANT=merchant_ci_a pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-atomic-admin-http-ci.ts || stage11r_rc=$?
+          SHQIPSHOP_F08_STRICT_REFUND_CI=true SHQIPSHOP_F08_11R_ATOMIC_CI=true SHQIPSHOP_F08_11R_MERCHANT=merchant_ci_a SHQIPSHOP_F08_11S_MULTIPROC_CI=true pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-atomic-admin-http-ci.ts || stage11r_rc=$?
+          kill -TERM -- "-$api_second" 2>/dev/null || true
+          wait "$api_second" 2>/dev/null || true
+          api_second=""
           unset SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD stage11p_admin_password
           kill -TERM -- "-$api" 2>/dev/null || true
           wait "$api" 2>/dev/null || true

@@ -25,6 +25,7 @@ export default async function verifyAtomicAdminHttp({container}:ExecArgs){
   SHQIPSHOP_F08_STRICT_REFUND_CI:"true",
   SHQIPSHOP_F08_11R_ATOMIC_CI:"true",
   SHQIPSHOP_F08_11R_MERCHANT:tenant,
+  SHQIPSHOP_F08_11S_MULTIPROC_CI:"true",
   SHQIPSHOP_F08_ACK_LOSS_CI:"true",
   WORKER_MODE:"server",
   DATABASE_URL:"postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci",
@@ -33,11 +34,11 @@ export default async function verifyAtomicAdminHttp({container}:ExecArgs){
  const password=process.env.SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD
  assert(/^[a-f0-9]{48}$/.test(password??""),
   "Require existing masked runner-only Admin password")
- const post=async(path:string,body:unknown,token?:string,rollback=false)=>{
+ const post=async(path:string,body:unknown,token?:string,rollback=false,port=9220)=>{
   const headers:Record<string,string>={"content-type":"application/json"}
   if(token)headers.authorization="Bearer "+token
   if(rollback)headers["x-shqipshop-ci-rollback"]="true"
-  return fetch(base+path,{method:"POST",headers,body:JSON.stringify(body),
+  return fetch("http://127.0.0.1:"+port+path,{method:"POST",headers,body:JSON.stringify(body),
    signal:AbortSignal.timeout(15000)})
  }
  const login=await post("/auth/user/emailpass",{
@@ -80,10 +81,10 @@ export default async function verifyAtomicAdminHttp({container}:ExecArgs){
    keys:ops.map((o:any)=>o.operation_key)}
  }
  const call=async(payment:string,amount:unknown,key:string,
-   rollback=false,customToken:string=token)=>{
+   rollback=false,customToken:string=token,port=9220)=>{
   return post("/admin/payments/"+payment+"/refund",{
    amount,idempotency_key:key,
-  },customToken,rollback)
+  },customToken,rollback,port)
  }
  const status=async(payment:string,amount:unknown,key:string,
    rollback=false)=> (await call(payment,amount,key,rollback)).status
@@ -177,11 +178,17 @@ export default async function verifyAtomicAdminHttp({container}:ExecArgs){
   assert.deepEqual(await dbSame(tenant,primary),full)
   console.log("SHQIPSHOP_F08_STAGE11R_ATOMIC_KEY_REPLAY_ROLLBACK_AND_FULL_CAP")
 
+  // Stage 11S: two distinct Medusa API processes with shared PostgreSQL.
+  const peerHealth=await fetch("http://127.0.0.1:9221/health",{
+   signal:AbortSignal.timeout(6500),
+  })
+  assert.equal(peerHealth.status,200,"Second Medusa API must be live")
+  console.log("SHQIPSHOP_F08_STAGE11S_SECOND_INDEPENDENT_MEDUSA_API_READY")
   // Actual overlapping HTTP requests, two independent DB transactions.
   // At most one of 60 + 60 ALL can reserve against 100 ALL capacity.
   const racing=await Promise.all([
    call(parallel,60,"stage11r_parallel_a"),
-   call(parallel,60,"stage11r_parallel_b"),
+   call(parallel,60,"stage11r_parallel_b",false,token,9221),
   ])
   assert.deepEqual(racing.map(x=>x.status).sort(),[202,409])
   const race=await dbSame(tenant,parallel)
@@ -191,8 +198,10 @@ export default async function verifyAtomicAdminHttp({container}:ExecArgs){
   assert.deepEqual(await dbSame(tenant,parallel),race)
   assert.equal((await dbSame(foreign,other)).reserved,0n)
   console.log("SHQIPSHOP_F08_STAGE11R_TWO_REAL_HTTP_REQUESTS_AT_MOST_ONE_RESERVATION")
+  console.log("SHQIPSHOP_F08_STAGE11S_TWO_API_PROCESSES_SINGLE_REFUND_RESERVATION")
   console.log("SHQIPSHOP_F08_STAGE11R_NO_PROVIDER_REFUND_DISPATCHED")
   console.log("SHQIPSHOP_F08_STAGE11R_AUTHENTICATED_ATOMIC_HTTP_CI_PASSED")
+  console.log("SHQIPSHOP_F08_STAGE11S_CROSS_PROCESS_ATOMIC_CI_PASSED")
  }finally{
   for(const name of [OUT,OPS,STAFF,BAL])
    if(await db.schema.hasTable(name))await db.schema.dropTable(name)
