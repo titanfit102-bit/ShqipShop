@@ -140,8 +140,9 @@ export default async function verifyAtomicAdminHttp({container}:ExecArgs){
   // Real Admin bearer identity, but no access to other merchant's money.
   const guest=await call(primary,1,"stage11r_guest",false,"")
   assert([401,403].includes(guest.status))
-  assert([401,403].includes(await status(primary,1,"stage11r_not_valid_token"))
-   ===false||true)
+  const invalid=await call(primary,1,"stage11r_invalid_bearer",false,
+   "not-a-valid-medusa-token")
+  assert([401,403].includes(invalid.status))
   assert.equal(await status(other,1,"stage11r_foreign"),404)
   assert.equal(await status(zero,1,"stage11r_uncaptured"),409)
   for(const bad of [-1,0,0.5,1.5,"1",null])
