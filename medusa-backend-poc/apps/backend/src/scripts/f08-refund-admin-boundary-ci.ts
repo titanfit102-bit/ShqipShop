@@ -40,7 +40,7 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
  }
  for(const [n,v] of Object.entries(env))assert.equal(process.env[n],v,n)
  const phase=process.env.SHQIPSHOP_F08_ADMIN_REFUND_PHASE
- assert(["http-deny","http-authenticated","http-guard","http-key-replay","http-key-race","singular-workflow"].includes(phase??""))
+ assert(["http-deny","http-authenticated","http-guard","http-key-replay","http-key-race","http-distinct-key-race","singular-workflow"].includes(phase??""))
  const root=process.env.RUNNER_TEMP
  const file=process.env.SHQIPSHOP_F08_COMPLETE_PROOF_FILE
  assert(root&&file&&resolve(file).startsWith(resolve(root)+sep))
@@ -143,8 +143,8 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
  // a disposable UNCAPTURED payment. Deliberately no successful refund here:
  // the test verifies authorization and rejected invalid/pre-capture requests
  // without touching the later Stage 11K/J/O financial fixtures.
- if(phase==="http-authenticated"||phase==="http-guard"||phase==="http-key-replay"||phase==="http-key-race"){
-  const strict=phase==="http-guard"||phase==="http-key-replay"||phase==="http-key-race"
+ if(phase==="http-authenticated"||phase==="http-guard"||phase==="http-key-replay"||phase==="http-key-race"||phase==="http-distinct-key-race"){
+  const strict=phase==="http-guard"||phase==="http-key-replay"||phase==="http-key-race"||phase==="http-distinct-key-race"
   if(strict)assert.equal(process.env.SHQIPSHOP_F08_STRICT_REFUND_CI,"true")
   const password=process.env.SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD
   assert(/^[a-f0-9]{48}$/.test(password??""),
@@ -349,6 +349,76 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
    // A failed invariant is kept RED; this does not add an idempotency fix.
    // Stage 11Y: independent local Medusa APIs 9220/9221 share CI-only
    // PostgreSQL, Redis and validated Admin JWT. No real provider or PSP.
+   // Stage 11Z: two independently running Medusa APIs, two DIFFERENT
+   // refund keys, one genuine (disposable) Medusa captured-payment balance.
+   // Both proposed amounts are valid alone, but their sum exceeds capture
+   // by AT LEAST 3 ALL, beyond the known Medusa zero-decimal epsilon bug.
+   // This is a narrow mock concurrency test, not PSP settlement protection.
+   if(phase==="http-distinct-key-race"){
+    const payment=container.resolve(Modules.PAYMENT)
+    await payment.capturePayment({payment_id:before.id,amount:Number(orderTotal)})
+    const captured=await readDedicated()
+    assert.equal(captured.captures.length,1)
+    assert.equal(whole(captured.captures[0].amount),orderTotal)
+    assert.equal(captured.refunds.length,0)
+    const total=Number(orderTotal)
+    assert(Number.isSafeInteger(total)&&total>=6)
+    const proposed=Math.floor(total/2)+2
+    const remaining=total-proposed
+    assert(proposed>0&&remaining>0&&2*proposed>total+1)
+    const keys=["stage11z-a-"+before.id,"stage11z-b-"+before.id]
+    assert.notEqual(keys[0],keys[1])
+    const attempts=await Promise.all([
+     send(route,{amount:proposed,idempotency_key:keys[0]},adminJwt),
+     send(route,{amount:proposed,idempotency_key:keys[1]},adminJwt,
+      undefined,undefined,"http://127.0.0.1:9221"),
+    ])
+    const statuses=attempts.map(a=>a.status)
+    console.log("SHQIPSHOP_F08_STAGE11Z_DISTINCT_KEYS_HTTP_STATUSES_"+statuses.join("_"))
+    const accepted=statuses.filter(s=>s>=200&&s<300).length
+    const denied=statuses.filter(s=>[400,409,422].includes(s)).length
+    const afterRace=await readDedicated()
+    if(afterRace.refunds.length!==1||sum(afterRace)!==BigInt(proposed))
+     console.log("SHQIPSHOP_F08_STAGE11Z_DISTINCT_KEYS_INVALID_LEDGER_DETECTED")
+    assert.equal(accepted,1,
+     "Stage 11Z precisely one of the competing refunds must be accepted")
+    assert.equal(denied,1,
+     "Stage 11Z second distinct key must be denied without server error")
+    assert.equal(afterRace.captures.length,1)
+    assert.equal(afterRace.captures[0].id,captured.captures[0].id)
+    assert.equal(afterRace.refunds.length,1)
+    assert.equal(sum(afterRace),BigInt(proposed))
+    assert(afterRace.refunds.every(r=>r.status==="succeeded"))
+    console.log("SHQIPSHOP_F08_STAGE11Z_ONE_WIN_ONE_DENIED_LEDGER_PASSED")
+    // Rejected operation has no record: the only stored refund is tied
+    // to the accepted operation. Query Graph reveals authoritative data.
+    const goodIndex=statuses.findIndex(s=>s>=200&&s<300)
+    assert.equal(goodIndex===0||goodIndex===1,true)
+    const same=await send(route,{amount:proposed,idempotency_key:keys[goodIndex]},adminJwt)
+    assert(same.status>=200&&same.status<300)
+    dbSame(afterRace,await readDedicated())
+    console.log("SHQIPSHOP_F08_STAGE11Z_WINNING_KEY_REPLAY_NO_MUTATION")
+    const valid=await send(route,{
+     amount:remaining,idempotency_key:"stage11z-exact-rest-"+before.id,
+    },adminJwt)
+    assert(valid.status>=200&&valid.status<300,
+     "Legitimate remaining capture must still be refundable")
+    const fully=await readDedicated()
+    assert.equal(fully.captures.length,1)
+    assert.equal(fully.captures[0].id,captured.captures[0].id)
+    assert.equal(fully.refunds.length,2)
+    assert(fully.refunds.every(r=>r.status==="succeeded"))
+    assert.equal(sum(fully),orderTotal)
+    console.log("SHQIPSHOP_F08_STAGE11Z_LEGITIMATE_REMAINDER_PERSISTED")
+    const exhausted=await send(route,{amount:1,
+     idempotency_key:"stage11z-after-full-"+before.id},adminJwt)
+    assert.equal(exhausted.status,409)
+    dbSame(fully,await readDedicated())
+    dbSame(original,await read(1))
+    console.log("SHQIPSHOP_F08_STAGE11Z_AFTER_FULL_ONE_ALL_DENIED")
+    console.log("SHQIPSHOP_F08_STAGE11Z_DISTINCT_KEY_TWO_API_CONTRACT_PASSED")
+    return
+   }
    if(phase==="http-key-race"){
     const payment=container.resolve(Modules.PAYMENT)
     await payment.capturePayment({payment_id:before.id,amount:Number(orderTotal)})
