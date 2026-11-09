@@ -14,10 +14,15 @@ import {ContainerRegistrationKeys} from "@medusajs/framework/utils"
 import {refundPaymentWorkflow} from "@medusajs/medusa/core-flows"
 
 const whole=(v:unknown):bigint=>{
- if(typeof v==="number"&&Number.isSafeInteger(v)&&v>=0)return BigInt(v)
- if(typeof v==="string"&&/^(0|[1-9][0-9]*)(?:[.]0+)?$/.test(v))
-  return BigInt(v.split(".")[0])
- throw Error("Unsafe ALL money representation")
+ // Query Graph returns Medusa BigNumber objects, not always primitives.
+ // Convert ONLY server-owned Query Graph values, never client-supplied
+ // amounts. Reject non-integral, negative and imprecise JS numbers.
+ if(v===null||v===undefined||typeof v==="boolean")
+  throw Error("Missing or unsafe ALL money representation")
+ const n=Number(v)
+ if(!Number.isSafeInteger(n)||n<0)
+  throw Error("Unsafe ALL money representation")
+ return BigInt(n)
 }
 type Refund={id:string,amount:unknown,status:string}
 type Capture={id:string,amount:unknown}
