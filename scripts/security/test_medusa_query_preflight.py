@@ -14,13 +14,19 @@ class MedusaQueryPreflightTest(unittest.TestCase):
     def fixture(self, root: Path, version: str) -> None:
         pkg = root / "medusa-backend-poc"
         backend = pkg / "apps/backend"
+        storefront = pkg / "apps/storefront"
         backend.mkdir(parents=True)
+        storefront.mkdir(parents=True)
         (pkg / "package.json").write_text(json.dumps({"devDependencies": {
             "@medusajs/eslint-plugin": version}}), encoding="utf-8")
         (backend / "package.json").write_text(json.dumps({"dependencies": {
             "@medusajs/medusa": version,
             "@medusajs/framework": version,
             "@medusajs/ui": "4.2.6"}}), encoding="utf-8")
+        (storefront / "package.json").write_text(json.dumps({"dependencies": {
+            "@medusajs/js-sdk": version,
+            "@medusajs/icons": version,
+            "instantsearch.js": "4.113.0"}}), encoding="utf-8")
         (pkg / "pnpm-lock.yaml").write_text(f"""lockfileVersion: '9.0'
 importers:
 
@@ -41,6 +47,18 @@ importers:
       '@medusajs/ui':
         specifier: 4.2.6
         version: 4.2.6
+
+  apps/storefront:
+    dependencies:
+      '@medusajs/js-sdk':
+        specifier: {version}
+        version: {version}
+      '@medusajs/icons':
+        specifier: {version}
+        version: {version}
+      instantsearch.js:
+        specifier: 4.113.0
+        version: 4.113.0
 
 packages:
   '@medusajs/medusa@{version}': {{}}
@@ -398,6 +416,70 @@ snapshots:
                 "      '@medusajs/framework':\n", 1)
             path.write_text(body, encoding="utf-8")
             self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE", inspect(root, CANDIDATE))
+
+    def test_storefront_positive_all_medusa_direct_pins(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            self.assertEqual(inspect(root, CANDIDATE), [])
+
+    def test_storefront_mixed_js_sdk_manifest_fails_closed(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/apps/storefront/package.json"
+            doc = json.loads(path.read_text("utf-8"))
+            doc["dependencies"]["@medusajs/js-sdk"] = BASELINE
+            path.write_text(json.dumps(doc), encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-MIXED-RELEASE-TRAIN",
+                          inspect(root, CANDIDATE))
+
+    def test_storefront_mismatched_lock_version_fails_closed(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            text = path.read_text("utf-8")
+            old = (f"      '@medusajs/js-sdk':\n"
+                   f"        specifier: {CANDIDATE}\n"
+                   f"        version: {CANDIDATE}")
+            new = (f"      '@medusajs/js-sdk':\n"
+                   f"        specifier: {CANDIDATE}\n"
+                   f"        version: {BASELINE}")
+            self.assertIn(old, text)
+            path.write_text(text.replace(old, new, 1), encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-VERSION-MISMATCH",
+                          inspect(root, CANDIDATE))
+
+    def test_storefront_missing_importer_fails_closed(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = path.read_text("utf-8").replace(
+                "\n  apps/storefront:\n", "\n  apps/unknown:\n", 1)
+            path.write_text(body, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-IMPORTER-MISSING",
+                          inspect(root, CANDIDATE))
+
+    def test_storefront_missing_manifest_fails_closed(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            (root / "medusa-backend-poc/apps/storefront/package.json").unlink()
+            self.assertIn("MEDUSA-QUERY-MANIFEST-UNREADABLE",
+                          inspect(root, CANDIDATE))
+
+    def test_storefront_required_sdk_cannot_be_removed(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/apps/storefront/package.json"
+            doc = json.loads(path.read_text("utf-8"))
+            del doc["dependencies"]["@medusajs/js-sdk"]
+            path.write_text(json.dumps(doc), encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-REQUIRED-PACKAGE-MISSING",
+                          inspect(root, CANDIDATE))
 
     def test_lock_parser_does_not_treat_packages_as_importers(self):
         text = """importers:

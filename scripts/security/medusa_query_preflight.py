@@ -14,7 +14,11 @@ import sys
 
 BASELINE = "2.22.0"
 CANDIDATE = "2.22.6"
-MANIFESTS = ("medusa-backend-poc/package.json", "medusa-backend-poc/apps/backend/package.json")
+MANIFESTS = (
+    "medusa-backend-poc/package.json",
+    "medusa-backend-poc/apps/backend/package.json",
+    "medusa-backend-poc/apps/storefront/package.json",
+)
 LOCKFILE = "medusa-backend-poc/pnpm-lock.yaml"
 
 
@@ -164,13 +168,20 @@ def inspect(root: Path, version: str) -> list[str]:
         except (OSError, ValueError, json.JSONDecodeError):
             errors.append("MEDUSA-QUERY-MANIFEST-UNREADABLE")
             continue
-        importer = "." if manifest_rel == MANIFESTS[0] else "apps/backend"
+        importer = {
+            MANIFESTS[0]: ".",
+            MANIFESTS[1]: "apps/backend",
+            MANIFESTS[2]: "apps/storefront",
+        }[manifest_rel]
         imp = lock.get(importer)
         if imp is None:
             errors.append("MEDUSA-QUERY-LOCK-IMPORTER-MISSING")
             continue
-        required = (("@medusajs/eslint-plugin",) if importer == "." else
-                    ("@medusajs/framework", "@medusajs/medusa"))
+        required = {
+            ".": ("@medusajs/eslint-plugin",),
+            "apps/backend": ("@medusajs/framework", "@medusajs/medusa"),
+            "apps/storefront": ("@medusajs/js-sdk",),
+        }[importer]
         direct = {**doc.get("dependencies", {}), **doc.get("devDependencies", {})}
         for name in required:
             if name not in direct:
