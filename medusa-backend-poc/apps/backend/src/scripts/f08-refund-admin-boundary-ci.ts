@@ -40,7 +40,7 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
  }
  for(const [n,v] of Object.entries(env))assert.equal(process.env[n],v,n)
  const phase=process.env.SHQIPSHOP_F08_ADMIN_REFUND_PHASE
- assert(["http-deny","http-authenticated","http-guard","singular-workflow"].includes(phase??""))
+ assert(["http-deny","http-authenticated","http-guard","http-key-replay","singular-workflow"].includes(phase??""))
  const root=process.env.RUNNER_TEMP
  const file=process.env.SHQIPSHOP_F08_COMPLETE_PROOF_FILE
  assert(root&&file&&resolve(file).startsWith(resolve(root)+sep))
@@ -143,8 +143,8 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
  // a disposable UNCAPTURED payment. Deliberately no successful refund here:
  // the test verifies authorization and rejected invalid/pre-capture requests
  // without touching the later Stage 11K/J/O financial fixtures.
- if(phase==="http-authenticated"||phase==="http-guard"){
-  const strict=phase==="http-guard"
+ if(phase==="http-authenticated"||phase==="http-guard"||phase==="http-key-replay"){
+  const strict=phase==="http-guard"||phase==="http-key-replay"
   if(strict)assert.equal(process.env.SHQIPSHOP_F08_STRICT_REFUND_CI,"true")
   const password=process.env.SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD
   assert(/^[a-f0-9]{48}$/.test(password??""),
@@ -343,6 +343,38 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
     "Stage 11Q CI guard must reject real Admin uncaptured refund")
    dbSame(before,after)
    console.log("SHQIPSHOP_F08_STAGE11Q_UNCAPTURED_HTTP_DENIED_NO_PG_MUTATION")
+   // Stage 11X: a SECOND, independent linked Medusa order specifically
+   // probes SAME HTTP key replay while captured funds remain. We use only
+   // the disposable built-in Admin HTTP endpoint plus the manual mock provider.
+   // A failed invariant is kept RED; this does not add an idempotency fix.
+   if(phase==="http-key-replay"){
+    const payment=container.resolve(Modules.PAYMENT)
+    await payment.capturePayment({payment_id:before.id,amount:Number(orderTotal)})
+    const captured=await readDedicated()
+    assert.equal(captured.captures.length,1)
+    assert.equal(whole(captured.captures[0].amount),orderTotal)
+    assert.equal(captured.refunds.length,0)
+    const operationKey="stage11x-"+before.id
+    const first=await send(route,{amount:1},adminJwt,undefined,operationKey)
+    assert(first.status>=200&&first.status<300,
+     "Stage 11X first Admin mock refund must succeed")
+    const once=await readDedicated()
+    assert.equal(once.refunds.length,1)
+    assert.equal(sum(once),1n)
+    assert(once.refunds.every(r=>r.status==="succeeded"))
+    console.log("SHQIPSHOP_F08_STAGE11X_FIRST_KEYED_ADMIN_REFUND_PERSISTED")
+    const replay=await send(route,{amount:1},adminJwt,undefined,operationKey)
+    const twice=await readDedicated()
+    console.log("SHQIPSHOP_F08_STAGE11X_SAME_KEY_REPLAY_HTTP_STATUS_"+replay.status)
+    if(twice.refunds.length>once.refunds.length||sum(twice)>sum(once))
+     console.log("SHQIPSHOP_F08_STAGE11X_SAME_KEY_DUPLICATE_REFUND_PERSISTED")
+    dbSame(once,twice)
+    assert([200,201,202,204,409].includes(replay.status),
+     "Stage 11X replay should be an idempotent reply or deny, never a 5xx")
+    dbSame(original,await read(1))
+    console.log("SHQIPSHOP_F08_STAGE11X_SAME_KEY_HTTP_REPLAY_NO_MUTATION_PASSED")
+    return
+   }
    // An authorized full capture must remain refundable by the guarded
    // built-in Admin HTTP route. Only this independent CI checkout is used.
    const payment=container.resolve(Modules.PAYMENT)
