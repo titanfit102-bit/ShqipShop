@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-09 — Stage 11O pinned singular Admin refund boundary (CI PENDING)
+
+New true localhost Medusa Admin refund endpoint missing/invalid JWT negative HTTP test with PG no-mutation and independent singular `refundPaymentWorkflow` material +2 denial, +1 ALL and missing-amount post-full probes. Scope: disposable mock payments, no authenticated Admin positive/tenant role tests or real PSP. Known-red 11I/J preserved and CI fail-closed. Next inspect exact Stage 11O markers and test authorized Admin/tenant policy independently. All release gates BLOCKED.
+
+
 ## 2026-11-09 — Stage 11N finance-scope/outbox proof VERIFIED; Admin refund route traced
 
 [CI 42540291032](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42540291032) Stage 11N synthetic finance scope + atomic transactional outbox **PASS**; positive and negative mocks prove role, tenant, key, serial/parallel ALL bound, rollback and one-time dispatch. 11K/L/M scoped tests PASS. 11I/J direct/plural-workflow over-refunds still PERSIST and overall Medusa smoke stays RED. **Pinned Admin route uses singular `refundPaymentWorkflow`, which also includes currency epsilon; no authenticated Admin HTTP behavior established.** Next: CI-only singular workflow/role boundary and PostgreSQL mutation checks, then separately approved real PSP/production design. S13/RG-03 release blocked.

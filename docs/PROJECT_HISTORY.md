@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-09 — Stage 11O native Admin route and singular workflow regression
+
+Implemented two-phase runner-local script: true HTTP 401/403 no-token/invalid-JWT denial on built-in Admin refund route while API listens; singular workflow late after Stage 11K/J tests +2 and +1 ALL and missing amount with Postgres readback. Existing 11I/J remain mandatory red. No real PSP, production schema or auth policy change. CI pending.
+
+
 ## 2026-11-09 — Stage 11N finance-scope/outbox proof VERIFIED; Admin refund route traced
 
 [Code 3c94c1c](https://github.com/titanfit102-bit/ShqipShop/commit/3c94c1c29199c5236646620a850a8926c169c845), [run 42540291032](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42540291032): synthetic finance actor / merchant scope, strict remaining-bound DB reservation, operation+outbox atomicity, race, replay, unknown provider and mock confirmation tests passed. Seven other distinct workflows green; backend smoke red on existing I/J over-refund regressions. Read-only source trace: Admin `POST /admin/payments/:id/refund` calls singular `refundPaymentWorkflow` with currency epsilon and route `refund:create` policy; not tested as HTTP authorization. Main/PSP/production unchanged.
