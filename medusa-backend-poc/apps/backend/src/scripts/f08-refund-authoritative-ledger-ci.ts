@@ -50,7 +50,8 @@ export default async function auditAuthoritativeMedusaLedger({container}:ExecArg
   SHQIPSHOP_F08_MULTIPROC_CI:"true",SHQIPSHOP_F08_ACK_LOSS_CI:"true",
   SHQIPSHOP_F08_PAYMENT_CHAIN_CI:"true",SHQIPSHOP_F08_PSP_CONTRACT_CI:"true",
   SHQIPSHOP_F08_EXACT_REFUND_CI:"true",
-  SHQIPSHOP_F08_11T_LEDGER_CI:"true",WORKER_MODE:"server",
+  SHQIPSHOP_F08_11T_LEDGER_CI:"true",
+  SHQIPSHOP_F08_11U_LOCK_CI:"true",WORKER_MODE:"server",
   DATABASE_URL:"postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci",
   REDIS_URL:"redis://127.0.0.1:6379",
  }))assert.equal(process.env[name],value,name)
@@ -149,4 +150,72 @@ export default async function auditAuthoritativeMedusaLedger({container}:ExecArg
   "Read-only finance authority audit must not mutate actual Medusa ledger")
  console.log("SHQIPSHOP_F08_STAGE11T_AUTHORITY_MISMATCH_FAIL_CLOSED")
  console.log("SHQIPSHOP_F08_STAGE11T_READ_ONLY_MEDUSA_PAYMENT_AUTHORITY_PASSED")
+
+ // Stage 11U: ACTUAL Medusa payment-row lock contention across two
+ // independent PostgreSQL transactions. No DML, no provider call, and no
+ // claim that Medusa's own capture/refund writers honor this lock.
+ const {data:otherOrders}=await query.graph({
+  entity:"order",fields:["id","payment_collections.id"],
+  filters:{id:proof.orderIds[0]},
+ })
+ assert.equal(otherOrders.length,1)
+ assert.equal(otherOrders[0].payment_collections?.length,1)
+ const otherCollectionId=otherOrders[0].payment_collections[0].id
+ assert.notEqual(otherCollectionId,collectionId)
+ const {data:otherCollections}=await query.graph({
+  entity:"payment_collection",fields:["id","payments.id"],
+  filters:{id:otherCollectionId},
+ })
+ assert.equal(otherCollections.length,1)
+ assert.equal(otherCollections[0].payments?.length,1)
+ const independentId=otherCollections[0].payments[0].id
+ assert(/^pay_[A-Za-z0-9_-]{8,}$/.test(independentId))
+ assert.notEqual(independentId,observed.id)
+
+ // The first connection locks only the authoritative Medusa payment row;
+ // a second connection MUST fail NOWAIT with PostgreSQL 55P03. A different
+ // payment must remain independently lockable while the first is held.
+ const rollbackLabel="SHQIPSHOP_F08_STAGE11U_ROLLBACK_SENTINEL"
+ await assert.rejects(()=>db.transaction(async(holding:any)=>{
+  const locked=await holding("payment").where({id:observed.id})
+   .forUpdate().first()
+  assert(locked&&locked.id===observed.id)
+  assert.equal(exact(locked.amount),total)
+  await assert.rejects(
+   ()=>db.transaction(async(contender:any)=>{
+    const row=await contender("payment").where({id:observed.id})
+     .forUpdate().noWait().first()
+    assert(row,"Unexpected missing authoritative payment")
+   }),
+   (error:any)=>error?.code==="55P03",
+   "Competing transaction must not acquire same authoritative payment row"
+  )
+  console.log("SHQIPSHOP_F08_STAGE11U_SECOND_PG_CONNECTION_LOCK_DENIED")
+  await db.transaction(async(unrelated:any)=>{
+   const other=await unrelated("payment").where({id:independentId})
+    .forUpdate().noWait().first()
+   assert(other&&other.id===independentId)
+  })
+  console.log("SHQIPSHOP_F08_STAGE11U_UNRELATED_PAYMENT_LOCK_ALLOWED")
+  // Intentional rollback releases the lock; no amount is ever updated.
+  throw new Error(rollbackLabel)
+ }),new RegExp(rollbackLabel))
+ await db.transaction(async(afterRelease:any)=>{
+  const freed=await afterRelease("payment").where({id:observed.id})
+   .forUpdate().noWait().first()
+  assert(freed&&freed.id===observed.id)
+  assert.equal(exact(freed.amount),total)
+ })
+ console.log("SHQIPSHOP_F08_STAGE11U_PAYMENT_ROW_LOCK_RELEASED_AFTER_ROLLBACK")
+ assert.deepEqual(await graph(),observed,
+  "Lock-only probe may not change actual Medusa financial records")
+ const finalCounts={
+  captures:await db("capture").where({payment_id:observed.id}).count("* as n").first(),
+  refunds:await db("refund").where({payment_id:observed.id}).count("* as n").first(),
+ }
+ assert.equal(Number(finalCounts.captures?.n),observed.captures.length)
+ assert.equal(Number(finalCounts.refunds?.n),observed.refunds.length)
+ console.log("SHQIPSHOP_F08_STAGE11U_REAL_PAYMENT_LOCK_NO_FINANCE_MUTATION")
+ console.log("SHQIPSHOP_F08_STAGE11U_POSTGRES_ROW_LOCK_CONTRACT_PASSED")
+
 }

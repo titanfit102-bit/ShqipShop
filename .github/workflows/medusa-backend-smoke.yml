@@ -519,9 +519,11 @@ jobs:
           pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-exact-bound-ci.ts || exact_rc=$?
           # Stage 11T: ACTUAL Medusa PostgreSQL payment/capture/refund
           # read-only audit versus Query Graph after isolated 11K full refund.
+          # Stage 11U checks only PG row-lock arbitration between connections;
+          # this does NOT prove that existing Medusa/PSP writers use this lock.
           # A separate RC is mandatory; never bypass pre-existing 11I/J/O/P.
           authority_rc=0
-          SHQIPSHOP_F08_11T_LEDGER_CI=true pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-authoritative-ledger-ci.ts || authority_rc=$?
+          SHQIPSHOP_F08_11T_LEDGER_CI=true SHQIPSHOP_F08_11U_LOCK_CI=true pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-authoritative-ledger-ci.ts || authority_rc=$?
           workflow_rc=0
           pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-workflow-ci.ts || workflow_rc=$?
           # Stage 11O: separate singular workflow post-11K/11J negative probes.
@@ -530,7 +532,7 @@ jobs:
           module_rc=0
           pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-psp-contract-ci.ts || module_rc=$?
           if [ "$exact_rc" -ne 0 ] || [ "$workflow_rc" -ne 0 ] || [ "$singular_rc" -ne 0 ] || [ "$module_rc" -ne 0 ] || [ "$stage11p_admin_seed_rc" -ne 0 ] || [ "$stage11p_admin_rc" -ne 0 ] || [ "$stage11q_rc" -ne 0 ] || [ "$stage11r_rc" -ne 0 ] || [ "$authority_rc" -ne 0 ]; then
-            echo "::error::F08 Stage 11K/11J/11O/11I/11P/11Q/11R/11S/11T invariant failed; financial release remains blocked"
+            echo "::error::F08 Stage 11K/11J/11O/11I/11P/11Q/11R/11S/11T/11U invariant failed; financial release remains blocked"
             exit 1
           fi
           SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
