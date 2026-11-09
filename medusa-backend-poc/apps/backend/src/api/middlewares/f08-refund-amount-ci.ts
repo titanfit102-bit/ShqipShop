@@ -13,11 +13,25 @@ const exactCi=()=>isF08DisposableCi()&&
   process.env.SHQIPSHOP_F08_ACK_LOSS_CI==="true"&&
   process.env.WORKER_MODE==="server"
 
+// Exact zero-decimal ALL: do not round strings or BigNumber values through
+// Number(), where a fractional ledger value could silently become an integer.
+// This parser is used ONLY by the disposable CI guard, not a production policy.
 const whole=(value:unknown):bigint=>{
-  const n=Number(value)
-  if(value===null||value===undefined||typeof value==="boolean"||
-     !Number.isSafeInteger(n)||n<0)throw Error("Unsafe monetary value")
-  return BigInt(n)
+  if(value===null||value===undefined||typeof value==="boolean")
+    throw Error("Unsafe monetary value")
+  if(typeof value==="number"){
+    if(!Number.isSafeInteger(value)||value<0)throw Error("Unsafe monetary value")
+    return BigInt(value)
+  }
+  if(typeof value!=="string"&&
+     (typeof value!=="object"||typeof (value as {toString?:unknown}).toString!=="function"))
+    throw Error("Unsafe monetary value")
+  const raw=String(value)
+  if(!/^(0|[1-9][0-9]*)(?:[.]0+)?$/.test(raw))
+    throw Error("Non-integral ALL ledger value")
+  const units=BigInt(raw.split(".")[0])
+  if(units>BigInt(Number.MAX_SAFE_INTEGER))throw Error("Unsafe monetary value")
+  return units
 }
 
 
