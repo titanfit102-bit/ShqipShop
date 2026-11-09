@@ -119,6 +119,10 @@ def _lock_package_records(text: str) -> dict[str, set[tuple[str, str]]]:
             r"^  '@medusajs/([A-Za-z0-9_.-]+)@([0-9]+\.[0-9]+\.[0-9]+)(?:\([^\r\n]*\))?':(?:\s|$)",
             line,
         )
+        if line.startswith("  '@medusajs/") and not match:
+            # A malformed or prerelease Medusa record is not evidence of a
+            # clean pinned train. Reject it rather than silently skipping it.
+            raise ValueError("Unrecognized Medusa package/snapshot key")
         if match:
             records[section].add((match.group(1), match.group(2)))
     if seen_sections != set(records):

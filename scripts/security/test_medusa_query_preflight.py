@@ -481,6 +481,52 @@ snapshots:
             self.assertIn("MEDUSA-QUERY-REQUIRED-PACKAGE-MISSING",
                           inspect(root, CANDIDATE))
 
+    def test_unrecognized_critical_prerelease_package_key_is_denied(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = p.read_text("utf-8").replace(
+                "\nsnapshots:\n",
+                f"  '@medusajs/query@{CANDIDATE}-rc.1': {{}}\n\nsnapshots:\n", 1)
+            p.write_text(body, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE",
+                          inspect(root, CANDIDATE))
+
+    def test_unrecognized_transitive_snapshot_suffix_is_denied(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            p.write_text(p.read_text("utf-8") +
+                         f"\n  '@medusajs/auth@{BASELINE}-beta.1': {{}}\n",
+                         encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE",
+                          inspect(root, CANDIDATE))
+
+    def test_unrecognized_medusa_package_key_cannot_be_forged_as_valid(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = p.read_text("utf-8").replace(
+                f"  '@medusajs/utils@{CANDIDATE}': {{}}",
+                f"  '@medusajs/utils@{CANDIDATE}-custom': {{}}", 1)
+            p.write_text(body, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE",
+                          inspect(root, CANDIDATE))
+
+    def test_medusa_text_in_comments_or_foreign_peer_keys_does_not_fail(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            p.write_text(p.read_text("utf-8") +
+                         f"\n  # '@medusajs/query@{BASELINE}-beta.1': {{}}\n"
+                         f"  'unrelated@1.0.0(@medusajs/query@{BASELINE}-beta.1)': {{}}\n",
+                         encoding="utf-8")
+            self.assertEqual(inspect(root, CANDIDATE), [])
+
     def test_lock_parser_does_not_treat_packages_as_importers(self):
         text = """importers:
   apps/backend:
