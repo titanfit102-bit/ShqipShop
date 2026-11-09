@@ -1,5 +1,9 @@
 # ShqipShop — Threat Model (current, privacy-safe)
 
+## 2026-11-09 — Stage 11V: distinguish native concurrency lock from incorrect ALL amount limit
+
+[Code b6a45e9](https://github.com/titanfit102-bit/ShqipShop/commit/b6a45e94c430c3e78d3f61b3a85f68a7f5765cb3), [CI 42649347776](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42649347776): on disposable Medusa 2.22.0, real native capture/refund service writers timed out against a held PostgreSQL `payment` row lock and left no DB mutation. The actual P0 T05 weakness is **also an amount-policy defect**: the upstream zero-decimal ALL epsilon is 1 and strict less-than permits an additional 1 ALL after full refund or with zero capture, independently confirmed by known-red 11I/J/O/P regressions. The provider call is outside the lock transaction, so lost acknowledgements/retries, signed PSP reconciliation, robust Admin finance/merchant authorization and ambiguous external effects remain HIGH RISK. Neither the CI-only Stage11Q guard nor native Medusa row locking establishes a production-safe refund policy. No production financial changes, T05 stays P0 and release BLOCKED.
+
 Method: assets → trust boundaries → STRIDE-style misuse → independently executable defenses. This is the **development baseline**, not a penetration-test report. Never publish exploit payloads, session tokens, real domains, privileged URLs or customer data.
 
 ## Assets and boundaries
