@@ -11,7 +11,7 @@ import {randomBytes} from "node:crypto"
 import {readFileSync} from "node:fs"
 import {resolve,sep} from "node:path"
 import type {ExecArgs} from "@medusajs/framework/types"
-import {ContainerRegistrationKeys} from "@medusajs/framework/utils"
+import {ContainerRegistrationKeys,Modules} from "@medusajs/framework/utils"
 import {refundPaymentWorkflow} from "@medusajs/medusa/core-flows"
 
 const whole=(v:unknown):bigint=>{
@@ -40,7 +40,7 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
  }
  for(const [n,v] of Object.entries(env))assert.equal(process.env[n],v,n)
  const phase=process.env.SHQIPSHOP_F08_ADMIN_REFUND_PHASE
- assert(["http-deny","http-authenticated","singular-workflow"].includes(phase??""))
+ assert(["http-deny","http-authenticated","http-guard","singular-workflow"].includes(phase??""))
  const root=process.env.RUNNER_TEMP
  const file=process.env.SHQIPSHOP_F08_COMPLETE_PROOF_FILE
  assert(root&&file&&resolve(file).startsWith(resolve(root)+sep))
@@ -143,7 +143,9 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
  // a disposable UNCAPTURED payment. Deliberately no successful refund here:
  // the test verifies authorization and rejected invalid/pre-capture requests
  // without touching the later Stage 11K/J/O financial fixtures.
- if(phase==="http-authenticated"){
+ if(phase==="http-authenticated"||phase==="http-guard"){
+  const strict=phase==="http-guard"
+  if(strict)assert.equal(process.env.SHQIPSHOP_F08_STRICT_REFUND_CI,"true")
   const password=process.env.SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD
   assert(/^[a-f0-9]{48}$/.test(password??""),
    "Require a masked, randomly generated CI-only Admin password")
@@ -334,6 +336,38 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
   if(after.captures.length!==before.captures.length)
    console.log("SHQIPSHOP_F08_STAGE11P_AUTH_ADMIN_UNCAPTURED_CAPTURE_MUTATED")
   dbSame(original,await read(1))
+  if(strict){
+   assert.equal(uncaptured.status,409,
+    "Stage 11Q CI guard must reject real Admin uncaptured refund")
+   dbSame(before,after)
+   console.log("SHQIPSHOP_F08_STAGE11Q_UNCAPTURED_HTTP_DENIED_NO_PG_MUTATION")
+   // An authorized full capture must remain refundable by the guarded
+   // built-in Admin HTTP route. Only this independent CI checkout is used.
+   const payment=container.resolve(Modules.PAYMENT)
+   await payment.capturePayment({payment_id:before.id,amount:Number(orderTotal)})
+   const captured=await readDedicated()
+   assert.equal(captured.captures.length,1)
+   assert.equal(whole(captured.captures[0].amount),orderTotal)
+   assert.equal(captured.refunds.length,0)
+   const accepted=await send(route,{amount:Number(orderTotal)},adminJwt)
+   assert(accepted.status>=200&&accepted.status<300,
+    "Stage 11Q positive Admin HTTP captured refund must succeed")
+   const fully=await readDedicated()
+   assert.equal(fully.captures.length,1)
+   assert.equal(whole(fully.captures[0].amount),orderTotal)
+   assert.equal(fully.refunds.length,1)
+   assert.equal(sum(fully),orderTotal)
+   assert(fully.refunds.every(r=>r.status==="succeeded"))
+   console.log("SHQIPSHOP_F08_STAGE11Q_AUTH_ADMIN_FULL_REFUND_PERSISTED")
+   const extra=await send(route,{amount:1},adminJwt)
+   assert.equal(extra.status,409,
+    "Stage 11Q CI guard must reject +1 ALL after full refund")
+   dbSame(fully,await readDedicated())
+   dbSame(original,await read(1))
+   console.log("SHQIPSHOP_F08_STAGE11Q_POST_FULL_ONE_ALL_DENIED_NO_PG_MUTATION")
+   console.log("SHQIPSHOP_F08_STAGE11Q_SERIAL_HTTP_GUARD_PASSED")
+   return
+  }
   assert([400,409,422].includes(uncaptured.status),
    "CRITICAL: authenticated Admin refund of uncaptured payment must fail")
   dbSame(before,after)
