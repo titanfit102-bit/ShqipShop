@@ -87,6 +87,24 @@ jobs:
           set -euo pipefail
           cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
           pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
+      - name: Diagnose candidate pnpm lock structure without showing lock contents
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts/security python - <<'PY'
+          import os
+          from pathlib import Path
+          from medusa_query_preflight import _lock_importers, _lock_package_records
+          path = Path(os.environ["SHQIPSHOP_MEDUSA_CANDIDATE_DIR"]) / "pnpm-lock.yaml"
+          data = path.read_text("utf-8")
+          for label, parse in (("IMPORTERS", _lock_importers), ("RECORDS", _lock_package_records)):
+              try:
+                  item = parse(data)
+                  print("SHQIPSHOP_226_" + label + "_STRUCTURE_PARSED")
+              except ValueError as exc:
+                  # The parser raises fixed diagnostic phrases; never print lock text.
+                  print("::error::SHQIPSHOP_226_" + label + "_STRUCTURE_" + str(exc))
+                  raise SystemExit(1)
+          PY
       - name: Require full 2.22.6 candidate manifest, packages, and snapshots
         run: |
           set -euo pipefail
