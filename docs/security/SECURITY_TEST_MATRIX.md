@@ -1,5 +1,21 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — Stage 12O candidate Medusa 2.22.6 A/B test matrix (EXACT-SHA CI VERIFIED)
+
+| Gate | Positive and negative evidence | Status |
+| --- | --- | --- |
+| Two merchants | Concurrent API A/B, separate Postgres roles/DB and Redis A/B, denied A↔B DB connections | [42703930774](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42703930774) SUCCESS |
+| Store/orders | Own synthetic checkout and receipt 200; foreign merchant IDs/keys and missing guest proof denied | SUCCESS, scoped fixtures |
+| Identity and permissions | Own customer/admin JWT and cookie sessions accepted; other merchant/role and tampered/expired cookie replay denied; positive mutations and no-effect negative snapshots | SUCCESS, scoped fixtures |
+| Registered receipt ownership | Registered owner accepted, unrelated same-store registered customer denied | SUCCESS, scoped fixtures |
+| Logout revocation | Logout invalidated cookie but all four bearer JWTs still returned 200 | **OPEN / NOT REVOKED** |
+| Finance and release | Pinned backend native uncaptured and +1 ALL refund P0 still reproduces | [42703930892](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42703930892) FAILURE / RELEASE BLOCKED |
+
+**Residual risk and authorization:** all four A/B customer/admin bearer JWTs remained usable (HTTP 200) after cookie-session logout; server JWT revocation is NOT fixed. This evidence is disposable CI-only, not production multi-tenancy, HTTPS/CSRF, browser/device coverage, multi-process cookie handoff on the candidate, webhook/PSP/settlement, back-ups, media, RBAC completeness or release sign-off. No application dependency/lockfile change, no production server, no live payments, no main merge, no release-gate modification. PR #12 stays Draft.
+
+**Next:** inspect the exact Medusa 2.22.6 multi-process cookie session handoff tests (read-only first); extend disposable CI only within the approved scope. A permanent version promotion or native finance correction needs distinct explicit authorization and independent safety review.
+
+
 ## 2026-11-09 — Stage 12N HTTP query candidate matrix (EXACT SOURCE CI VERIFIED)
 
 | Candidate 2.22.6 case | Scope / assertion | Evidence / result |
