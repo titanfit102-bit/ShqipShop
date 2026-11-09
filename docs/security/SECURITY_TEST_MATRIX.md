@@ -1,5 +1,19 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — Stage 12N HTTP query candidate matrix (EXACT SOURCE CI VERIFIED)
+
+| Candidate 2.22.6 case | Scope / assertion | Evidence / result |
+| --- | --- | --- |
+| Valid Store fields | GET /store/regions, `fields=id`, then nested `countries.iso_2`; HTTP 200, nonempty stable IDs | [42702330586](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42702330586) SUCCESS |
+| Unsafe fields | 3 synthetic dotted paths involving prototype or constructor; no 5xx, no widened region IDs/unsafe own properties for 200; 400/422 is acceptable | Same run SUCCESS; **not** whole-server pollution proof |
+| Isolation / release veto | Candidate key only in RUNNER_TEMP, original 2.22.0 unchanged, query and finance guards deny release | Same run SUCCESS; release BLOCKED |
+| Not covered | Admin/JWT, tenant A/B, other query routes, PSP, financial invariants | **OPEN / NOT VERIFIED** |
+
+**Limits:** The HTTP probe covers one Store route, three unsafe shapes and 2 legitimate field selections on a disposable seed; safe omission as HTTP 200 does not prove that every unsafe input is rejected or that server-wide prototype state is unmodified. It does NOT verify all query routes, Admin/JWT, cross-merchant isolation on 2.22.6, real PSP/webhooks/settlement, finance correctness, or Production. Native Medusa refund +1 ALL/uncaptured P0 (T05/S13) remains exposed in unchanged 2.22.0, and upstream 2.22.6 has not fixed that guard. **RG-01/02/03, G3/G5 RELEASE BLOCKED.** PR #12 remains Draft; no merge, deploy, permanent Medusa update, finance-policy or GitHub setting change. Other exact-source workflows must be checked separately; no all-green claim.
+
+**Next narrowly scoped work:** read-only inspection of the existing tenant/JWT/order HTTP fixtures, then consider disposable 2.22.6 A/B merchant and auth regression (CI-only, no permanent upgrade); financial remediation and any production dependency promotion require distinct authorization and independent review.
+
+
 ## 2026-11-09 — Stage 12M disposable Medusa 2.22.6 candidate (CI VERIFIED ON SOURCE 433f9e15; RELEASE BLOCKED)
 
 **Scope / owner confirmation:** following the immediately preceding request to authorize **only** isolated Medusa 2.22.6 candidate validation, the user replied to proceed. This authorizes the CI-only experiment, **not** an application dependency upgrade, a finance fix, main merge, Production rollout, PSP access, or release-gate relaxation. Current [source HEAD cfadd01a](https://github.com/titanfit102-bit/ShqipShop/commit/cfadd01a05fca6ee85387962bc07a36559045d8a) has eight completed workflows: **seven SUCCESS**, [backend 42691453259](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42691453259) genuine FAILURE of native unguarded Stage11P/J/O/I refund P0, while order/payment retry 11E/F passed. Source 2.22.0 is unchanged. Upstream [2.22.6 release](https://github.com/medusajs/medusa/releases/tag/v2.22.6) supersedes incomplete 2.22.5 and includes unsafe dotted-query path hardening, but its native refund amount check is unchanged.
