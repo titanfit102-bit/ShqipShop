@@ -1,5 +1,10 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — Stage 11O: singular refund workflow +1 ALL persisted; unauthenticated Admin denied (CONFIRMED CI)
+
+**CONFIRMED internal payment failure and scoped HTTP auth negative only**, [CI 42543583104](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42543583104). Stage 11O `http-deny`: no/invalid JWT requests to live `/admin/payments/:id/refund` 401/403; PostgreSQL capture/refund rows unchanged. Stage 11O singular workflow (the one upstream Admin route invokes) denied +2 ALL and persisted **+1 ALL beyond full refund** on disposable mock; failing sentinel remains RED. Omitted amount attempted with no accept/persist marker; explicit separate verdict pending. Positive/forbidden **authenticated Admin role/tenant HTTP cases not verified**; real PSP not tested. Stage 11I/J direct/plural regressions persisted again; S13/T05 FAILED, RG-01/RG-02/RG-03 BLOCKED. Next authenticated authorization and object/merchant boundary verification.
+
+
 ## 2026-11-09 — Stage 11O Admin HTTP auth-negative and singular payment workflow (IMPLEMENTED, CI PENDING)
 
 Two-phase script `f08-refund-admin-boundary-ci.ts`: live local Admin refund HTTP no/invalid JWT must deny and leave PG unchanged; Medusa `refundPaymentWorkflow` singular over-total +2, +1 epsilon and omitted amount cases get independent persisted refund checks. **Positive authenticated Admin with real role/tenant is not covered; only negative auth and internal workflow.** Both existing direct/plural overrefund regressions retained; S13/T05 RG-02/RG-03 BLOCKED.

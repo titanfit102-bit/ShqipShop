@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-09 — Stage 11O: singular refund workflow +1 ALL persisted; unauthenticated Admin denied (CONFIRMED CI)
+
+At [code 35882bf](https://github.com/titanfit102-bit/ShqipShop/commit/35882bffd22b3f9d5f88a74504f17edd9ddc3a44), [CI 42543583104](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42543583104) confirmed Admin HTTP no/invalid JWT denial and PostgreSQL no-mutation, and a **persisted extra 1 ALL** via singular refund workflow on an independently fully refunded Stage 11B mock payment; material +2 denied. First run had only Medusa BigNumber decoder fixture error, corrected without changing assertions. Existing 11I/J remained confirmed RED. Eight passing runs across seven other distinct workflows; backend smoke failed on monetary invariant. Production/Admin policy/main/PSP untouched.
+
+
 ## 2026-11-09 — Stage 11O native Admin route and singular workflow regression
 
 Implemented two-phase runner-local script: true HTTP 401/403 no-token/invalid-JWT denial on built-in Admin refund route while API listens; singular workflow late after Stage 11K/J tests +2 and +1 ALL and missing amount with Postgres readback. Existing 11I/J remain mandatory red. No real PSP, production schema or auth policy change. CI pending.

@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-09 — Stage 11O: singular refund workflow +1 ALL persisted; unauthenticated Admin denied (CONFIRMED CI)
+
+[CI 42543583104](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42543583104) Stage 11O: live local Admin no/invalid JWT HTTP calls denied without PostgreSQL mutation; **singular** `refundPaymentWorkflow` denied +2 ALL but accepted/persisted +1 ALL over full capture; plural 11J and direct 11I regressions remained RED. Omitted-amount singular probe ran without accepted/persisted log; needs explicit case classification. **No valid authenticated Admin HTTP positive/role/tenant or real PSP evidence**, so external reachability UNKNOWN. NEXT: Admin auth/RBAC and object-ownership tests plus strict server-side refund guard and provider reconciliation, after scoped approval. All release gates BLOCKED.
+
+
 ## 2026-11-09 — Stage 11O pinned singular Admin refund boundary (CI PENDING)
 
 New true localhost Medusa Admin refund endpoint missing/invalid JWT negative HTTP test with PG no-mutation and independent singular `refundPaymentWorkflow` material +2 denial, +1 ALL and missing-amount post-full probes. Scope: disposable mock payments, no authenticated Admin positive/tenant role tests or real PSP. Known-red 11I/J preserved and CI fail-closed. Next inspect exact Stage 11O markers and test authorized Admin/tenant policy independently. All release gates BLOCKED.
