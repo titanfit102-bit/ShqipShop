@@ -1,5 +1,12 @@
 # ShqipShop — Security Release Gates (G3 / G5)
 
+## 2026-11-09 — F08 Stage11X VERIFIED; Stage11Y two-API keyed refund CI PENDING (finance P0 BLOCKED)
+
+[Medusa CI 42655863596](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42655863596) at [code 660d52f](https://github.com/titanfit102-bit/ShqipShop/commit/660d52f1e2def4208fb71ed6adbe60ba9bfef096) demonstrated authentic disposable Admin HTTP body idempotency_key replay 200 with no extra Medusa PostgreSQL refund row, denied same-key/different-amount, and successful legitimate distinct-key partial mock refund. Stage11X and 11W narrow positives PASS; the old unguarded 11I/J/O/P financial P0 sentinels still FAIL, so release remains BLOCKED.
+
+[Stage11Y code 995dfbc](https://github.com/titanfit102-bit/ShqipShop/commit/995dfbcf059d80dff236e32e56c022cd7ef9c644), [workflow 389c135](https://github.com/titanfit102-bit/ShqipShop/commit/389c13530d4b71c4f2264742ff2ba7ed3cc4873f): two independent disposable local Medusa APIs sharing PostgreSQL/Redis send the same authorized mock refund body key concurrently to one linked captured payment. Require at least one successful HTTP response (other may be replay success or 409 pending), one persisted authoritative refund of exactly 1 ALL, no mutation on replay or mismatched amount, valid new-key second partial refund. **IMPLEMENTED, CI not yet verified**. No explicit in-flight lock barrier, true PSP callback/settlement, merchant permission or production finance policy; this test cannot pass RG-03. Keep all financial P0 gates and original RED sentinels.
+
+
 ## 2026-11-09 — Stage 11W serial CI proof verified; Stage 11X same-key replay pending
 
 [Stage11W run 42653606429](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42653606429) contains positive partial/full Admin mock refund and negative exact ALL amount invariants, but the original Medusa 11I/J/O/P unguarded financial failures remain. A new independently linked [Stage11X HTTP body-key replay probe](https://github.com/titanfit102-bit/ShqipShop/commit/3acb620c42ee8ea35ca2d4ac061c75ac4e0ef485) has **no verified result yet**. CI proof of a preflight or body-key replay is not native Payment Module transactionality, real PSP signed reconciliation or merchant finance RBAC. **RG-03 and all release P0 gates remain BLOCKED**. No release/merge/deploy authorization.
