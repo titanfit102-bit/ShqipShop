@@ -14,6 +14,7 @@ const { readFileSync, realpathSync } = require("node:fs");
 const { relative, isAbsolute, sep, join } = require("node:path");
 const { createConnection } = require("node:net");
 
+let probePhase = "BOOT"
 const expected = {
   CI: "true",
   NODE_ENV: "development",
@@ -109,8 +110,11 @@ async function denyOn(port, tenant, actor) {
 }
 
 async function main() {
+  probePhase = "A_REDIS_BASELINE_PING";
   await redis(6379, ["PING"]);
+  probePhase = "B_REDIS_BASELINE_PING";
   await redis(6381, ["PING"]);
+  probePhase = "BASELINE_COOKIE_IDENTITIES";
   for (const actor of ["customer", "admin"]) {
     await validOn(9002, proof.A, actor);
     await validOn(9001, proof.B, actor);
@@ -120,10 +124,12 @@ async function main() {
 
   let pauseStarted = false;
   try {
+    probePhase = "A_CLIENT_PAUSE";
     assert.equal(await redis(6379, ["CLIENT", "PAUSE", "16000", "ALL"]), "+OK");
     pauseStarted = true;
     // Confirm A Redis is actually stalled, rather than interpreting any
     // random API failure as an outage. B remains independently responsive.
+    probePhase = "PAUSE_CONFIRMED_PING_TIMEOUT";
     let aPingTimeout = false;
     try { await redis(6379, ["PING"], 650); }
     catch (err) {
@@ -135,12 +141,14 @@ async function main() {
       "B Redis unavailable during A outage");
     console.log("SHQIPSHOP_226_STAGE12Q_A_REDIS_STALL_B_REDIS_HEALTHY");
 
+    probePhase = "A_COOKIE_WITH_REDIS_STALLED";
     for (const actor of ["customer", "admin"]) {
       const stalled = await identity(9002, proof.A, actor, 1500);
       assert.ok([401, 403, 503, 504, "timeout"].includes(stalled.status),
         "A protected identity was exposed or an unexpected server status occurred while A Redis was stalled");
     }
     console.log("SHQIPSHOP_226_STAGE12Q_A_PROTECTED_IDENTITIES_NOT_EXPOSED_DURING_STALL");
+    probePhase = "B_COOKIE_INDEPENDENCE";
     for (const actor of ["customer", "admin"]) {
       await validOn(9001, proof.B, actor);
     }
@@ -149,16 +157,22 @@ async function main() {
     // CLIENT UNPAUSE is accepted on a fresh control connection while paused.
     // The 16s Redis pause also auto-expires if an assertion fails. Never
     // leave a stalled Redis endpoint intentionally.
-    if (pauseStarted) await redis(6379, ["CLIENT", "UNPAUSE"], 5000);
+    if (pauseStarted) {
+      probePhase = "A_REDIS_UNPAUSE";
+      await redis(6379, ["CLIENT", "UNPAUSE"], 5000);
+    }
   }
 
+  probePhase = "A_REDIS_RECOVERED";
   assert.equal(await redis(6379, ["PING"]), "+PONG");
+  probePhase = "RECOVERED_IDENTITY_VALIDATION";
   for (const actor of ["customer", "admin"]) {
     await validOn(9002, proof.A, actor);
     await validOn(9000, proof.A, actor);
     await denyOn(9002, proof.B, actor);
     await validOn(9001, proof.B, actor);
   }
+  probePhase = "RECOVERED_PROCESS_HEALTH";
   for (const port of [9000, 9001, 9002]) {
     const h = await fetch("http://" + HOST + ":" + port + "/health", {
       signal: AbortSignal.timeout(5000),
@@ -170,6 +184,6 @@ async function main() {
 }
 main().catch(() => {
   // No token, cookie, body or internal Redis key data ever printed.
-  console.error("::error::SHQIPSHOP_226_STAGE12Q_REDIS_SESSION_PROBE_FAILED");
+  console.error("::error::SHQIPSHOP_226_STAGE12Q_REDIS_SESSION_PROBE_FAILED_AT_" + probePhase);
   process.exitCode = 1;
 });
