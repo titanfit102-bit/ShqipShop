@@ -150,10 +150,12 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
   assert(/^[a-f0-9]{48}$/.test(password??""),
    "Require a masked, randomly generated CI-only Admin password")
   const base="http://127.0.0.1:9220"
-  const send=async(path:string,body:unknown,token?:string,key?:string)=>{
+  const send=async(path:string,body:unknown,token?:string,key?:string,operationKey?:string)=>{
    const headers:Record<string,string>={"content-type":"application/json"}
    if(token)headers.authorization="Bearer "+token
    if(key)headers["x-publishable-api-key"]=key
+   // A key header is a probe input, NOT proof that Medusa persists or enforces it.
+   if(operationKey)headers["idempotency-key"]=operationKey
    const res=await fetch(base+path,{
     method:"POST",headers,body:JSON.stringify(body),
     signal:AbortSignal.timeout(10000),
@@ -349,22 +351,72 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
    assert.equal(captured.captures.length,1)
    assert.equal(whole(captured.captures[0].amount),orderTotal)
    assert.equal(captured.refunds.length,0)
-   const accepted=await send(route,{amount:Number(orderTotal)},adminJwt)
+   // Stage 11W — same genuine authenticated Admin HTTP boundary, still
+   // disposable CI ONLY. Strict integer-ALL amount preflight is serial;
+   // it is NOT a production payment policy, durable key ledger or race lock.
+   for(const bad of [0,-1,0.5,1.5,"1",null]){
+    const denied=await send(route,{amount:bad},adminJwt)
+    assert([400,422].includes(denied.status),
+     "Stage 11W malformed/zero/fractional ALL must be rejected")
+    dbSame(captured,await readDedicated())
+   }
+   console.log("SHQIPSHOP_F08_STAGE11W_INVALID_EXACT_INTEGER_ALL_DENIED")
+   const overCap=await send(route,{amount:Number(orderTotal)+1},adminJwt)
+   assert.equal(overCap.status,409,
+    "Stage 11W positive captured amount +1 ALL must be rejected")
+   dbSame(captured,await readDedicated())
+   console.log("SHQIPSHOP_F08_STAGE11W_ONE_ALL_OVER_CAPTURE_DENIED")
+
+   const partial=Math.floor(Number(orderTotal)/2)
+   const remaining=Number(orderTotal)-partial
+   assert(partial>0&&remaining>0)
+   const partKey="stage11w-partial-"+before.id
+   const fullKey="stage11w-full-"+before.id
+   const partialResponse=await send(route,{amount:partial},adminJwt,undefined,partKey)
+   assert(partialResponse.status>=200&&partialResponse.status<300,
+    "Stage 11W valid partial Admin HTTP refund must succeed")
+   const partially=await readDedicated()
+   assert.equal(partially.captures.length,1)
+   assert.equal(partially.refunds.length,1)
+   assert.equal(sum(partially),BigInt(partial))
+   assert(partially.refunds.every(r=>r.status==="succeeded"))
+   console.log("SHQIPSHOP_F08_STAGE11W_AUTH_ADMIN_PARTIAL_REFUND_PERSISTED")
+
+   const overRemainder=await send(route,{amount:remaining+1},adminJwt)
+   assert.equal(overRemainder.status,409,
+    "Stage 11W captured-minus-refunded +1 ALL must be rejected")
+   dbSame(partially,await readDedicated())
+   console.log("SHQIPSHOP_F08_STAGE11W_ONE_ALL_OVER_REMAINING_DENIED")
+
+   const accepted=await send(route,{amount:remaining},adminJwt,undefined,fullKey)
    assert(accepted.status>=200&&accepted.status<300,
-    "Stage 11Q positive Admin HTTP captured refund must succeed")
+    "Stage 11Q/11W positive final Admin HTTP refund must succeed")
    const fully=await readDedicated()
    assert.equal(fully.captures.length,1)
    assert.equal(whole(fully.captures[0].amount),orderTotal)
-   assert.equal(fully.refunds.length,1)
+   assert.equal(fully.refunds.length,2)
    assert.equal(sum(fully),orderTotal)
    assert(fully.refunds.every(r=>r.status==="succeeded"))
    console.log("SHQIPSHOP_F08_STAGE11Q_AUTH_ADMIN_FULL_REFUND_PERSISTED")
+
    const extra=await send(route,{amount:1},adminJwt)
    assert.equal(extra.status,409,
     "Stage 11Q CI guard must reject +1 ALL after full refund")
    dbSame(fully,await readDedicated())
-   dbSame(original,await read(1))
    console.log("SHQIPSHOP_F08_STAGE11Q_POST_FULL_ONE_ALL_DENIED_NO_PG_MUTATION")
+
+   // Replaying either exact key or requesting a fresh key AFTER exhaustion
+   // must not add a row. This is amount-exhaustion proof ONLY; stable-key
+   // idempotency while funds remain and PSP ACK-loss remain unverified.
+   for(const key of [fullKey,"stage11w-new-"+before.id]){
+    const replay=await send(route,{amount:remaining},adminJwt,undefined,key)
+    assert.equal(replay.status,409,
+     "Stage 11W exhausted balance must deny same/new-key request")
+    dbSame(fully,await readDedicated())
+   }
+   dbSame(original,await read(1))
+   console.log("SHQIPSHOP_F08_STAGE11W_EXHAUSTED_REPLAY_AND_NEW_KEY_DENIED")
+   console.log("SHQIPSHOP_F08_STAGE11W_SERIAL_ADMIN_HTTP_AMOUNT_CONTRACT_PASSED")
    console.log("SHQIPSHOP_F08_STAGE11Q_SERIAL_HTTP_GUARD_PASSED")
    return
   }
