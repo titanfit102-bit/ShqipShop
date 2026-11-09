@@ -1,11 +1,18 @@
 import { authenticate, configureStoreSearch, defineMiddlewares } from '@medusajs/framework/http'
 import { ensureOrderReader } from './middlewares/ensure-order-reader'
+import {verifyF08StrictRefundCi} from './middlewares/f08-refund-amount-ci'
 import { enforceF08CiBearerPolicy, enforceF08CiProfilePolicy, enforceF08CiOwnerCartPolicy } from './middlewares/f08-revocation-ci'
 
 // The product index declares filterable `status` and `sales_channel_ids`, so
 // the route narrows it to published products in the key's sales channels.
 export default defineMiddlewares({
   routes: [
+    {
+      // Exact fixture CI only. Outside CI this is a no-op, not a deployed fix.
+      matcher: '/admin/payments/:id/refund',
+      method: ['POST'],
+      middlewares: [verifyF08StrictRefundCi],
+    },
     {
       // Exact disposable CI-only owner guard: registered-account cart GET,
       // address updates, shipping-method selection, line-item mutations.
