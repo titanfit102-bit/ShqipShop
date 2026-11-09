@@ -1,5 +1,10 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — Stage 11L atomic refund reservation proof VERIFIED (DISPOSABLE PostgreSQL ONLY)
+
+**VERIFIED as isolated DB reservation POC only:** [Medusa CI 42537695571](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42537695571) Stage 11L success with two PG sessions and NOWAIT row-lock proof; atomic new-key reservation, same-key replay, mismatched-key-amount denial, rollback, parallel 60+60 vs 100 ALL yielding at most one accepted, simulated merchant A/B scope checks. **NOT production refund route, RBAC, PSP or multi-process API proof.** Stage 11K serial bound SUCCESS; 11I/J over-refund tests FAILED by design and overall backend smoke RED. S13/T05 remains FAILED/PARTIAL; RG-02/RG-03 release BLOCKED.
+
+
 ## 2026-11-09 — Stage 11L S13/T05 atomic reservation primitive (IMPLEMENTED, UNVERIFIED)
 
 New `f08-refund-reservation-race-ci.ts` uses two distinct PostgreSQL sessions, `FOR UPDATE NOWAIT` denial, transactional atomic balance+operation write, cross-tenant synthetic scoped checks, key replay/conflict and rollback, plus parallel over-cap claims. **CI PENDING**; this is database reservation evidence only, NOT a real provider refund or production permission. Retain mandatory Stage 11I/J failing checks. S13 P0/RG-03 BLOCKED.

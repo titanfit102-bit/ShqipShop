@@ -1,5 +1,10 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-09 — Stage 11L atomic refund reservation proof VERIFIED (DISPOSABLE PostgreSQL ONLY)
+
+**Narrow positive security primitive verified, no mitigation deployed.** [CI 42537695571](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42537695571) proved a disposable PostgreSQL transactional refund-reservation ledger with separate sessions, row lock/over-cap denial, idempotency-key replay/conflict, rollback and two overlapping requests where only one could reserve 60 ALL from 100 ALL. Synthetic merchant A/B identity boundaries only; no actual Admin/JWT tenant policy or external payment provider. Stage 11K strict sequential refund guard passed; Stage 11I/J direct/workflow over-refunds were **independently reproduced in the same CI**, leaving Medusa smoke RED. P0 S13/T05 still FAILED for application financial effect and RG-03/G3/G5 BLOCKED. Required production authority, durable provider reconciliation and failure recovery remain open.
+
+
 ## 2026-11-09 — F08 Stage 11K: strict serial ALL refund guard verified (DISPOSABLE CI ONLY)
 
 **Narrow serial CI control demonstrably works; release remains P0 BLOCKED.** [CI 42536108473](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42536108473) ran an independent second Stage 11B `pp_system_default` order through pre-call strict positive integer ALL amount validation. Bad/fractional/over-remaining/post-full cases were denied before Payment Module mutation, valid partial and full were persisted, and PostgreSQL capture/refund IDs/status and totals were checked. **Not wired into any production/Admin API and not safe under multi-process concurrency without a real transaction lock and durable provider ledger.** Stage 11J and 11I direct/workflow unsafe calls were independently executed in this same run and still persisted over-refunds, leaving Medusa smoke RED. All payment release gates remain BLOCKED; do not downgrade the finding based on a serial CI demonstration.

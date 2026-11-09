@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-09 — Stage 11L atomic refund reservation proof VERIFIED (DISPOSABLE PostgreSQL ONLY)
+
+Commit [d2ebe1a](https://github.com/titanfit102-bit/ShqipShop/commit/d2ebe1aa65720f98b57ce030d229d6f1c37946b3), [CI 42537695571](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42537695571) verified exact disposable PostgreSQL two-session refund reservation/unique operation key/rollback and parallel over-cap negative tests. Synthetic tenant A/B ledger isolated; tables removed. Seven distinct remaining workflows passed; Medusa backend smoke red due preserved Stage 11I/J over-refund tests. No production change, real PSP or main merge.
+
+
 ## 2026-11-09 — Stage 11L transactional refund reservation POC
 
 Added one CI-only Medusa exec script using disposable PostgreSQL balances/claims, transaction/row-lock/unique keys, real distinct DB connections and overlapping refund reservation promises. Wired as a separate early smoke step before any existing checkout tests. Test tables isolated and removed; no migration, merchant refund API, live PSP, deploy or main merge. Tests pending.
