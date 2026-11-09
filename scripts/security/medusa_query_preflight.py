@@ -90,9 +90,14 @@ def _lock_package_records(text: str) -> dict[str, set[tuple[str, str]]]:
         "snapshots": set(),
     }
     section: str | None = None
+    seen_sections: set[str] = set()
     for line in text.splitlines():
         if line and not line.startswith(" "):
             section = line[:-1] if line in ("packages:", "snapshots:") else None
+            if section is not None:
+                if section in seen_sections:
+                    raise ValueError("Duplicate pnpm package/snapshot section")
+                seen_sections.add(section)
             continue
         if section not in records:
             continue
@@ -102,6 +107,8 @@ def _lock_package_records(text: str) -> dict[str, set[tuple[str, str]]]:
         )
         if match:
             records[section].add((match.group(1), match.group(2)))
+    if seen_sections != set(records):
+        raise ValueError("Missing pnpm package/snapshot section")
     return records
 
 def inspect(root: Path, version: str) -> list[str]:
@@ -125,11 +132,12 @@ def inspect(root: Path, version: str) -> list[str]:
         installed = records["packages"] | records["snapshots"]
         critical = {"utils", "query", "framework", "medusa"}
         for name in critical:
-            # Critical modules must have a real pnpm package record, not just
-            # a snapshot reference, comment or peer-dependency substring.
-            found = {v for package, v in records["packages"] if package == name}
-            if found != {version}:
-                errors.append("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH")
+            # A genuine package AND snapshot record must each identify the
+            # approved runtime version; neither can substitute for the other.
+            for section in ("packages", "snapshots"):
+                found = {v for package, v in records[section] if package == name}
+                if found != {version}:
+                    errors.append("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH")
         for name, resolved in installed:
             if name in {"ui", "icons"}:
                 continue  # Independently versioned UI assets, not query runtime

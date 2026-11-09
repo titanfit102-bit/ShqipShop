@@ -47,6 +47,12 @@ packages:
   '@medusajs/framework@{version}': {{}}
   '@medusajs/utils@{version}': {{}}
   '@medusajs/query@{version}': {{}}
+
+snapshots:
+  '@medusajs/medusa@{version}': {{}}
+  '@medusajs/framework@{version}(peer@1.0.0)': {{}}
+  '@medusajs/utils@{version}': {{}}
+  '@medusajs/query@{version}': {{}}
 """, encoding="utf-8")
 
     def test_baseline_identifies_known_outdated_pin_without_claiming_fix(self):
@@ -109,7 +115,7 @@ packages:
             self.fixture(root, CANDIDATE)
             p = root / "medusa-backend-poc/pnpm-lock.yaml"
             p.write_text(p.read_text("utf-8") +
-                         "\nsnapshots:\n  '@medusajs/query@2.22.0': {}\n", encoding="utf-8")
+                         "\n  '@medusajs/query@2.22.0': {}\n", encoding="utf-8")
             self.assertIn("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH", inspect(root, CANDIDATE))
 
     def test_incomplete_or_missing_lock_entry_fails_closed(self):
@@ -118,7 +124,7 @@ packages:
             self.fixture(root, CANDIDATE)
             p = root / "medusa-backend-poc/pnpm-lock.yaml"
             p.write_text("lockfileVersion: '9.0'\nimporters:\n  .:\n", encoding="utf-8")
-            self.assertIn("MEDUSA-QUERY-LOCK-IMPORTER-MISSING", inspect(root, CANDIDATE))
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE", inspect(root, CANDIDATE))
 
     def test_release_blocks_current_affected_baseline(self):
         with TemporaryDirectory() as td:
@@ -147,7 +153,7 @@ packages:
             self.fixture(root, CANDIDATE)
             p = root / "medusa-backend-poc/pnpm-lock.yaml"
             p.write_text(p.read_text("utf-8") +
-                         "\nsnapshots:\n  '@medusajs/query@2.23.0': {}\n",
+                         "\n  '@medusajs/query@2.23.0': {}\n",
                          encoding="utf-8")
             self.assertIn("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH",
                           inspect(root, CANDIDATE))
@@ -244,8 +250,7 @@ packages:
             self.fixture(root, CANDIDATE)
             p = root / "medusa-backend-poc/pnpm-lock.yaml"
             body = p.read_text("utf-8")
-            body += (f"\nsnapshots:\n"
-                     f"  'unrelated@1.0.0(@medusajs/auth@{BASELINE})': {{}}\n")
+            body += f"\n  'unrelated@1.0.0(@medusajs/auth@{BASELINE})': {{}}\n"
             p.write_text(body, encoding="utf-8")
             self.assertEqual(inspect(root, CANDIDATE), [])
 
@@ -255,8 +260,7 @@ packages:
             self.fixture(root, CANDIDATE)
             p = root / "medusa-backend-poc/pnpm-lock.yaml"
             body = p.read_text("utf-8")
-            body += (f"\nsnapshots:\n"
-                     f"  '@medusajs/query@{BASELINE}(@medusajs/framework@{CANDIDATE})': {{}}\n")
+            body += f"\n  '@medusajs/query@{BASELINE}(@medusajs/framework@{CANDIDATE})': {{}}\n"
             p.write_text(body, encoding="utf-8")
             self.assertIn("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH",
                           inspect(root, CANDIDATE))
@@ -268,8 +272,46 @@ packages:
             p = root / "medusa-backend-poc/pnpm-lock.yaml"
             p.write_text(p.read_text("utf-8").replace(
                 "\npackages:\n", "\nunknown:\n"), encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE",
+                          inspect(root, CANDIDATE))
+
+    def test_missing_critical_snapshot_fails_even_with_package(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            pkg, snapshots = p.read_text("utf-8").split("\nsnapshots:\n", 1)
+            snapshots = snapshots.replace(f"  '@medusajs/utils@{CANDIDATE}': {{}}", "", 1)
+            p.write_text(pkg + "\nsnapshots:\n" + snapshots, encoding="utf-8")
             self.assertIn("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH",
                           inspect(root, CANDIDATE))
+
+    def test_missing_critical_package_fails_even_with_snapshot(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            pkg, snapshots = p.read_text("utf-8").split("\nsnapshots:\n", 1)
+            pkg = pkg.replace(f"  '@medusajs/framework@{CANDIDATE}': {{}}", "", 1)
+            p.write_text(pkg + "\nsnapshots:\n" + snapshots, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH",
+                          inspect(root, CANDIDATE))
+
+    def test_duplicate_top_level_snapshots_are_rejected(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            p.write_text(p.read_text("utf-8") + "\nsnapshots:\n", encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE", inspect(root, CANDIDATE))
+
+    def test_duplicate_top_level_packages_are_rejected(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            p.write_text(p.read_text("utf-8") + "\npackages:\n", encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE", inspect(root, CANDIDATE))
 
     def test_lock_parser_does_not_treat_packages_as_importers(self):
         text = """importers:
