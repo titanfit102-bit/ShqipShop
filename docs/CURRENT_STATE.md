@@ -1,5 +1,14 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-09 — Stage 12K RG-03 contradictory row fail-closed (IMPLEMENTED; EXACT-HEAD CI PENDING; RELEASE BLOCKED)
+
+**Exact Stage12J predecessor** [00083510](https://github.com/titanfit102-bit/ShqipShop/commit/00083510ef904db59c33642ad0a245fb62f6a84b): [security 42683427421](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42683427421) **54/54 Python tests PASS**, and seven of eight CI workflows SUCCESS. [Backend 42683427749](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42683427749) genuinely FAILED on mandatory native P0 persisted uncaptured Admin refund (11P) and +1 ALL excess/singular/direct module refunds (11J/O/I); mock restart/owner retry 11E/F passed. Native finance defect and version 2.22.0 dependency exposure remain OPEN; no release.
+
+**New static governance hardening:** `scripts/security/guard.py` formerly stopped at the **first** `RG-03 cart/order/payment` row in `docs/security/SECURITY_RELEASE_GATES.md`, potentially reporting PASS if a duplicate forged PASS preceded a real BLOCKED P0 row. Now `financial_release_gate_failures` requires **exactly one valid Markdown table row** for RG-03: missing/malformed returns UNKNOWN, duplicate contradictory or repeated PASS rows return `FIN-RELEASE-RG03-AMBIGUOUS`, and the single BLOCKED row still returns NOT-APPROVED. Five new negative regression tests cover both duplicate orders, duplicate PASS, unformatted and incomplete rows; existing sole PASS fixture remains the positive test. **Expected 59 Python tests; exact new CI PENDING**. This is document-state source validation only, NOT independent finance certification and does not make any release green.
+
+**Scope preserved:** no policy status switched to PASS, no Medusa dependency/lock edit, no payment, refund, PSP, tenant, production setting, merge or deployment change. RG-01/02/03, T05/S13, G3/G5 remain BLOCKED and release is forbidden pending real remedies and separate authorization.
+
+
 ## 2026-11-09 — Stage 12J duplicate Medusa lock keys (IMPLEMENTED / EXACT-HEAD CI PENDING; RELEASE BLOCKED)
 
 **Completed predecessor:** [Stage12I source b5a9f2fb](https://github.com/titanfit102-bit/ShqipShop/commit/b5a9f2fb0ac170040ffd3bdea636adf72bb8870c), [security run 42681934746](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42681934746) **51/51 Python tests PASS**, pinned 2.22.0 exposure correctly flagged. All eight workflows completed: **seven SUCCESS** and [backend run 42681934537](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42681934537) **FAILURE** due to mandatory true native P0 refund regressions. Runner-local logs reproduced Stage11P Admin refund with no captured funds, Stage11J/O extra 1 ALL after full refund, Stage11I direct module over-refund. Stage11E/F lost-ack/restart and narrow CI-only Stage11X/Y/Z guards passed. This is not evidence of real PSP safety or release readiness.

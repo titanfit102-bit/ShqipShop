@@ -114,14 +114,27 @@ def financial_release_gate_failures(root: Path) -> list[str]:
         lines = path.read_text("utf-8").splitlines()
     except OSError:
         return ["FIN-RELEASE-RG03-UNKNOWN"]
+    rows = []
     for line in lines:
+        # Only canonical Markdown table rows are gate evidence. A free-text
+        # mention of RG-03 is not an approval and must not satisfy the gate.
+        trimmed = line.strip()
+        if not (trimmed.startswith("|") and trimmed.endswith("|")):
+            continue
         columns = [cell.strip().replace("*", "")
-                   for cell in line.strip().strip("|").split("|")]
-        if len(columns) >= 3 and columns[0] == "RG-03 cart/order/payment":
-            if columns[2] == "PASS":
-                return []
-            return ["FIN-RELEASE-RG03-NOT-APPROVED"]
-    return ["FIN-RELEASE-RG03-UNKNOWN"]
+                   for cell in trimmed.strip("|").split("|")]
+        if columns and columns[0] == "RG-03 cart/order/payment":
+            rows.append(columns)
+    if not rows:
+        return ["FIN-RELEASE-RG03-UNKNOWN"]
+    if len(rows) != 1:
+        # A forged PASS row must not override a BLOCKED row (or vice versa).
+        return ["FIN-RELEASE-RG03-AMBIGUOUS"]
+    if len(rows[0]) < 3:
+        return ["FIN-RELEASE-RG03-UNKNOWN"]
+    if rows[0][2] != "PASS":
+        return ["FIN-RELEASE-RG03-NOT-APPROVED"]
+    return []
 
 def medusa_query_release_failures(root: Path) -> list[str]:
     """Static dependency prerequisite; never a runtime query-security certificate.

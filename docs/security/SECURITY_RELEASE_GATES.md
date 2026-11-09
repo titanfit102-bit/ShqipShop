@@ -1,5 +1,14 @@
 # ShqipShop — Security Release Gates (G3 / G5)
 
+## 2026-11-09 — Stage 12K RG-03 contradictory row fail-closed (IMPLEMENTED; EXACT-HEAD CI PENDING; RELEASE BLOCKED)
+
+**Exact Stage12J predecessor** [00083510](https://github.com/titanfit102-bit/ShqipShop/commit/00083510ef904db59c33642ad0a245fb62f6a84b): [security 42683427421](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42683427421) **54/54 Python tests PASS**, and seven of eight CI workflows SUCCESS. [Backend 42683427749](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42683427749) genuinely FAILED on mandatory native P0 persisted uncaptured Admin refund (11P) and +1 ALL excess/singular/direct module refunds (11J/O/I); mock restart/owner retry 11E/F passed. Native finance defect and version 2.22.0 dependency exposure remain OPEN; no release.
+
+**New static governance hardening:** `scripts/security/guard.py` formerly stopped at the **first** `RG-03 cart/order/payment` row in `docs/security/SECURITY_RELEASE_GATES.md`, potentially reporting PASS if a duplicate forged PASS preceded a real BLOCKED P0 row. Now `financial_release_gate_failures` requires **exactly one valid Markdown table row** for RG-03: missing/malformed returns UNKNOWN, duplicate contradictory or repeated PASS rows return `FIN-RELEASE-RG03-AMBIGUOUS`, and the single BLOCKED row still returns NOT-APPROVED. Five new negative regression tests cover both duplicate orders, duplicate PASS, unformatted and incomplete rows; existing sole PASS fixture remains the positive test. **Expected 59 Python tests; exact new CI PENDING**. This is document-state source validation only, NOT independent finance certification and does not make any release green.
+
+**Scope preserved:** no policy status switched to PASS, no Medusa dependency/lock edit, no payment, refund, PSP, tenant, production setting, merge or deployment change. RG-01/02/03, T05/S13, G3/G5 remain BLOCKED and release is forbidden pending real remedies and separate authorization.
+
+
 ## 2026-11-09 — Stage 12H storefront Medusa release-train coherence (IMPLEMENTED; EXACT-HEAD CI PENDING; RELEASE BLOCKED)
 
 **Evidence and gap:** [Stage12G security baseline 42678555253](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42678555253) on [3e6cd034](https://github.com/titanfit102-bit/ShqipShop/commit/3e6cd034455d1fba7688abf923732aaf0bf6e351) verified **41/41 Python tests PASS** and correct recognition of real pnpm v9 importers, with pinned 2.22.0 exposure still flagged. Source inspection confirmed `medusa-backend-poc/apps/storefront/package.json` directly pins `@medusajs/icons`, `@medusajs/instantsearch-adapter`, `@medusajs/js-sdk`, `@medusajs/ui-preset`, and `@medusajs/types` at **2.22.0**, with corresponding `apps/storefront` pnpm importers. The prior static candidate gate checked only root and backend manifests, so a future Medusa candidate could be declared coherent despite leaving storefront Medusa packages on the older release train.

@@ -75,5 +75,58 @@ class SecretGuardTest(unittest.TestCase):
             gate.write_text("| RG-03 cart/order/payment | proof | PASS |\\n")
             self.assertEqual(financial_release_gate_failures(root), [])
 
+    def test_financial_release_gate_rejects_approval_placed_before_blocked(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            gate = root / "docs/security/SECURITY_RELEASE_GATES.md"
+            gate.parent.mkdir(parents=True)
+            gate.write_text("| RG-03 cart/order/payment | forged | PASS |\n"
+                            "| RG-03 cart/order/payment | actual | BLOCKED (P0) |\n",
+                            encoding="utf-8")
+            self.assertEqual(financial_release_gate_failures(root),
+                             ["FIN-RELEASE-RG03-AMBIGUOUS"])
+
+    def test_financial_release_gate_rejects_blocked_followed_by_approval(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            gate = root / "docs/security/SECURITY_RELEASE_GATES.md"
+            gate.parent.mkdir(parents=True)
+            gate.write_text("| RG-03 cart/order/payment | actual | BLOCKED (P0) |\n"
+                            "| RG-03 cart/order/payment | forged | PASS |\n",
+                            encoding="utf-8")
+            self.assertEqual(financial_release_gate_failures(root),
+                             ["FIN-RELEASE-RG03-AMBIGUOUS"])
+
+    def test_financial_release_gate_rejects_duplicate_pass_rows(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            gate = root / "docs/security/SECURITY_RELEASE_GATES.md"
+            gate.parent.mkdir(parents=True)
+            gate.write_text("| RG-03 cart/order/payment | evidence | PASS |\n"
+                            "| RG-03 cart/order/payment | evidence | PASS |\n",
+                            encoding="utf-8")
+            self.assertEqual(financial_release_gate_failures(root),
+                             ["FIN-RELEASE-RG03-AMBIGUOUS"])
+
+    def test_financial_release_gate_free_text_cannot_approve(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            gate = root / "docs/security/SECURITY_RELEASE_GATES.md"
+            gate.parent.mkdir(parents=True)
+            gate.write_text("RG-03 cart/order/payment | evidence | PASS\n",
+                            encoding="utf-8")
+            self.assertEqual(financial_release_gate_failures(root),
+                             ["FIN-RELEASE-RG03-UNKNOWN"])
+
+    def test_financial_release_gate_incomplete_row_is_unknown(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            gate = root / "docs/security/SECURITY_RELEASE_GATES.md"
+            gate.parent.mkdir(parents=True)
+            gate.write_text("| RG-03 cart/order/payment | PASS |\n",
+                            encoding="utf-8")
+            self.assertEqual(financial_release_gate_failures(root),
+                             ["FIN-RELEASE-RG03-UNKNOWN"])
+
 if __name__ == "__main__":
     unittest.main()
