@@ -90,8 +90,8 @@ def inspect(root: Path, version: str) -> list[str]:
         # This is an integrity preflight, so transitive/pnpm snapshot packages
         # must not retain an older Medusa release even when importers look clean.
         resolved_versions = set(re.findall(
-            r"@medusajs/(?!ui@)[A-Za-z0-9_.-]+@(2\.22\.[0-9]+)", lock_text))
-        if resolved_versions and resolved_versions != {version}:
+            r"@medusajs/(?!ui@)[A-Za-z0-9_.-]+@([0-9]+\.[0-9]+\.[0-9]+)", lock_text))
+        if not resolved_versions or resolved_versions != {version}:
             errors.append("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH")
     except (OSError, ValueError):
         return ["MEDUSA-QUERY-LOCK-UNREADABLE"]

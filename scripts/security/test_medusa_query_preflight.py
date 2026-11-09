@@ -1,9 +1,13 @@
 """Stage12C positive/negative checks for the read-only Medusa candidate preflight."""
 import json
+from contextlib import redirect_stdout
+from io import StringIO
+from unittest.mock import patch
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 from medusa_query_preflight import BASELINE, CANDIDATE, inspect, _lock_importers
+from guard import medusa_query_release_failures, main as release_guard_main
 
 
 class MedusaQueryPreflightTest(unittest.TestCase):
@@ -112,6 +116,79 @@ packages:
             p = root / "medusa-backend-poc/pnpm-lock.yaml"
             p.write_text("lockfileVersion: '9.0'\nimporters:\n  .:\n", encoding="utf-8")
             self.assertIn("MEDUSA-QUERY-LOCK-IMPORTER-MISSING", inspect(root, CANDIDATE))
+
+    def test_release_blocks_current_affected_baseline(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, BASELINE)
+            self.assertEqual(medusa_query_release_failures(root),
+                             ["SEC-MEDUSA-QUERY-PATCHED-TRAIN-UNVERIFIED"])
+
+    def test_release_static_prerequisite_accepts_only_full_candidate(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            self.assertEqual(medusa_query_release_failures(root), [])
+
+    def test_release_missing_lock_fails_closed(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            (root / "medusa-backend-poc/pnpm-lock.yaml").unlink()
+            self.assertEqual(medusa_query_release_failures(root),
+                             ["SEC-MEDUSA-QUERY-PATCHED-TRAIN-UNVERIFIED"])
+
+    def test_future_mixed_transitive_release_fails_closed(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            p.write_text(p.read_text("utf-8") +
+                         "\nsnapshots:\n  '@medusajs/query@2.23.0': {}\n",
+                         encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH",
+                          inspect(root, CANDIDATE))
+
+    def test_release_requires_package_versions_in_lock_snapshots(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            p = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = p.read_text("utf-8")
+            body = body.replace(f"  '@medusajs/medusa@{CANDIDATE}': {{}}", "")
+            body = body.replace(f"(@medusajs/cli@{CANDIDATE})", "(cli@7.0)")
+            p.write_text(body, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-TRANSITIVE-VERSION-MISMATCH",
+                          inspect(root, CANDIDATE))
+
+    def test_cli_release_flag_blocks_affected_train_even_with_other_gates_mock_green(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, BASELINE)
+            with (patch("guard.ROOT", root),
+                  patch("guard.financial_regression_failures", return_value=[]),
+                  patch("guard.financial_release_gate_failures", return_value=[]),
+                  patch("guard.release_failures", return_value=[]),
+                  patch("sys.argv", ["guard.py", "--release"]),
+                  redirect_stdout(StringIO()) as output):
+                self.assertEqual(release_guard_main(), 1)
+            self.assertIn("SEC-MEDUSA-QUERY-PATCHED-TRAIN-UNVERIFIED",
+                          output.getvalue())
+
+    def test_cli_release_flag_static_candidate_prerequisite_passes_but_not_production_certification(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            with (patch("guard.ROOT", root),
+                  patch("guard.financial_regression_failures", return_value=[]),
+                  patch("guard.financial_release_gate_failures", return_value=[]),
+                  patch("guard.release_failures", return_value=[]),
+                  patch("sys.argv", ["guard.py", "--release"]),
+                  redirect_stdout(StringIO()) as output):
+                self.assertEqual(release_guard_main(), 0)
+            self.assertNotIn("SEC-MEDUSA-QUERY-PATCHED-TRAIN-UNVERIFIED",
+                             output.getvalue())
+            # This is a mocked release config fixture, not real release approval.
 
     def test_lock_parser_does_not_treat_packages_as_importers(self):
         text = """importers:

@@ -7,6 +7,8 @@ import re
 import subprocess
 import sys
 
+from medusa_query_preflight import CANDIDATE, inspect as inspect_medusa_query
+
 ROOT = Path(__file__).resolve().parents[2]
 # Build signatures in parts to avoid embedding token-like specimens.
 INDICATORS = (
@@ -121,6 +123,19 @@ def financial_release_gate_failures(root: Path) -> list[str]:
             return ["FIN-RELEASE-RG03-NOT-APPROVED"]
     return ["FIN-RELEASE-RG03-UNKNOWN"]
 
+def medusa_query_release_failures(root: Path) -> list[str]:
+    """Static dependency prerequisite; never a runtime query-security certificate.
+
+    Fail closed when the current install is still the affected 2.22.0 train,
+    the future patched train is mixed, or the pnpm lock cannot be verified.
+    A clean result only proves candidate version/lock coherence. Other
+    financial, identity and release gates continue to apply independently.
+    """
+    if inspect_medusa_query(root, CANDIDATE):
+        return ["SEC-MEDUSA-QUERY-PATCHED-TRAIN-UNVERIFIED"]
+    return []
+
+
 def release_failures(root: Path) -> list[str]:
     problems = []
     gradle = (root / "native-medusa/android/app/build.gradle").read_text("utf-8")
@@ -149,6 +164,9 @@ def main() -> int:
         if not failures:
             print("SHQIPSHOP_FINANCIAL_SENTINEL_SOURCE_CONTRACT_PASSED_NOT_MONETARY_SAFETY")
     if args.release:
+        for issue in medusa_query_release_failures(ROOT):
+            print(f"::error::{issue}")
+            status = 1
         for issue in financial_release_gate_failures(ROOT):
             print(f"::error::{issue}")
             status = 1

@@ -1,5 +1,10 @@
 # ShqipShop — Security Release Gates (G3 / G5)
 
+## 2026-11-09 — Stage 12D executable query-dependency release prerequisite (PENDING CI; RELEASE BLOCKED)
+
+The existing `scripts/security/guard.py --release` now also blocks whenever `medusa_query_preflight.inspect(root, "2.22.6")` finds any absent or inconsistent Medusa runtime package, pnpm importer or transitive release version: `SEC-MEDUSA-QUERY-PATCHED-TRAIN-UNVERIFIED`. Current pinned 2.22.0 therefore remains **RELEASE-BLOCKED** even if RG-03 were mistakenly marked PASS. This is **only a static prerequisite**, not a complete patch-verification process; even an internally consistent future 2.22.6 lock would still require real installed-package, HTTP, permission, isolation and compatibility tests plus all other gates. The official alternate 2.22.0 backport is not integrated or accepted by this conservative gate: separate reviewed exception/approval required. Seven added regression fixtures include a direct CLI --release check with other gates mocked and mixed/missing/stale versions. CI verification is PENDING; never report static gate PASS as live query-security or finance certification. Finance T05/S13 and RG-01/02/03 G3/G5 remain BLOCKED.
+
+
 ## 2026-11-09 — Stage 12B vendor dependency security gate (BLOCKED; no approved upgrade)
 
 ShqipShop's real Medusa backend package manifest and pnpm lock are **2.22.0**. Official [2.22.6](https://github.com/medusajs/medusa/releases/tag/v2.22.6), superseding incomplete [2.22.5](https://github.com/medusajs/medusa/releases/tag/v2.22.5), fixes unsafe framework/query dotted-path parameter handling ([upstream PR #17712](https://github.com/medusajs/medusa/pull/17712)); the required helper does not exist in pinned 2.22.0. External exploitability of ShqipShop is **UNKNOWN**, but an exposed self-hosted release must not proceed with this known-outdated dependency. An isolated, **separately authorized** 2.22.6 compatible-package/lockfile CI evaluation is preferred; official backport for 2.20.0–2.22.4 is a reviewed fallback, not executed. [Criteria in existing security test matrix](SECURITY_TEST_MATRIX.md).

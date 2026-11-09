@@ -1,5 +1,18 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — Stage 12D static release dependency veto regression (IMPLEMENTED / CI PENDING)
+
+| Case | Expected assertion | Status |
+| --- | --- | --- |
+| Current Medusa 2.22.0 | `guard.py --release` emits `SEC-MEDUSA-QUERY-PATCHED-TRAIN-UNVERIFIED` and exits nonzero (other gates deliberately mocked PASS in isolated unit fixture) | IMPLEMENTED, exact-HEAD CI PENDING |
+| Hypothetical consistent Medusa 2.22.6 manifest/lock | New **static prerequisite only** has no additional version error; does NOT certify release | IMPLEMENTED, exact-HEAD CI PENDING |
+| Incomplete/missing pnpm lock, mixed direct versions, transitive 2.23.0 or missing transitive evidence | Fail closed with sanitized dependency diagnostics | IMPLEMENTED, exact-HEAD CI PENDING |
+| Existing finance P0 and baseline scan | No modification to 11I/J/O/P assertions, RG-03, secret scan or unchanged 2.22.0 baseline flag | SOURCE INSPECTED; confirm CI |
+| Genuine installed 2.22.6 query behavior, tenant isolation, PSP or runtime finance | Out of scope; separate authorization and CI candidate required | **NOT VERIFIED / RELEASE BLOCKED** |
+
+Relevant source: `scripts/security/guard.py`, `scripts/security/medusa_query_preflight.py`, `scripts/security/test_medusa_query_preflight.py`. Added seven positive/negative test methods, including CLI wiring, without introducing an alternate financial ledger.
+
+
 ## 2026-11-09 — Stage 12C static baseline and candidate-only query regression harness (IMPLEMENTED; CI PENDING)
 
 **Implemented:** `scripts/security/medusa_query_preflight.py` checks two direct Medusa package manifests, pnpm v9 importer specifiers/resolved versions, and transitive 2.22.x references. Default `--baseline` behavior is read-only and explicitly reports **pinned 2.22.0 vulnerable/RELEASE BLOCKED**; `--candidate` fails unless all Medusa release-train dependencies consistently resolve to 2.22.6 (excluding independently versioned `@medusajs/ui`). Nine isolated Python positive/negative unit regressions PASS locally (including mixed, missing and transitive older-version fixtures); new baseline workflow step and tests **await exact-head CI**. The separate candidate-only Node harness validates legitimate nested query field composition and rejects unsafe dotted fields in actual `@medusajs/framework/utils` **only once an approved 2.22.6 candidate is installed**; not executed against actual Medusa 2.22.6 yet. No unsafe-payload values are printed in CI logs. This is a source/dependency acceptance scaffold, NOT HTTP/provider/tenant/PSP evidence.
