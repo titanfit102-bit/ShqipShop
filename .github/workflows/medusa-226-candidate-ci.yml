@@ -25,7 +25,6 @@ jobs:
       CI: "true"
       NODE_ENV: development
       SHQIPSHOP_MEDUSA_CANDIDATE_CI: "true"
-      SHQIPSHOP_MEDUSA_CANDIDATE_DIR: ${{ runner.temp }}/shqipshop-medusa226
       DATABASE_URL: postgres://candidate_ci:disposable_ci_password@127.0.0.1:5432/candidate_ci
       REDIS_URL: redis://127.0.0.1:6379
       SHQIPSHOP_REQUIRE_REDIS: "true"
@@ -69,6 +68,8 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
+      - name: Configure disposable candidate path from runner temp
+        run: echo "SHQIPSHOP_MEDUSA_CANDIDATE_DIR=$RUNNER_TEMP/shqipshop-medusa226" >> "$GITHUB_ENV"
       - name: Check preparation tests and preserved financial sentinels
         run: |
           set -euo pipefail
