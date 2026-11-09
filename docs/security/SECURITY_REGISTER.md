@@ -1,5 +1,14 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-09 — Stage 12G corrective pnpm plain-key parsing (IMPLEMENTED / CI PENDING; RELEASE BLOCKED)
+
+[First Stage12G security run 42678088052](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42678088052) on [00de9906](https://github.com/titanfit102-bit/ShqipShop/commit/00de9906a34058b92382d15deed0e89b559ec63f) executed **39/39 Python tests PASS**, but the actual pinned pnpm v9 baseline step FAILED `MEDUSA-QUERY-LOCK-UNREADABLE`. Root cause was a scanner false positive, **NOT evidence that the real lockfile was tampered with**: the legitimate storefront dependency `instantsearch.js` appears as a plain unquoted key in real `apps/storefront` importers; the checker only recognized bare names without dots and erroneously associated the next resolved version with the preceding key, falsely reporting a duplicate. Source inspection of real importer keys found this one previously unrecognized dotted name.
+
+**Correction:** accept valid dots in unquoted pnpm importer dependency names while still rejecting duplicate importer sections, names, dependency keys, scalar version/specifier fields and conflicting lock headers. Added positive fixture with `instantsearch.js` and negative fixture with an actual duplicate dotted dependency. Expected **41/41 Python tests**; exact corrective CI and actual pinned-lock preflight **PENDING**. No npm/pnpm install, vendor-version/lock edit or financial release remediation was performed. Original Stage12F static gate [42674706998](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42674706998) remains last fully successful 34/34 baseline before Stage12G.
+
+**Boundaries:** Medusa 2.22.0 unsafe dotted query and native T05/S13 P0 excess ALL/uncaptured refunds remain unresolved, RG-01/02/03 and G3/G5 **BLOCKED**. No production system, real PSP, financial/auth tenant policy, main or deploy changed. Re-check actual corrective CI before status VERIFIED; all genuine unguarded refund probes must remain RED.
+
+
 ## 2026-11-09 — Stage 12G pnpm importer ambiguity guard (IMPLEMENTED / EXACT-HEAD CI PENDING; RELEASE BLOCKED)
 
 **Motivation:** Stage12F [security run 42676761105](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42676761105) on SHA [1edafcac](https://github.com/titanfit102-bit/ShqipShop/commit/1edafcac39bb2ce8d78efbd4190883f79243f42b) logged **34/34 Python tests PASS**, while 7/8 workflows were SUCCESS and backend had entered its long-running disposable financial sequence at initial readback. The structural pnpm scanner still accepted one valid lockfile version anywhere in a lock containing a conflicting second header, and its importer scanner silently replaced duplicate importer/dependency/version mappings. These are **static gate ambiguity risks**, not proof that pnpm would install malformed locks.

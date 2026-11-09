@@ -368,6 +368,37 @@ snapshots:
             path.write_text(body, encoding="utf-8")
             self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE", inspect(root, CANDIDATE))
 
+    def test_valid_unquoted_dotted_pnpm_dependency_is_accepted(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = path.read_text("utf-8").replace(
+                "      '@medusajs/framework':\n",
+                "      instantsearch.js:\n"
+                "        specifier: 4.113.0\n"
+                "        version: 4.113.0\n"
+                "      '@medusajs/framework':\n", 1)
+            path.write_text(body, encoding="utf-8")
+            self.assertEqual(inspect(root, CANDIDATE), [])
+
+    def test_duplicate_unquoted_dotted_dependency_is_still_rejected(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = path.read_text("utf-8").replace(
+                "      '@medusajs/framework':\n",
+                "      instantsearch.js:\n"
+                "        specifier: 4.113.0\n"
+                "        version: 4.113.0\n"
+                "      instantsearch.js:\n"
+                "        specifier: 4.113.0\n"
+                "        version: 4.113.0\n"
+                "      '@medusajs/framework':\n", 1)
+            path.write_text(body, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE", inspect(root, CANDIDATE))
+
     def test_lock_parser_does_not_treat_packages_as_importers(self):
         text = """importers:
   apps/backend:

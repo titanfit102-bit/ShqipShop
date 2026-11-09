@@ -64,7 +64,7 @@ def _lock_importers(text: str) -> dict[str, dict[str, tuple[str, str]]]:
             dep, spec, resolved = None, None, None
             importers[importer] = {}
             continue
-        if re.fullmatch(r"      '[^']+':", line) or re.fullmatch(r"      [A-Za-z0-9@/_-]+:", line):
+        if re.fullmatch(r"      '[^']+':", line) or re.fullmatch(r"      [A-Za-z0-9@/_.+-]+:", line):
             save()
             dep = line.strip().rstrip(":").strip("'")
             spec, resolved = None, None
