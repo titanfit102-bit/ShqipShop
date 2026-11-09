@@ -354,25 +354,50 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
     assert.equal(captured.captures.length,1)
     assert.equal(whole(captured.captures[0].amount),orderTotal)
     assert.equal(captured.refunds.length,0)
+    // Medusa 2.22.0 documents idempotency_key in the REFUND REQUEST BODY,
+    // not just in an HTTP header. Verify the supported contract directly.
     const operationKey="stage11x-"+before.id
-    const first=await send(route,{amount:1},adminJwt,undefined,operationKey)
+    const first=await send(route,{amount:1,idempotency_key:operationKey},adminJwt)
     assert(first.status>=200&&first.status<300,
-     "Stage 11X first Admin mock refund must succeed")
+     "Stage 11X first body-key Admin mock refund must succeed")
     const once=await readDedicated()
     assert.equal(once.refunds.length,1)
     assert.equal(sum(once),1n)
     assert(once.refunds.every(r=>r.status==="succeeded"))
     console.log("SHQIPSHOP_F08_STAGE11X_FIRST_KEYED_ADMIN_REFUND_PERSISTED")
-    const replay=await send(route,{amount:1},adminJwt,undefined,operationKey)
+
+    const replay=await send(route,{amount:1,idempotency_key:operationKey},adminJwt)
     const twice=await readDedicated()
-    console.log("SHQIPSHOP_F08_STAGE11X_SAME_KEY_REPLAY_HTTP_STATUS_"+replay.status)
+    console.log("SHQIPSHOP_F08_STAGE11X_SAME_BODY_KEY_REPLAY_STATUS_"+replay.status)
     if(twice.refunds.length>once.refunds.length||sum(twice)>sum(once))
-     console.log("SHQIPSHOP_F08_STAGE11X_SAME_KEY_DUPLICATE_REFUND_PERSISTED")
+     console.log("SHQIPSHOP_F08_STAGE11X_SAME_BODY_KEY_DUPLICATE_REFUND_PERSISTED")
     dbSame(once,twice)
     assert([200,201,202,204,409].includes(replay.status),
-     "Stage 11X replay should be an idempotent reply or deny, never a 5xx")
+     "Stage 11X same-body-key retry must be idempotent or explicitly denied")
+    console.log("SHQIPSHOP_F08_STAGE11X_SAME_BODY_KEY_NO_SECOND_REFUND")
+
+    // Mismatched amount with the identical key must not create another row,
+    // even though the strictly available captured balance can afford 2 ALL.
+    const mismatch=await send(route,{amount:2,idempotency_key:operationKey},adminJwt)
+    assert([400,409,422].includes(mismatch.status),
+     "Stage 11X same key with a different amount must be rejected")
+    dbSame(once,await readDedicated())
+    console.log("SHQIPSHOP_F08_STAGE11X_SAME_KEY_DIFFERENT_AMOUNT_DENIED")
+
+    // A genuinely new key is a distinct, permitted partial refund. The
+    // settlement remains entirely mock and the Medusa finance ledger is read.
+    const secondKey="stage11x-second-"+before.id
+    const another=await send(route,{amount:1,idempotency_key:secondKey},adminJwt)
+    assert(another.status>=200&&another.status<300,
+     "Stage 11X new key within remaining capture should succeed")
+    const separate=await readDedicated()
+    assert.equal(separate.refunds.length,2)
+    assert.equal(sum(separate),2n)
+    assert(separate.refunds.every(r=>r.status==="succeeded"))
+    assert(separate.refunds.some(r=>r.id===once.refunds[0].id))
+    console.log("SHQIPSHOP_F08_STAGE11X_DISTINCT_BODY_KEY_PARTIAL_REFUND_PERSISTED")
     dbSame(original,await read(1))
-    console.log("SHQIPSHOP_F08_STAGE11X_SAME_KEY_HTTP_REPLAY_NO_MUTATION_PASSED")
+    console.log("SHQIPSHOP_F08_STAGE11X_REAL_BODY_KEY_REPLAY_CONTRACT_PASSED")
     return
    }
    // An authorized full capture must remain refundable by the guarded

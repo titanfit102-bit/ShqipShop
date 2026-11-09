@@ -2,7 +2,7 @@
 
 ## 2026-11-09 — Stage 11W serial CI proof verified; Stage 11X same-key replay pending
 
-[Stage11W run 42653606429](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42653606429) contains positive partial/full Admin mock refund and negative exact ALL amount invariants, but the original Medusa 11I/J/O/P unguarded financial failures remain. A new independently linked [Stage11X HTTP same-key replay probe](https://github.com/titanfit102-bit/ShqipShop/commit/3acb620c42ee8ea35ca2d4ac061c75ac4e0ef485) has **no verified result yet**. CI proof of a preflight or header-level replay is not native Payment Module transactionality, real PSP signed reconciliation or merchant finance RBAC. **RG-03 and all release P0 gates remain BLOCKED**. No release/merge/deploy authorization.
+[Stage11W run 42653606429](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42653606429) contains positive partial/full Admin mock refund and negative exact ALL amount invariants, but the original Medusa 11I/J/O/P unguarded financial failures remain. A new independently linked [Stage11X HTTP body-key replay probe](https://github.com/titanfit102-bit/ShqipShop/commit/3acb620c42ee8ea35ca2d4ac061c75ac4e0ef485) has **no verified result yet**. CI proof of a preflight or body-key replay is not native Payment Module transactionality, real PSP signed reconciliation or merchant finance RBAC. **RG-03 and all release P0 gates remain BLOCKED**. No release/merge/deploy authorization.
 
 
 ## 2026-11-09 — Stage 11V upstream native locks verified; RG-03 remains BLOCKED
