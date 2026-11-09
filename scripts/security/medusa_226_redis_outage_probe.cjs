@@ -100,11 +100,14 @@ async function identity(port, tenant, actor, timeoutMs = 7000) {
 }
 async function validOn(port, tenant, actor) {
   const result = await identity(port, tenant, actor);
+  if (result.status !== 200) probePhase += "_STATUS_" + String(result.status);
+  else if (result.id !== tenant[actor].id) probePhase += "_PRINCIPAL_MISMATCH";
   assert.equal(result.status, 200, "Expected same-merchant session to be accepted");
   assert.equal(result.id, tenant[actor].id, "Session returned the wrong principal");
 }
 async function denyOn(port, tenant, actor) {
   const result = await identity(port, tenant, actor);
+  if (![401, 403].includes(result.status)) probePhase += "_STATUS_" + String(result.status);
   assert.ok([401, 403].includes(result.status),
     "Foreign merchant cookie was not denied");
 }
@@ -116,8 +119,11 @@ async function main() {
   await redis(6381, ["PING"]);
   probePhase = "BASELINE_COOKIE_IDENTITIES";
   for (const actor of ["customer", "admin"]) {
+    probePhase = "BASELINE_" + actor.toUpperCase() + "_A_CLONE";
     await validOn(9002, proof.A, actor);
+    probePhase = "BASELINE_" + actor.toUpperCase() + "_B_ORIGIN";
     await validOn(9001, proof.B, actor);
+    probePhase = "BASELINE_" + actor.toUpperCase() + "_B_FOREIGN_DENIED";
     await denyOn(9002, proof.B, actor);
   }
   console.log("SHQIPSHOP_226_STAGE12Q_PRE_OUTAGE_SESSIONS_PASSED");
