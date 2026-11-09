@@ -395,9 +395,16 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
     const goodIndex=statuses.findIndex(s=>s>=200&&s<300)
     assert.equal(goodIndex===0||goodIndex===1,true)
     const same=await send(route,{amount:proposed,idempotency_key:keys[goodIndex]},adminJwt)
-    assert(same.status>=200&&same.status<300)
+    console.log("SHQIPSHOP_F08_STAGE11Z_WINNING_KEY_REPLAY_STATUS_"+same.status)
+    // Exact-CI read-before-write preflight runs BEFORE Medusa's built-in
+    // idempotency resolver. With only the remaining balance available, this
+    // preflight must reject the already-refunded amount. Do not mistake a
+    // 409 for a missing native keyed idempotency guarantee: 11X/11Y already
+    // test Medusa replay when the preflight permits reaching the module.
+    assert.equal(same.status,409,
+     "Stage 11Z CI preflight must deny exhausted replay without mutation")
     dbSame(afterRace,await readDedicated())
-    console.log("SHQIPSHOP_F08_STAGE11Z_WINNING_KEY_REPLAY_NO_MUTATION")
+    console.log("SHQIPSHOP_F08_STAGE11Z_WINNING_KEY_REPLAY_DENIED_NO_MUTATION")
     const valid=await send(route,{
      amount:remaining,idempotency_key:"stage11z-exact-rest-"+before.id,
     },adminJwt)
