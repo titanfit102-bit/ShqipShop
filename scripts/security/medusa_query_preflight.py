@@ -38,10 +38,14 @@ def _lock_importers(text: str) -> dict[str, dict[str, tuple[str, str]]]:
     spec: str | None = None
     resolved: str | None = None
     in_importers = False
+    if len(re.findall(r"(?m)^importers:", text)) != 1:
+        raise ValueError("Missing or duplicate pnpm importer section")
     def save() -> None:
         if importer is not None and dep is not None:
             if spec is None or resolved is None:
                 raise ValueError("Incomplete lock entry")
+            if dep in importers[importer]:
+                raise ValueError("Duplicate pnpm importer dependency")
             importers[importer][dep] = (spec, resolved)
     for line in text.splitlines():
         if line == "importers:":
@@ -55,6 +59,8 @@ def _lock_importers(text: str) -> dict[str, dict[str, tuple[str, str]]]:
         if re.fullmatch(r"  ([^ ].*):", line):
             save()
             importer = line.strip()[:-1]
+            if importer in importers:
+                raise ValueError("Duplicate pnpm importer")
             dep, spec, resolved = None, None, None
             importers[importer] = {}
             continue
@@ -69,8 +75,12 @@ def _lock_importers(text: str) -> dict[str, dict[str, tuple[str, str]]]:
         if match:
             value = match.group(2).strip("'\"")
             if match.group(1) == "specifier":
+                if spec is not None:
+                    raise ValueError("Duplicate pnpm specifier")
                 spec = value
             else:
+                if resolved is not None:
+                    raise ValueError("Duplicate pnpm resolved version")
                 resolved = value
     else:
         save()
@@ -118,8 +128,11 @@ def inspect(root: Path, version: str) -> list[str]:
         return ["MEDUSA-QUERY-CANDIDATE-UNAPPROVED-VERSION"]
     try:
         lock_text = (root / LOCKFILE).read_text("utf-8")
-        if not re.search(r"(?m)^lockfileVersion: ['\"]?9\.0['\"]?$", lock_text):
-            raise ValueError("Not pnpm lock v9")
+        headers = re.findall(r"(?m)^lockfileVersion:[^\r\n]*$", lock_text)
+        if len(headers) != 1 or not re.fullmatch(
+            r"lockfileVersion: ['\"]?9\.0['\"]?", headers[0]
+        ):
+            raise ValueError("Missing, duplicate or unsupported pnpm lock version")
         lock = _lock_importers(lock_text)
         # This is an integrity preflight, so transitive/pnpm snapshot packages
         # must not retain an older Medusa release even when importers look clean.

@@ -313,6 +313,61 @@ snapshots:
             p.write_text(p.read_text("utf-8") + "\npackages:\n", encoding="utf-8")
             self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE", inspect(root, CANDIDATE))
 
+    def test_duplicate_lockfile_version_header_is_rejected(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            path.write_text(path.read_text("utf-8") +
+                            "\nlockfileVersion: '8.0'\n", encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE", inspect(root, CANDIDATE))
+
+    def test_duplicate_importers_section_is_rejected(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            path.write_text(path.read_text("utf-8") +
+                            "\nimporters:\n", encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE", inspect(root, CANDIDATE))
+
+    def test_duplicate_backend_importer_is_rejected(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = path.read_text("utf-8").replace(
+                "\npackages:\n",
+                "\n  apps/backend:\n    dependencies:\n\npackages:\n")
+            path.write_text(body, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE", inspect(root, CANDIDATE))
+
+    def test_duplicate_medusa_importer_dependency_is_rejected(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = path.read_text("utf-8").replace(
+                "      '@medusajs/framework':\n",
+                f"      '@medusajs/medusa':\n"
+                f"        specifier: {CANDIDATE}\n"
+                f"        version: {CANDIDATE}\n"
+                "      '@medusajs/framework':\n", 1)
+            path.write_text(body, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE", inspect(root, CANDIDATE))
+
+    def test_duplicate_importer_version_scalar_is_rejected(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = path.read_text("utf-8").replace(
+                f"        version: {CANDIDATE}(eslint@9.0.0)",
+                f"        version: {CANDIDATE}(eslint@9.0.0)\n"
+                f"        version: {CANDIDATE}(eslint@9.0.0)", 1)
+            path.write_text(body, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE", inspect(root, CANDIDATE))
+
     def test_lock_parser_does_not_treat_packages_as_importers(self):
         text = """importers:
   apps/backend:
