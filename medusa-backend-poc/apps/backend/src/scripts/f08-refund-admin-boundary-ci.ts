@@ -11,7 +11,7 @@ import {randomBytes} from "node:crypto"
 import {readFileSync} from "node:fs"
 import {resolve,sep} from "node:path"
 import type {ExecArgs} from "@medusajs/framework/types"
-import {ContainerRegistrationKeys} from "@medusajs/framework/utils"
+import {ContainerRegistrationKeys,Modules} from "@medusajs/framework/utils"
 import {refundPaymentWorkflow} from "@medusajs/medusa/core-flows"
 
 const whole=(v:unknown):bigint=>{
@@ -208,24 +208,80 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
   assert.equal(customerMe.status,200,"Customer JWT must be valid in Store API")
   console.log("SHQIPSHOP_F08_STAGE11P_REAL_CUSTOMER_IDENTITY_HTTP_VERIFIED")
 
-  const before=await read(1)
-  assert.equal(before.captures.length,0)
+  // Keep Stage 11B's second order INDEPENDENT: Stage 11K/J/O require its
+  // original zero-refund starting state. Do not contaminate their sentinels.
+  const original=await read(1)
+  assert.equal(original.captures.length,0)
+  assert.equal(original.refunds.length,0)
+
+  // New, unlinked, disposable Payment Module collection solely for Stage 11P.
+  // Pinned Medusa's pp_system_default creates an authorized mock payment.
+  // It is deliberately NOT captured, and never reaches a real PSP.
+  const paymentService=container.resolve(Modules.PAYMENT)
+  const collection=await paymentService.createPaymentCollections({
+   currency_code:"all",amount:10,
+  })
+  assert(/^pay_?col_[A-Za-z0-9_-]{8,}$/.test(collection.id))
+  const session=await paymentService.createPaymentSession(collection.id,{
+   provider_id:"pp_system_default",currency_code:"all",amount:10,data:{},
+  })
+  assert(typeof session.id==="string"&&session.id.length>8)
+  const authorized=await paymentService.authorizePaymentSession(session.id,{})
+  assert(authorized&&/^pay_[A-Za-z0-9_-]{8,}$/.test(authorized.id))
+
+  const readDedicated=async():Promise<View>=>{
+   const {data}=await query.graph({
+    entity:"payment_collection",
+    fields:["id","currency_code","amount","payments.id",
+     "payments.provider_id","payments.amount","payments.captures.id",
+     "payments.captures.amount","payments.refunds.id",
+     "payments.refunds.amount","payments.refunds.status"],
+    filters:{id:collection.id},
+   })
+   assert.equal(data.length,1)
+   const c=data[0]
+   assert.equal(c.id,collection.id)
+   assert.equal(c.currency_code,"all")
+   assert.equal(whole(c.amount),10n)
+   assert.equal(c.payments?.length,1)
+   const p=c.payments[0]
+   assert.equal(p.id,authorized.id)
+   assert.equal(p.provider_id,"pp_system_default")
+   assert.equal(whole(p.amount),10n)
+   return {id:p.id,total:10n,captures:p.captures??[],refunds:p.refunds??[]}
+  }
+  const before=await readDedicated()
+  assert.equal(before.captures.length,0,
+   "Stage 11P fixture must have no capture at first")
   assert.equal(before.refunds.length,0)
+  console.log("SHQIPSHOP_F08_STAGE11P_INDEPENDENT_UNCAPTURED_MOCK_PAYMENT_READY")
   const route="/admin/payments/"+encodeURIComponent(before.id)+"/refund"
   const customerAttempt=await send(route,{amount:1},customerAuthJwt)
   assert([401,403].includes(customerAttempt.status),
    "A real customer JWT cannot call Admin refund")
-  dbSame(before,await read(1))
+  dbSame(before,await readDedicated())
   console.log("SHQIPSHOP_F08_STAGE11P_CUSTOMER_ADMIN_REFUND_DENIED_NO_MUTATION")
   const invalidAmount=await send(route,{amount:-1},adminJwt)
   assert([400,422].includes(invalidAmount.status),
    "Authenticated Admin invalid refund amount must fail validation")
-  dbSame(before,await read(1))
+  dbSame(before,await readDedicated())
   console.log("SHQIPSHOP_F08_STAGE11P_ADMIN_INVALID_AMOUNT_DENIED_NO_MUTATION")
+
+  // Collect independent PG evidence BEFORE the fail-closed assertion.
+  // A server 200 is NOT a success when no amount was captured.
   const uncaptured=await send(route,{amount:1},adminJwt)
+  const after=await readDedicated()
+  if(uncaptured.status>=200&&uncaptured.status<300)
+   console.log("SHQIPSHOP_F08_STAGE11P_AUTH_ADMIN_UNCAPTURED_HTTP_ACCEPTED")
+  else console.log("SHQIPSHOP_F08_STAGE11P_AUTH_ADMIN_UNCAPTURED_HTTP_STATUS_"+uncaptured.status)
+  if(after.refunds.length!==before.refunds.length||sum(after)!==sum(before))
+   console.log("SHQIPSHOP_F08_STAGE11P_AUTH_ADMIN_UNCAPTURED_REFUND_PERSISTED")
+  if(after.captures.length!==before.captures.length)
+   console.log("SHQIPSHOP_F08_STAGE11P_AUTH_ADMIN_UNCAPTURED_CAPTURE_MUTATED")
+  dbSame(original,await read(1))
   assert([400,409,422].includes(uncaptured.status),
-   "Authenticated Admin must not refund an uncaptured payment")
-  dbSame(before,await read(1))
+   "CRITICAL: authenticated Admin refund of uncaptured payment must fail")
+  dbSame(before,after)
   console.log("SHQIPSHOP_F08_STAGE11P_ADMIN_UNCAPTURED_REFUND_DENIED_NO_MUTATION")
   return
  }
