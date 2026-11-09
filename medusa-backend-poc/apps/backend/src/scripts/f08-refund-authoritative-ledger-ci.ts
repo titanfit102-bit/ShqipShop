@@ -11,7 +11,7 @@ import assert from "node:assert/strict"
 import {readFileSync} from "node:fs"
 import {resolve,sep} from "node:path"
 import type {ExecArgs} from "@medusajs/framework/types"
-import {ContainerRegistrationKeys} from "@medusajs/framework/utils"
+import {ContainerRegistrationKeys,Modules} from "@medusajs/framework/utils"
 
 type Entry={id:string;amount:bigint;status?:string}
 type Ledger={id:string;amount:bigint;currency:string;provider:string;
@@ -51,7 +51,8 @@ export default async function auditAuthoritativeMedusaLedger({container}:ExecArg
   SHQIPSHOP_F08_PAYMENT_CHAIN_CI:"true",SHQIPSHOP_F08_PSP_CONTRACT_CI:"true",
   SHQIPSHOP_F08_EXACT_REFUND_CI:"true",
   SHQIPSHOP_F08_11T_LEDGER_CI:"true",
-  SHQIPSHOP_F08_11U_LOCK_CI:"true",WORKER_MODE:"server",
+  SHQIPSHOP_F08_11U_LOCK_CI:"true",
+  SHQIPSHOP_F08_11V_NATIVE_WRITER_CI:"true",WORKER_MODE:"server",
   DATABASE_URL:"postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci",
   REDIS_URL:"redis://127.0.0.1:6379",
  }))assert.equal(process.env[name],value,name)
@@ -217,5 +218,76 @@ export default async function auditAuthoritativeMedusaLedger({container}:ExecArg
  assert.equal(Number(finalCounts.refunds?.n),observed.refunds.length)
  console.log("SHQIPSHOP_F08_STAGE11U_REAL_PAYMENT_LOCK_NO_FINANCE_MUTATION")
  console.log("SHQIPSHOP_F08_STAGE11U_POSTGRES_ROW_LOCK_CONTRACT_PASSED")
+
+ // Stage 11V: verify that the INSTALLED Medusa 2.22.0 payment module
+ // actually requests the very same PostgreSQL payment-row lock used in 11U.
+ // This runs on a disposable runner with the MANUAL provider only.
+ // Hold a real row via independent PG connection while invoking an actual
+ // native capture/refund writer. Both MUST fail with PostgreSQL lock timeout
+ // (55P03), not some unrelated guard, and must leave DB state unchanged.
+ const service:any=container.resolve(Modules.PAYMENT)
+ const lockError=(value:unknown):boolean=>{
+  let cursor:any=value
+  for(let depth=0;depth<7 && cursor;depth++){
+   if(cursor.code==="55P03" || cursor.sqlState==="55P03")
+    return true
+   const desc=String(cursor.message??"")
+   if(/canceling statement due to lock timeout|could not obtain lock on row/i.test(desc))
+    return true
+   cursor=cursor.cause??cursor.originalError??cursor.driverError
+  }
+  return false
+ }
+ const expectNativeWriterBlocked=async(
+  paymentId:string,write:()=>Promise<unknown>,label:string
+ )=>{
+  await db.transaction(async(holding:any)=>{
+   const payment=await holding("payment").where({id:paymentId})
+    .forUpdate().first()
+   assert(payment&&payment.id===paymentId)
+   const since=Date.now()
+   await assert.rejects(write,(error:unknown)=>{
+    assert(lockError(error),
+     label+" must fail on the PostgreSQL payment-row lock, not another error")
+    return true
+   })
+   assert(Date.now()-since>=1800,
+    label+" did not wait for the installed module lock timeout")
+  })
+ }
+ // Stage11J uses this separate order AFTER 11V: ensure the capture probe
+ // does not change its capture/refund state.
+ const beforeCapture=await query.graph({
+  entity:"payment",fields:["id","amount","captures.id","refunds.id"],
+  filters:{id:independentId},
+ })
+ assert.equal(beforeCapture.data.length,1)
+ assert.equal(beforeCapture.data[0].captures?.length??0,0)
+ assert.equal(beforeCapture.data[0].refunds?.length??0,0)
+ await expectNativeWriterBlocked(independentId,
+  ()=>service.capturePayment({payment_id:independentId,amount:1}),
+  "native capturePayment")
+ const afterCapture=await query.graph({
+  entity:"payment",fields:["id","amount","captures.id","refunds.id"],
+  filters:{id:independentId},
+ })
+ assert.deepEqual(afterCapture.data,beforeCapture.data)
+ console.log("SHQIPSHOP_F08_STAGE11V_NATIVE_CAPTURE_WRITER_LOCK_TIMEOUT_NO_MUTATION")
+ // Stage11K has already fully refunded the *other* order. A new-key
+ // +1 attempt is intentionally locked out before any provider dispatch.
+ const beforeRefund=await graph()
+ assert.deepEqual(beforeRefund,observed)
+ await expectNativeWriterBlocked(observed.id,
+  ()=>service.refundPayment({
+   payment_id:observed.id,amount:1,
+   idempotency_key:"stage11v_locked_"+observed.id,
+  }),
+  "native refundPayment")
+ assert.deepEqual(await graph(),observed)
+ console.log("SHQIPSHOP_F08_STAGE11V_NATIVE_REFUND_WRITER_LOCK_TIMEOUT_NO_MUTATION")
+ console.log("SHQIPSHOP_F08_STAGE11V_INSTALLED_NATIVE_PAYMENT_WRITER_LOCKS_PASSED")
+ // CRITICAL LIMIT: provider calls run AFTER these locks are released.
+ // Existing 11I/J/O/P known-red finance amount sentinels remain mandatory.
+
 
 }
