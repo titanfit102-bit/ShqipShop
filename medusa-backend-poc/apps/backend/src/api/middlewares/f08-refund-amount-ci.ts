@@ -20,6 +20,80 @@ const whole=(value:unknown):bigint=>{
   return BigInt(n)
 }
 
+
+/**
+ * Stage 11R: a SECOND, exact-disposable-CI-only branch of the same built-in
+ * Admin route. Synthetic payment IDs only; it RESERVES ledger capacity and
+ * an outbox atomically, but NEVER calls a payment provider or Medusa refund.
+ * No production migration, role model, PSP or business side effect is wired.
+ */
+const stage11rEnabled=()=>exactCi()&&
+  process.env.SHQIPSHOP_F08_11R_ATOMIC_CI==="true"&&
+  process.env.SHQIPSHOP_F08_11R_MERCHANT==="merchant_ci_a"
+
+const R_BAL="shqipshop_f08_stage11r_ci_balances"
+const R_STAFF="shqipshop_f08_stage11r_ci_staff"
+const R_OPS="shqipshop_f08_stage11r_ci_operations"
+const R_OUT="shqipshop_f08_stage11r_ci_outbox"
+const R_SCOPE="merchant_ci_a"
+
+async function reserve11r(
+  req:AuthenticatedMedusaRequest,res:MedusaResponse,
+  paymentId:string,amount:number
+) {
+  const actorId=req.auth_context?.actor_id
+  if(req.auth_context?.actor_type!=="user"||!actorId)
+    return res.sendStatus(401)
+  const key=(req.body as {idempotency_key?:unknown}).idempotency_key
+  if(typeof key!=="string"||!/^[a-z0-9_]{8,64}$/.test(key))
+    return res.sendStatus(400)
+  const scope={merchant_id:R_SCOPE,payment_id:paymentId}
+  try {
+    const db:any=req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION)
+    const outcome=await db.transaction(async(trx:any)=>{
+      // Actor comes from validated Medusa auth context, NOT a request
+      // header/body. Finance permission is disposable CI STAFF data only.
+      const staff=await trx(R_STAFF).where({
+        merchant_id:R_SCOPE,actor_id:actorId,
+      }).first()
+      if(!staff||staff.role!=="finance_admin"||staff.active!==true)
+        return {status:403,state:"forbidden"}
+      // PostgreSQL row lock serializes competing reservation attempts
+      // for this EXACT synthetic payment on one isolated merchant DB.
+      const bal=await trx(R_BAL).where(scope).forUpdate().first()
+      if(!bal)return {status:404,state:"missing"}
+      if(bal.currency!=="all")return {status:409,state:"currency"}
+      const previous=await trx(R_OPS).where({...scope,operation_key:key}).first()
+      if(previous) {
+        if(previous.actor_id!==actorId||
+           BigInt(previous.amount_all)!==BigInt(amount))
+          return {status:409,state:"key_conflict"}
+        return {status:200,state:"replay"}
+      }
+      const cap=BigInt(bal.captured_all),reserved=BigInt(bal.reserved_all)
+      if(cap<=0n||reserved<0n||reserved>cap||
+         reserved+BigInt(amount)>cap)
+        return {status:409,state:"amount_exceeded"}
+      await trx(R_BAL).where(scope)
+        .update({reserved_all:(reserved+BigInt(amount)).toString()})
+      await trx(R_OPS).insert({...scope,operation_key:key,
+        actor_id:actorId,amount_all:String(amount),status:"pending"})
+      await trx(R_OUT).insert({...scope,operation_key:key,
+        amount_all:String(amount),status:"ready"})
+      // Simulate a failure *before* commit, proving all three changes
+      // roll back together; this header never has meaning outside CI.
+      if(req.headers["x-shqipshop-ci-rollback"]==="true")
+        throw Error("Synthetic precommit rollback")
+      return {status:202,state:"reserved"}
+    })
+    console.log("SHQIPSHOP_F08_STAGE11R_CI_"+outcome.state.toUpperCase())
+    return res.status(outcome.status).json({state:outcome.state})
+  } catch {
+    console.log("SHQIPSHOP_F08_STAGE11R_CI_TRANSACTION_FAIL_CLOSED")
+    return res.sendStatus(503)
+  }
+}
+
 export async function verifyF08StrictRefundCi(
   req:AuthenticatedMedusaRequest,res:MedusaResponse,next:MedusaNextFunction
 ){
@@ -33,6 +107,8 @@ export async function verifyF08StrictRefundCi(
   const amount=(req.body as {amount?:unknown}|undefined)?.amount
   if(typeof amount!=="number"||!Number.isSafeInteger(amount)||amount<=0)
     return res.sendStatus(400)
+  if(stage11rEnabled()&&route[1].startsWith("pay_stage11r_"))
+    return reserve11r(req,res,route[1],amount)
   try{
     const query=req.scope.resolve(ContainerRegistrationKeys.QUERY)
     const {data}=await query.graph({
