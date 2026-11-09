@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-09 — Stage 11N finance-scope/outbox proof VERIFIED; Admin refund route traced
+
+[CI 42540291032](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42540291032) Stage 11N synthetic finance scope + atomic transactional outbox **PASS**; positive and negative mocks prove role, tenant, key, serial/parallel ALL bound, rollback and one-time dispatch. 11K/L/M scoped tests PASS. 11I/J direct/plural-workflow over-refunds still PERSIST and overall Medusa smoke stays RED. **Pinned Admin route uses singular `refundPaymentWorkflow`, which also includes currency epsilon; no authenticated Admin HTTP behavior established.** Next: CI-only singular workflow/role boundary and PostgreSQL mutation checks, then separately approved real PSP/production design. S13/RG-03 release blocked.
+
+
 ## 2026-11-09 — Stage 11N finance-scope and refund outbox contract (CI PENDING)
 
 Implemented a synthetic, disposable PostgreSQL-only merchant/finance-role gate + strict ALL reservation and atomic operation/outbox creation. Covers negative roles/tenant/key/amount, rollback, concurrent overspending, one-time queued dispatch, unresolved provider state, and simulated provider confirmation. **Not production-wired/Medusa authenticated/real PSP**. No new release eligibility; retain Stage 11I/J known-red tests. Next verify CI and define a separate authenticated Medusa Admin and PSP contract before any integration authorization.

@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-09 — Stage 11N finance-scope/outbox proof VERIFIED; Admin refund route traced
+
+[Code 3c94c1c](https://github.com/titanfit102-bit/ShqipShop/commit/3c94c1c29199c5236646620a850a8926c169c845), [run 42540291032](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42540291032): synthetic finance actor / merchant scope, strict remaining-bound DB reservation, operation+outbox atomicity, race, replay, unknown provider and mock confirmation tests passed. Seven other distinct workflows green; backend smoke red on existing I/J over-refund regressions. Read-only source trace: Admin `POST /admin/payments/:id/refund` calls singular `refundPaymentWorkflow` with currency epsilon and route `refund:create` policy; not tested as HTTP authorization. Main/PSP/production unchanged.
+
+
 ## 2026-11-09 — Stage 11N synthetic authorized refund/outbox
 
 Added one mandatory CI-only isolated database proof for finance role/merchant-bound refund requests and atomic outbox. No production schema, Medusa Admin endpoint, webhook, live PSP or deployment changed. Existing 11I/J negative regressions retained. New CI pending.

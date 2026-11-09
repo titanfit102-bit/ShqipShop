@@ -1,5 +1,10 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — Stage 11N finance-scope/outbox proof VERIFIED; Admin refund route traced
+
+**Stage 11N POSITIVE/NEGATIVE CI VERIFIED (strictly synthetic):** [42540291032](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42540291032) role/tenant denials, exact ALL bound, atomic reserve+outbox, same-key replay/conflict, rollback, concurrent claims/worker lease, unknown provider outcome and fake confirmation checks passed. No live Admin auth, signed PSP callback, provider contract or deployed outbox. 11I/J persisted over-refunds and RED overall backend; S13/T05 remains FAILED/PARTIAL; RG-03 blocked. **Next security gap:** distinguish the built-in *singular* Admin `refundPaymentWorkflow` and its `refund:create` route policy from tested *plural* workflow; validate actual HTTP auth and tenant boundaries plus PG mutation, not source inspection alone.
+
+
 ## 2026-11-09 — Stage 11N finance identity + outbox S13/T06 proof (IMPLEMENTED; CI PENDING)
 
 Early Medusa smoke script `f08-refund-authorized-outbox-ci.ts`: synthetic trusted actor/merchant fixture, finance-only permission with negative caller cases, exact zero-decimal ALL remaining bound, unique operation keys, atomic reserve + outbox, row-lock concurrency, rollback, no automatic resend after unknown mock provider outcome, and fake trusted confirmation/replay mismatch tests. **NOT real Medusa Admin auth/PSP/provider verification and NOT production bound.** Stage 11I/J regressions remain RED; S13/T05/T06 release gates BLOCKED.
