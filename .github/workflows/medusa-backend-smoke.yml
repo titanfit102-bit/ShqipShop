@@ -493,6 +493,10 @@ jobs:
           export SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD="$stage11p_admin_password"
           stage11q_rc=0
           SHQIPSHOP_F08_STRICT_REFUND_CI=true SHQIPSHOP_F08_ADMIN_REFUND_PHASE=http-guard pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-admin-boundary-ci.ts || stage11q_rc=$?
+          # Stage 11X: separate linked mock order, same HTTP operation key
+          # replay while funds remain. Preserve RED if duplicate refund occurs.
+          stage11x_rc=0
+          SHQIPSHOP_F08_STRICT_REFUND_CI=true SHQIPSHOP_F08_ADMIN_REFUND_PHASE=http-key-replay pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-admin-boundary-ci.ts || stage11x_rc=$?
           # Stage 11S: a second disposable Medusa API races the first.
           # Both have independent HTTP processes on shared runner-local PG/Redis.
           SHQIPSHOP_F08_STRICT_REFUND_CI=true SHQIPSHOP_F08_11R_ATOMIC_CI=true SHQIPSHOP_F08_11R_MERCHANT=merchant_ci_a setsid pnpm --filter @dtc/backend exec medusa develop --port 9221 > "$RUNNER_TEMP/f08-11s-second-api.log" 2>&1 &
@@ -533,8 +537,8 @@ jobs:
           SHQIPSHOP_F08_ADMIN_REFUND_PHASE=singular-workflow pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-admin-boundary-ci.ts || singular_rc=$?
           module_rc=0
           pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-psp-contract-ci.ts || module_rc=$?
-          if [ "$exact_rc" -ne 0 ] || [ "$workflow_rc" -ne 0 ] || [ "$singular_rc" -ne 0 ] || [ "$module_rc" -ne 0 ] || [ "$stage11p_admin_seed_rc" -ne 0 ] || [ "$stage11p_admin_rc" -ne 0 ] || [ "$stage11q_rc" -ne 0 ] || [ "$stage11r_rc" -ne 0 ] || [ "$authority_rc" -ne 0 ]; then
-            echo "::error::F08 Stage 11K/11J/11O/11I/11P/11Q/11R/11S/11T/11U/11V invariant failed; financial release remains blocked"
+          if [ "$exact_rc" -ne 0 ] || [ "$workflow_rc" -ne 0 ] || [ "$singular_rc" -ne 0 ] || [ "$module_rc" -ne 0 ] || [ "$stage11p_admin_seed_rc" -ne 0 ] || [ "$stage11p_admin_rc" -ne 0 ] || [ "$stage11q_rc" -ne 0 ] || [ "$stage11x_rc" -ne 0 ] || [ "$stage11r_rc" -ne 0 ] || [ "$authority_rc" -ne 0 ]; then
+            echo "::error::F08 Stage 11K/11J/11O/11I/11P/11Q/11X/11R/11S/11T/11U/11V invariant failed; financial release remains blocked"
             exit 1
           fi
           SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
