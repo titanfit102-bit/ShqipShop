@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-09 — Stage 12E static lockfile parser hardening
+
+[Commit b507a512](https://github.com/titanfit102-bit/ShqipShop/commit/b507a512845131686cc36ba7382ab32e77ff383f): replaced unanchored Medusa version substring scan with real pnpm v9 package/snapshot key inspection, added four negative/positive regressions. [Security CI 42673090384](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42673090384): **30/30 PASS**; current 2.22.0 query-security and finance P0 release blocks unchanged. Previous d7a2ed32 Action failures had zero jobs and cannot be treated as tested-source failures. Some b507 workflows likewise had no jobs; check exact run statuses before claiming further coverage. No Medusa package update, Production deploy, main merge or financial policy change; PR #12 Draft.
+
+
 ## 2026-11-09 — Stage 11V installed Medusa native payment-writer locks (VERIFIED CI; P0 BLOCKED)
 
 [Code b6a45e9](https://github.com/titanfit102-bit/ShqipShop/commit/b6a45e94c430c3e78d3f61b3a85f68a7f5765cb3), [Medusa CI run 42649347776](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42649347776). **Verified with actual installed Medusa 2.22.0 Payment Module**: independent PostgreSQL transaction A locked an existing Medusa `payment` row; native `capturePayment` on another genuine un-captured Stage11B mock payment, and `refundPayment` on an independent fully refunded mock payment, each attempted the SAME native payment-row lock and rejected with PostgreSQL lock timeout (~3s, SQLSTATE 55P03). Confirmed `SHQIPSHOP_F08_STAGE11V_NATIVE_CAPTURE_WRITER_LOCK_TIMEOUT_NO_MUTATION`, `SHQIPSHOP_F08_STAGE11V_NATIVE_REFUND_WRITER_LOCK_TIMEOUT_NO_MUTATION`, `SHQIPSHOP_F08_STAGE11V_INSTALLED_NATIVE_PAYMENT_WRITER_LOCKS_PASSED`; independent Medusa Query Graph/Pg readbacks found no payment, capture or refund changes. On the exact code SHA: **7 distinct workflows SUCCESS**, Medusa backend **FAIL** because preserved unguarded 11I/J/O/P financial amount sentinels remain reproducible.

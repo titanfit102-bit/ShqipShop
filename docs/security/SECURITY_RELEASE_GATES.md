@@ -1,5 +1,10 @@
 # ShqipShop — Security Release Gates (G3 / G5)
 
+## 2026-11-09 — Stage 12E static pnpm lock records verified; release remains BLOCKED
+
+[Stage12E code b507a512](https://github.com/titanfit102-bit/ShqipShop/commit/b507a512845131686cc36ba7382ab32e77ff383f) and [security baseline 42673090384](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42673090384) show 30/30 Python fixture tests PASS. Only actual pnpm v9 `packages:`/`snapshots:` keys may support a Medusa version assertion; comments/foreign peer substrings cannot impersonate a critical installed module. Current Medusa 2.22.0 still triggers the query-security release veto; native unguarded payment-refund P0 remains unsolved. The manual release gate was not run, no vendor patch/upgrade or payment code was deployed. Two b507 workflows (Medusa backend and Redis cache) reported failure without jobs, which provides no new backend test verdict; other workflows require separate readback. T05/S13, RG-01/02/03 and G3/G5 **BLOCKED**.
+
+
 ## 2026-11-09 — Stage 12D query-dependency preflight correction (EXACT-HEAD CI VERIFIED; RELEASE BLOCKED)
 
 **Verified source:** [227df50c](https://github.com/titanfit102-bit/ShqipShop/commit/227df50c0fbdb6406482197e7005abaf3691e08b), [security baseline 42670620627](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42670620627). Security job **SUCCESS** with **26/26 Python tests**, including the real `guard.py --release` CLI invoked against mock-gated negative/positive manifest fixtures; current pinned `2.22.0` remains denied by `SEC-MEDUSA-QUERY-PATCHED-TRAIN-UNVERIFIED`. The actual manual release step was **SKIPPED** (not requested) and must not be misreported as an end-to-end release approval. Baseline emitted `SHQIPSHOP_STAGE12C_PINNED_2_22_0_CONFIRMED_KNOWN_QUERY_SECURITY_GAP_RELEASE_BLOCKED`; the financial source-contract and narrow tracked-text secret-pattern steps also passed. This is **static detection**, not a vendor upgrade or a real query-security remediation.
