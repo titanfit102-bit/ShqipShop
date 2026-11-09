@@ -1,5 +1,24 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — Stage 12Q Redis/session fault matrix (EXACT SOURCE CI VERIFIED; release veto active)
+
+| Scenario | Required assertion | Status / Evidence |
+| --- | --- | --- |
+| Pre-fault identity | Correct A/B customer/Admin cookie accepted; B cookie rejected by A-clone | [42709446325](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42709446325) SUCCESS |
+| Real short Redis A stall | A :6379 PING times out after CLIENT PAUSE; B :6381 PING still works | SUCCESS |
+| No identity disclosure under stall | A-clone authenticated cookie requests never return HTTP 200 private identity during confirmed pause | SUCCESS: 401/403/503/504/timeout only |
+| B independence | B customer/Admin sessions HTTP 200 during A stall | SUCCESS |
+| Redis automatic expiry + session recovery | Fresh Redis A PING, correct A identities at :9000 and :9002, B foreign cookies still denied, B identities and three APIs healthy | SUCCESS |
+| Native financial invariant | Pinned 2.22.0 accepted uncaptured and +1 ALL refunds | [42709446681](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42709446681) FAILURE, P0 BLOCKED |
+| Untested | Hard Redis shutdown, persisted-data loss, HA, server-side JWT revocation, production PSP | OPEN / UNKNOWN |
+
+**Implementation:** `scripts/security/medusa_226_redis_outage_probe.cjs` added and invoked from existing `scripts/security/medusa_226_ab_ci.sh`; existing `.github/workflows/medusa-226-candidate-ci.yml` includes it in the CI-only trigger. Earlier Stage12Q runs failed from probe mistakes (wrong merchant publishable key on foreign-cookie request and `CLIENT UNPAUSE` timing out while all clients paused); the final job uses target-A publishable key for B-cookie denial and verifies automatic expiry of the bounded pause before declaring session recovery. No tests were weakened: actual foreign cookies still must return 401/403 and A identity may never be returned as HTTP 200 during the stall.
+
+**Boundaries:** this proves only a short, non-destructive Redis command stall in one disposable CI runner, not Redis crash/data loss/HA/failover/replication, indefinite outage, process restart under outage, real service reliability, HTTPS/CSRF, token revocation, device security, production tenant isolation, PSP or settlement. A cookie works after temporary Redis recovery; bearer JWT revocation after logout remains **OPEN** (all four A/B customer/Admin tokens returned HTTP 200 in Stage 12O). The original checked-in Medusa 2.22.0 manifest/lock were not changed; candidate 2.22.6 is ephemeral only. No release, merge, production config or finance code/policy change; PR #12 stays Draft.
+
+**Next bounded investigation:** a separate disposable test for hard Redis disconnect/restart and persistence effects, with explicit no-leak and post-recovery assertions; independently plan production server JWT revocation, Redis resilience and native refund correctness. Permanent Medusa upgrade, production policy changes and financial remediation require separate approval.
+
+
 ## 2026-11-09 — Stage 12P session handoff matrix (EXACT-SHA CI VERIFIED)
 
 | Test | Positive / negative condition | Result |
