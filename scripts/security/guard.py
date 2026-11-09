@@ -101,6 +101,26 @@ def financial_regression_failures(root: Path) -> list[str]:
                 failures.append(f"FIN-REGRESSION-CONTRACT-MISSING:{relative_path}:{idx + 1}")
     return failures
 
+
+def financial_release_gate_failures(root: Path) -> list[str]:
+    """Fail closed on RG-03 unless the canonical release gate says PASS.
+
+    This is a static governance prerequisite only, never PSP certification.
+    """
+    path = root / "docs/security/SECURITY_RELEASE_GATES.md"
+    try:
+        lines = path.read_text("utf-8").splitlines()
+    except OSError:
+        return ["FIN-RELEASE-RG03-UNKNOWN"]
+    for line in lines:
+        columns = [cell.strip().replace("*", "")
+                   for cell in line.strip().strip("|").split("|")]
+        if len(columns) >= 3 and columns[0] == "RG-03 cart/order/payment":
+            if columns[2] == "PASS":
+                return []
+            return ["FIN-RELEASE-RG03-NOT-APPROVED"]
+    return ["FIN-RELEASE-RG03-UNKNOWN"]
+
 def release_failures(root: Path) -> list[str]:
     problems = []
     gradle = (root / "native-medusa/android/app/build.gradle").read_text("utf-8")
@@ -129,6 +149,9 @@ def main() -> int:
         if not failures:
             print("SHQIPSHOP_FINANCIAL_SENTINEL_SOURCE_CONTRACT_PASSED_NOT_MONETARY_SAFETY")
     if args.release:
+        for issue in financial_release_gate_failures(ROOT):
+            print(f"::error::{issue}")
+            status = 1
         for issue in release_failures(ROOT):
             print(f"::error::{issue}")
             status = 1

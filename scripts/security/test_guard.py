@@ -2,7 +2,7 @@
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from guard import scan_bytes, INDICATORS, release_failures, financial_regression_failures, FINANCIAL_REGRESSIONS
+from guard import scan_bytes, INDICATORS, release_failures, financial_regression_failures, financial_release_gate_failures, FINANCIAL_REGRESSIONS
 
 class SecretGuardTest(unittest.TestCase):
     def test_token_detection_without_secret_output(self):
@@ -60,6 +60,20 @@ class SecretGuardTest(unittest.TestCase):
             failures = financial_regression_failures(root)
             self.assertEqual(len(failures), 1)
             self.assertIn("FIN-REGRESSION-CONTRACT-MISSING", failures[0])
+
+
+    def test_financial_release_gate_blocks_p0_and_unknown(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.assertEqual(financial_release_gate_failures(root),
+                             ["FIN-RELEASE-RG03-UNKNOWN"])
+            gate = root / "docs/security/SECURITY_RELEASE_GATES.md"
+            gate.parent.mkdir(parents=True)
+            gate.write_text("| RG-03 cart/order/payment | proof | **BLOCKED (P0)** |\\n")
+            self.assertEqual(financial_release_gate_failures(root),
+                             ["FIN-RELEASE-RG03-NOT-APPROVED"])
+            gate.write_text("| RG-03 cart/order/payment | proof | PASS |\\n")
+            self.assertEqual(financial_release_gate_failures(root), [])
 
 if __name__ == "__main__":
     unittest.main()
