@@ -40,7 +40,7 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
  }
  for(const [n,v] of Object.entries(env))assert.equal(process.env[n],v,n)
  const phase=process.env.SHQIPSHOP_F08_ADMIN_REFUND_PHASE
- assert(["http-deny","http-authenticated","http-guard","http-key-replay","singular-workflow"].includes(phase??""))
+ assert(["http-deny","http-authenticated","http-guard","http-key-replay","http-key-race","singular-workflow"].includes(phase??""))
  const root=process.env.RUNNER_TEMP
  const file=process.env.SHQIPSHOP_F08_COMPLETE_PROOF_FILE
  assert(root&&file&&resolve(file).startsWith(resolve(root)+sep))
@@ -143,20 +143,20 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
  // a disposable UNCAPTURED payment. Deliberately no successful refund here:
  // the test verifies authorization and rejected invalid/pre-capture requests
  // without touching the later Stage 11K/J/O financial fixtures.
- if(phase==="http-authenticated"||phase==="http-guard"||phase==="http-key-replay"){
-  const strict=phase==="http-guard"||phase==="http-key-replay"
+ if(phase==="http-authenticated"||phase==="http-guard"||phase==="http-key-replay"||phase==="http-key-race"){
+  const strict=phase==="http-guard"||phase==="http-key-replay"||phase==="http-key-race"
   if(strict)assert.equal(process.env.SHQIPSHOP_F08_STRICT_REFUND_CI,"true")
   const password=process.env.SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD
   assert(/^[a-f0-9]{48}$/.test(password??""),
    "Require a masked, randomly generated CI-only Admin password")
   const base="http://127.0.0.1:9220"
-  const send=async(path:string,body:unknown,token?:string,key?:string,operationKey?:string)=>{
+  const send=async(path:string,body:unknown,token?:string,key?:string,operationKey?:string,targetBase:string=base)=>{
    const headers:Record<string,string>={"content-type":"application/json"}
    if(token)headers.authorization="Bearer "+token
    if(key)headers["x-publishable-api-key"]=key
    // A key header is a probe input, NOT proof that Medusa persists or enforces it.
    if(operationKey)headers["idempotency-key"]=operationKey
-   const res=await fetch(base+path,{
+   const res=await fetch(targetBase+path,{
     method:"POST",headers,body:JSON.stringify(body),
     signal:AbortSignal.timeout(10000),
    })
@@ -347,6 +347,55 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
    // probes SAME HTTP key replay while captured funds remain. We use only
    // the disposable built-in Admin HTTP endpoint plus the manual mock provider.
    // A failed invariant is kept RED; this does not add an idempotency fix.
+   // Stage 11Y: independent local Medusa APIs 9220/9221 share CI-only
+   // PostgreSQL, Redis and validated Admin JWT. No real provider or PSP.
+   if(phase==="http-key-race"){
+    const payment=container.resolve(Modules.PAYMENT)
+    await payment.capturePayment({payment_id:before.id,amount:Number(orderTotal)})
+    const captured=await readDedicated()
+    assert.equal(captured.captures.length,1)
+    assert.equal(whole(captured.captures[0].amount),orderTotal)
+    assert.equal(captured.refunds.length,0)
+    const idempotency_key="stage11y-"+before.id
+    const body={amount:1,idempotency_key}
+    const attempts=await Promise.all([
+     send(route,body,adminJwt),
+     send(route,body,adminJwt,undefined,undefined,"http://127.0.0.1:9221"),
+    ])
+    const statuses=attempts.map(a=>a.status)
+    console.log("SHQIPSHOP_F08_STAGE11Y_TWO_API_HTTP_STATUSES_"+statuses.join("_"))
+    assert(statuses.some(s=>s>=200&&s<300),
+     "At least one Admin API must complete a mock refund")
+    assert(statuses.every(s=>(s>=200&&s<300)||s===409),
+     "Concurrent replay must succeed or return pending-key conflict")
+    const once=await readDedicated()
+    if(once.refunds.length!==1||sum(once)!==1n)
+     console.log("SHQIPSHOP_F08_STAGE11Y_DUPLICATE_REFUND_DETECTED")
+    assert.equal(once.refunds.length,1,
+     "Two API processes must persist only one real Medusa refund row")
+    assert.equal(sum(once),1n)
+    assert(once.refunds.every(r=>r.status==="succeeded"))
+    console.log("SHQIPSHOP_F08_STAGE11Y_TWO_APIS_ONE_REFUND_PERSISTED")
+    const replay=await send(route,body,adminJwt)
+    assert(replay.status>=200&&replay.status<300)
+    dbSame(once,await readDedicated())
+    console.log("SHQIPSHOP_F08_STAGE11Y_REPLAY_NO_SECOND_REFUND")
+    const mismatch=await send(route,{amount:2,idempotency_key},adminJwt)
+    assert([400,409,422].includes(mismatch.status))
+    dbSame(once,await readDedicated())
+    console.log("SHQIPSHOP_F08_STAGE11Y_SAME_KEY_DIFFERENT_AMOUNT_DENIED")
+    const second=await send(route,{amount:1,idempotency_key:"stage11y-next-"+before.id},adminJwt)
+    assert(second.status>=200&&second.status<300)
+    const final=await readDedicated()
+    assert.equal(final.refunds.length,2)
+    assert.equal(sum(final),2n)
+    assert(final.refunds.every(r=>r.status==="succeeded"))
+    assert(final.refunds.some(r=>r.id===once.refunds[0].id))
+    dbSame(original,await read(1))
+    console.log("SHQIPSHOP_F08_STAGE11Y_DISTINCT_KEY_PARTIAL_REFUND_PERSISTED")
+    console.log("SHQIPSHOP_F08_STAGE11Y_TWO_API_KEY_CONTRACT_PASSED")
+    return
+   }
    if(phase==="http-key-replay"){
     const payment=container.resolve(Modules.PAYMENT)
     await payment.capturePayment({payment_id:before.id,amount:Number(orderTotal)})
