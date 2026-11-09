@@ -190,8 +190,18 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
   },customerJwt,publishableKey)
   assert([200,201].includes(created.status),
    "Customer JWT must be linked to a real disposable Medusa customer")
+  // Medusa registration token identifies a new auth identity; the newly
+  // created customer account requires a fresh login JWT for Store API reads.
+  // Match the established parallel-auth-boundary.mjs CI flow; no bypass.
+  const customerLogin=await send("/auth/customer/emailpass",{
+   email,password:customerPassword,
+  })
+  assert.equal(customerLogin.status,200,
+   "Newly created disposable customer must log in before Store API access")
+  const customerAuthJwt=(await customerLogin.json()).token
+  assert(typeof customerAuthJwt==="string"&&customerAuthJwt.length>20)
   const customerMe=await fetch(base+"/store/customers/me",{
-   headers:{authorization:"Bearer "+customerJwt,
+   headers:{authorization:"Bearer "+customerAuthJwt,
     "x-publishable-api-key":publishableKey},
    signal:AbortSignal.timeout(10000),
   })
@@ -202,7 +212,7 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
   assert.equal(before.captures.length,0)
   assert.equal(before.refunds.length,0)
   const route="/admin/payments/"+encodeURIComponent(before.id)+"/refund"
-  const customerAttempt=await send(route,{amount:1},customerJwt)
+  const customerAttempt=await send(route,{amount:1},customerAuthJwt)
   assert([401,403].includes(customerAttempt.status),
    "A real customer JWT cannot call Admin refund")
   dbSame(before,await read(1))
