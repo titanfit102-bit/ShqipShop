@@ -445,6 +445,10 @@ jobs:
             return 1
           }
           SHQIPSHOP_F08_CI_FIXTURE_ACTION=create pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+          # Stage 11P: disposable user only; password never committed or logged.
+          stage11p_admin_password="$(openssl rand -hex 24)"
+          echo "::add-mask::$stage11p_admin_password"
+          pnpm --filter @dtc/backend exec medusa user -e stage11p-admin@shqipshop.example.invalid -p "$stage11p_admin_password" > /dev/null
           setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-ack-initial.log" 2>&1 &
           api=$!
           ready
@@ -466,6 +470,9 @@ jobs:
           node scripts/f08-multiprocess-complete-ci.mjs ack-retry
           # Stage 11O: real runner-local Admin HTTP unauthenticated negatives.
           SHQIPSHOP_F08_ADMIN_REFUND_PHASE=http-deny pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-admin-boundary-ci.ts
+          export SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD="$stage11p_admin_password"
+          SHQIPSHOP_F08_ADMIN_REFUND_PHASE=http-authenticated pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-admin-boundary-ci.ts
+          unset SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD stage11p_admin_password
           kill -TERM -- "-$api" 2>/dev/null || true
           wait "$api" 2>/dev/null || true
           api=""

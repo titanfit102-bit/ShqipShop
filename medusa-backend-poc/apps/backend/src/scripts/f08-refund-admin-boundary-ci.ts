@@ -7,6 +7,7 @@
  * only AFTER Stage 11K/11J. No PSP, production code or Admin login.
  */
 import assert from "node:assert/strict"
+import {randomBytes} from "node:crypto"
 import {readFileSync} from "node:fs"
 import {resolve,sep} from "node:path"
 import type {ExecArgs} from "@medusajs/framework/types"
@@ -39,7 +40,7 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
  }
  for(const [n,v] of Object.entries(env))assert.equal(process.env[n],v,n)
  const phase=process.env.SHQIPSHOP_F08_ADMIN_REFUND_PHASE
- assert(["http-deny","singular-workflow"].includes(phase??""))
+ assert(["http-deny","http-authenticated","singular-workflow"].includes(phase??""))
  const root=process.env.RUNNER_TEMP
  const file=process.env.SHQIPSHOP_F08_COMPLETE_PROOF_FILE
  assert(root&&file&&resolve(file).startsWith(resolve(root)+sep))
@@ -138,6 +139,87 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
   return
  }
 
+ // Stage 11P: real, runner-local Medusa user JWT + customer JWT against
+ // a disposable UNCAPTURED payment. Deliberately no successful refund here:
+ // the test verifies authorization and rejected invalid/pre-capture requests
+ // without touching the later Stage 11K/J/O financial fixtures.
+ if(phase==="http-authenticated"){
+  const password=process.env.SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD
+  assert(/^[a-f0-9]{48}$/.test(password??""),
+   "Require a masked, randomly generated CI-only Admin password")
+  const base="http://127.0.0.1:9220"
+  const send=async(path:string,body:unknown,token?:string,key?:string)=>{
+   const headers:Record<string,string>={"content-type":"application/json"}
+   if(token)headers.authorization="Bearer "+token
+   if(key)headers["x-publishable-api-key"]=key
+   const res=await fetch(base+path,{
+    method:"POST",headers,body:JSON.stringify(body),
+    signal:AbortSignal.timeout(10000),
+   })
+   return res
+  }
+  const adminLogin=await send("/auth/user/emailpass",{
+   email:"stage11p-admin@shqipshop.example.invalid",password,
+  })
+  assert.equal(adminLogin.status,200,"Actual CI Admin login must succeed")
+  const adminJwt=(await adminLogin.json()).token
+  assert(typeof adminJwt==="string"&&adminJwt.length>20)
+  const adminMe=await fetch(base+"/admin/users/me",{
+   headers:{authorization:"Bearer "+adminJwt},
+   signal:AbortSignal.timeout(10000),
+  })
+  assert.equal(adminMe.status,200,"Medusa Admin JWT must resolve a user")
+  const me=(await adminMe.json()).user
+  assert(typeof me?.id==="string"&&me.id.length>8)
+  console.log("SHQIPSHOP_F08_STAGE11P_REAL_ADMIN_IDENTITY_HTTP_VERIFIED")
+
+  const email="stage11p-customer-"+randomBytes(8).toString("hex")+"@example.invalid"
+  const customerPassword=randomBytes(24).toString("hex")
+  const customerReg=await send("/auth/customer/emailpass/register",{
+   email,password:customerPassword,
+  })
+  assert([200,201].includes(customerReg.status))
+  const customerJwt=(await customerReg.json()).token
+  assert(typeof customerJwt==="string"&&customerJwt.length>20)
+  const keyFile=process.env.SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE
+  assert(root&&keyFile&&resolve(keyFile).startsWith(resolve(root)+sep))
+  const publishableKey=readFileSync(keyFile,"utf8").trim()
+  assert(publishableKey.length>10)
+  const created=await send("/store/customers",{
+   email,first_name:"Synthetic",last_name:"AuthBoundary",
+  },customerJwt,publishableKey)
+  assert([200,201].includes(created.status),
+   "Customer JWT must be linked to a real disposable Medusa customer")
+  const customerMe=await fetch(base+"/store/customers/me",{
+   headers:{authorization:"Bearer "+customerJwt,
+    "x-publishable-api-key":publishableKey},
+   signal:AbortSignal.timeout(10000),
+  })
+  assert.equal(customerMe.status,200,"Customer JWT must be valid in Store API")
+  console.log("SHQIPSHOP_F08_STAGE11P_REAL_CUSTOMER_IDENTITY_HTTP_VERIFIED")
+
+  const before=await read(1)
+  assert.equal(before.captures.length,0)
+  assert.equal(before.refunds.length,0)
+  const route="/admin/payments/"+encodeURIComponent(before.id)+"/refund"
+  const customerAttempt=await send(route,{amount:1},customerJwt)
+  assert([401,403].includes(customerAttempt.status),
+   "A real customer JWT cannot call Admin refund")
+  dbSame(before,await read(1))
+  console.log("SHQIPSHOP_F08_STAGE11P_CUSTOMER_ADMIN_REFUND_DENIED_NO_MUTATION")
+  const invalidAmount=await send(route,{amount:-1},adminJwt)
+  assert([400,422].includes(invalidAmount.status),
+   "Authenticated Admin invalid refund amount must fail validation")
+  dbSame(before,await read(1))
+  console.log("SHQIPSHOP_F08_STAGE11P_ADMIN_INVALID_AMOUNT_DENIED_NO_MUTATION")
+  const uncaptured=await send(route,{amount:1},adminJwt)
+  assert([400,409,422].includes(uncaptured.status),
+   "Authenticated Admin must not refund an uncaptured payment")
+  dbSame(before,await read(1))
+  console.log("SHQIPSHOP_F08_STAGE11P_ADMIN_UNCAPTURED_REFUND_DENIED_NO_MUTATION")
+  return
+ }
+
  const plural=await read(0),exact=await read(1)
  assert.equal(exact.captures.length,1)
  assert.equal(whole(exact.captures[0].amount),exact.total)
@@ -176,6 +258,8 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
  if(omittedAfter.refunds.length!==plural.refunds.length||
     sum(omittedAfter)!==sum(plural))
   console.log("SHQIPSHOP_F08_STAGE11O_SINGULAR_OMITTED_AMOUNT_REFUND_PERSISTED")
+ else if(!omittedAccepted)
+  console.log("SHQIPSHOP_F08_STAGE11P_SINGULAR_OMITTED_AMOUNT_REJECTED_NO_MUTATION")
 
  dbSame(exact,oneAfter)
  assert(!oneAccepted,
