@@ -69,7 +69,7 @@ jobs:
         with:
           node-version: '24'
       - name: Configure disposable candidate path from runner temp
-        run: echo "SHQIPSHOP_MEDUSA_CANDIDATE_DIR=$RUNNER_TEMP/shqipshop-medusa226" >> "$GITHUB_ENV"
+        run: echo "SHQIPSHOP_MEDUSA_CANDIDATE_DIR=$RUNNER_TEMP/shqipshop-medusa226/medusa-backend-poc" >> "$GITHUB_ENV"
       - name: Check preparation tests and preserved financial sentinels
         run: |
           set -euo pipefail
@@ -108,7 +108,7 @@ jobs:
       - name: Require full 2.22.6 candidate manifest, packages, and snapshots
         run: |
           set -euo pipefail
-          python scripts/security/medusa_query_preflight.py --candidate --root "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
+          python scripts/security/medusa_query_preflight.py --candidate --root "$(dirname "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR")"
           python scripts/security/medusa_226_ci_candidate.py verify-original
       - name: Frozen install from isolated candidate lockfile
         run: |
