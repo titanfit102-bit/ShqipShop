@@ -8,6 +8,7 @@ on:
       - scripts/security/test_medusa_226_ci_candidate.py
       - scripts/security/medusa_226_query_probe.cjs
       - scripts/security/medusa_226_http_probe.cjs
+      - scripts/security/medusa_226_ab_ci.sh
   workflow_dispatch:
 
 permissions:
@@ -21,7 +22,7 @@ jobs:
   disposable-candidate:
     name: Isolated 2.22.6 pnpm, query utility, API boot (not PSP)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       CI: "true"
       NODE_ENV: development
@@ -51,6 +52,15 @@ jobs:
         image: redis:7-alpine
         ports:
           - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis_b:
+        image: redis:7-alpine
+        ports:
+          - 6381:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -132,6 +142,8 @@ jobs:
           set -euo pipefail
           cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
           pnpm --filter @dtc/backend exec medusa db:migrate
+      - name: Stage 12O real A/B merchant JWT, orders and mutation checks on isolated 2.22.6
+        run: bash "$GITHUB_WORKSPACE/scripts/security/medusa_226_ab_ci.sh"
       - name: Export disposable Medusa publishable key for real HTTP paths
         env:
           SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-226-publishable-key.txt
