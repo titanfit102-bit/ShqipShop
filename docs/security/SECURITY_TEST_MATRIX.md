@@ -1,5 +1,10 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-09 — Stage 11N finance identity + outbox S13/T06 proof (IMPLEMENTED; CI PENDING)
+
+Early Medusa smoke script `f08-refund-authorized-outbox-ci.ts`: synthetic trusted actor/merchant fixture, finance-only permission with negative caller cases, exact zero-decimal ALL remaining bound, unique operation keys, atomic reserve + outbox, row-lock concurrency, rollback, no automatic resend after unknown mock provider outcome, and fake trusted confirmation/replay mismatch tests. **NOT real Medusa Admin auth/PSP/provider verification and NOT production bound.** Stage 11I/J regressions remain RED; S13/T05/T06 release gates BLOCKED.
+
+
 ## 2026-11-09 — F08 Stage 11M: synthetic provider ACK-loss reconciliation VERIFIED (CI ONLY)
 
 **Stage 11M narrow VERIFIED:** [Medusa CI 42539022390](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42539022390) five processes, separate fake provider/local commits, discarded ACK, same-key replay without duplicate simulated effect, unknown result remaining reserved, dual reconciler idempotency, merchant scope and cleanup. No real PSP/provider lookup, permissions, webhook or production integration. Stage 11K PASS; Stage 11I/J direct/workflow over-refund PERSISTED/FAILED, backend smoke RED. S13/T05 still FAILED/PARTIAL, release BLOCKED.

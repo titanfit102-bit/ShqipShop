@@ -1,5 +1,10 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-09 — Stage 11N synthetic authorized refund/outbox
+
+Added one mandatory CI-only isolated database proof for finance role/merchant-bound refund requests and atomic outbox. No production schema, Medusa Admin endpoint, webhook, live PSP or deployment changed. Existing 11I/J negative regressions retained. New CI pending.
+
+
 ## 2026-11-09 — F08 Stage 11M: synthetic provider ACK-loss reconciliation VERIFIED (CI ONLY)
 
 [Commit 38fac4e](https://github.com/titanfit102-bit/ShqipShop/commit/38fac4e115e449e0b41b03a11421eefa97054dca), [CI 42539022390](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42539022390): separate Stage 11M step passed all eight markers after five Medusa exec processes, simulating an independent fake provider ledger with lost acknowledgement, safe retry, pending unknown result and dual reconcilers. Disposable tables cleaned. Existing direct/workflow over-refund negative tests Stage 11I/J still FAIL; 7 other distinct workflows green, backend red. No production/provider calls, migration or main change.

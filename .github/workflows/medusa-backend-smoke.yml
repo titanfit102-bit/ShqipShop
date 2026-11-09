@@ -108,6 +108,11 @@ jobs:
           done
           trap - EXIT
           cleanup
+      - name: F08 Stage 11N merchant-scoped finance outbox contract (CI only)
+        env:
+          SHQIPSHOP_F08_AUTH_OUTBOX_CI: "true"
+          WORKER_MODE: server
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-authorized-outbox-ci.ts
       - name: Assert payment amount match and stale/ambiguous session rejection (F07f)
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07f-payment-amount-guard-ci.ts
       - name: Assert bounded buyer-accepted checkout quote contract (F07g stage 1, CI-only)

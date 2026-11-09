@@ -1,5 +1,10 @@
 # ShqipShop — Security Architecture
 
+## 2026-11-09 — Stage 11N refund workflow trust-boundary contract (PROPOSED, NOT DEPLOYED)
+
+A future permitted refund path must resolve merchant **from trusted Medusa deployment/server identity**, and operator from **verified Admin authentication + effective role/policy**, not client tenant IDs, publishable keys, or request-body claims. Authorization to request a refund must precede any ledger read, reserve, provider dispatch or idempotency replay. A positive amount must be an exact integer in the settlement currency (for ALL, no decimal rounding tolerance) and must not exceed the captured less successful/pending-reserved amount. Under a merchant/payment row-level lock, persist a unique operation ID, actor, exact amount and dispatch/outbox record atomically; commit BEFORE any external PSP call. Workers must claim a queued dispatch once, never blindly resend on ambiguous network/ack failure; keep the reserve pending until authenticated PSP record lookup or signed provider event has been reconciled to payment/merchant/amount/ref. Verify worker lock expiry, provider idempotency behavior, notifications and operations audit without PII leakage. Fail closed on unknown/mismatch; never infer success from a local workflow return or a missing refund record. Do NOT hold the DB lock while waiting on external PSP network calls. Production requires separate design/approval and provider-specific sandbox tests. The new Stage 11N test only models these conditions using synthetic staff and database tables; it does not implement a real route, access policy or PSP connector.
+
+
 **Current target:** white-label commerce for Albanian merchants, PWA-first; React Native Android/iOS optional. **Development components:** FastAPI/SQLite separate pilot, Medusa v2 2.22.0 + PostgreSQL 16 + Redis 7 + native client. No final production architecture or deployment is certified. Follow [ARCHITECTURE](../ARCHITECTURE.md), [ADR-006](../ADR-006_TENANT_BACKEND_ISOLATION.md), [ROADMAP](../ROADMAP.md); this file adds controls, it does not rewrite ADR decisions.
 
 ## Boundaries and default-deny contract

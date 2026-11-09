@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-09 — Stage 11N finance-scope and refund outbox contract (CI PENDING)
+
+Implemented a synthetic, disposable PostgreSQL-only merchant/finance-role gate + strict ALL reservation and atomic operation/outbox creation. Covers negative roles/tenant/key/amount, rollback, concurrent overspending, one-time queued dispatch, unresolved provider state, and simulated provider confirmation. **Not production-wired/Medusa authenticated/real PSP**. No new release eligibility; retain Stage 11I/J known-red tests. Next verify CI and define a separate authenticated Medusa Admin and PSP contract before any integration authorization.
+
+
 ## 2026-11-09 — F08 Stage 11M: synthetic provider ACK-loss reconciliation VERIFIED (CI ONLY)
 
 [CI 42539022390](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42539022390) **VERIFIED** fake provider effect committed with acknowledgement discarded; five new Medusa execution processes, same-key retry with no second effect, fail-closed unknown provider outcome, two reconciler invocations confirming once, cross-tenant synthetic denials and table cleanup. Not real PSP, auth, network outage or production. Existing Stage 11I/J refund defects still reproducible and leave Medusa backend smoke RED. Next: explicitly approved provider-aware persistent refund state machine with real contract, RBAC, outbox and reconciliation. All release gates blocked.

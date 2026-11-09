@@ -179,3 +179,9 @@ payment, order workflow, worker, secret, or deployment**.
 
 F07g full buyer acceptance and payment/order binding, F08 JWT revocation,
 F09 single commerce authority and all G3/G5 release gates remain OPEN.
+
+
+### Stage 11N — merchant-authorized refund entry and outbox model (PROPOSED, CI-only contract)
+
+Use a back-end verified Medusa Admin subject with `finance_admin` (or a separately approved more granular permission), trusted deployed merchant scope, original server-calculated order/payment/capture ledger and settlement-currency integral amount. Forbid public Store clients and frontend-tenant claims as sources of refund authority. Acquire payment-row lock; reserve captured-minus-all-pending-and-confirmed amounts and write an immutable operation ID plus unique outbox event in the **same committed transaction**. Release transaction before external PSP request. A claimed dispatch must not be blindly repeated when external result is ambiguous: reconcile authenticated provider record using merchant/payment/reference/amount, accept signed events idempotently, keep unknown results pending and fully reserved until explicit resolution. Reject wrong actor/merchant, changing key amount, exhausted balance, non-integer ALL, unknown provider record, or mismatched provider evidence. Reconcile failed provider operations only after authoritative negative proof and recorded audit. Require independently validated Admin RBAC, negative API access tests, concurrent workers/restarts, PSP sandbox, webhook signature and real provider idempotency before deployment. Stage 11N synthetic CI validates a narrow database control only; the application financial release gates stay BLOCKED.
+
