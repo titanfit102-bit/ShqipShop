@@ -1,5 +1,10 @@
 # ShqipShop — Security Architecture
 
+## 2026-11-09 — Stage 12M: Medusa 2.22.6 disposable candidate CI VERIFIED; production release BLOCKED
+
+[Exact source 433f9e15](https://github.com/titanfit102-bit/ShqipShop/commit/433f9e15dbeefaf1610aaa0489e9280d89e4a3f4) and [candidate CI 42696198294](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42696198294): **SUCCESS** for the isolated Medusa 2.22.6 preparation (72/72 Python tests), regenerated and frozen pnpm lockfile, synthetic safe/unsafe query utility regressions against the installed package, PostgreSQL migrations and local API HTTP health. All 16 directly declared Medusa release-train packages were updated **only inside a disposable CI copy**; original manifests and lockfile remain on 2.22.0. Both query-version and finance RG-03 static release vetoes stayed active. Failed earlier candidate CI attempts [e2a4e316](https://github.com/titanfit102-bit/ShqipShop/commit/e2a4e316b3a261c4c12aaf270c759378dc169a9c) (zero-job workflow syntax) and [82bd1ab9](https://github.com/titanfit102-bit/ShqipShop/commit/82bd1ab9f6fb5f255a0c7cc6f3670c2aaecdc5e2) (incorrect path to staged lockfile) were workflow issues, not verified vendor incompatibilities. This establishes **disposable smoke-test feasibility**, NOT end-to-end query HTTP protection, merchant tenant/auth regression, PSP settlement/refund security, or approval to change production dependencies. Existing Medusa native +1 ALL and uncaptured refund T05/S13 P0 remain; RG-01/02/03 and G3/G5 still BLOCKED. Permanent dependency promotion and native financial correction require separate review/authorization.
+
+
 ## 2026-11-09 — Stage 12B: pinned Medusa 2.22.0 versus official 2.22.6 security fix and unchanged ALL refund defect (SOURCE VERIFIED; UPGRADE/PATCH PROPOSED ONLY)
 
 ### Pinned-version and release evidence
