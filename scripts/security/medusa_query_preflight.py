@@ -34,23 +34,32 @@ def _read_json(path: Path) -> dict:
     return doc
 
 
-def _lock_importers(text: str) -> dict[str, dict[str, tuple[str, str]]]:
-    """Minimal strict reader for pnpm lockfile v9's importers, not a general YAML parser."""
-    importers: dict[str, dict[str, tuple[str, str]]] = {}
+def _lock_importers(text: str) -> dict[str, dict[str, dict[str, tuple[str, str]]]]:
+    """Strict scoped pnpm v9 importer reader, not a general YAML parser.
+
+    A runtime manifest dependency cannot be satisfied by a dev-only lock entry.
+    """
+    scopes = ("dependencies", "devDependencies", "optionalDependencies")
+    importers: dict[str, dict[str, dict[str, tuple[str, str]]]] = {}
+    seen_scopes: dict[str, set[str]] = {}
     importer: str | None = None
+    scope: str | None = None
     dep: str | None = None
     spec: str | None = None
     resolved: str | None = None
     in_importers = False
     if len(re.findall(r"(?m)^importers:", text)) != 1:
         raise ValueError("Missing or duplicate pnpm importer section")
+
     def save() -> None:
         if importer is not None and dep is not None:
-            if spec is None or resolved is None:
-                raise ValueError("Incomplete lock entry")
-            if dep in importers[importer]:
+            if scope is None or spec is None or resolved is None:
+                raise ValueError("Incomplete scoped pnpm lock entry")
+            table = importers[importer][scope]
+            if dep in table:
                 raise ValueError("Duplicate pnpm importer dependency")
-            importers[importer][dep] = (spec, resolved)
+            table[dep] = (spec, resolved)
+
     for line in text.splitlines():
         if line == "importers:":
             in_importers = True
@@ -60,16 +69,31 @@ def _lock_importers(text: str) -> dict[str, dict[str, tuple[str, str]]]:
         if line and not line.startswith(" "):
             save()
             break
-        if re.fullmatch(r"  ([^ ].*):", line):
+        importer_match = re.fullmatch(r"  ([^ ].*):", line)
+        if importer_match:
             save()
-            importer = line.strip()[:-1]
+            importer = importer_match.group(1)
             if importer in importers:
                 raise ValueError("Duplicate pnpm importer")
+            importers[importer] = {name: {} for name in scopes}
+            seen_scopes[importer] = set()
+            scope, dep, spec, resolved = None, None, None, None
+            continue
+        scope_match = re.fullmatch(r"    ([^ ].*):", line)
+        if scope_match:
+            save()
+            if importer is None:
+                raise ValueError("pnpm scope without importer")
+            scope = scope_match.group(1)
+            if scope not in scopes or scope in seen_scopes[importer]:
+                raise ValueError("Unknown or duplicate pnpm dependency scope")
+            seen_scopes[importer].add(scope)
             dep, spec, resolved = None, None, None
-            importers[importer] = {}
             continue
         if re.fullmatch(r"      '[^']+':", line) or re.fullmatch(r"      [A-Za-z0-9@/_.+-]+:", line):
             save()
+            if importer is None or scope is None:
+                raise ValueError("pnpm dependency without importer scope")
             dep = line.strip().rstrip(":").strip("'")
             spec, resolved = None, None
             continue
@@ -77,7 +101,7 @@ def _lock_importers(text: str) -> dict[str, dict[str, tuple[str, str]]]:
             continue
         match = re.match(r"        (specifier|version):\s+(.+?)\s*$", line)
         if match:
-            value = match.group(2).strip("'\"")
+            value = match.group(2).strip("'\\"")
             if match.group(1) == "specifier":
                 if spec is not None:
                     raise ValueError("Duplicate pnpm specifier")
@@ -89,7 +113,6 @@ def _lock_importers(text: str) -> dict[str, dict[str, tuple[str, str]]]:
     else:
         save()
     return importers
-
 
 
 def _lock_package_records(text: str) -> dict[str, set[tuple[str, str]]]:
@@ -191,16 +214,19 @@ def inspect(root: Path, version: str) -> list[str]:
         if imp is None:
             errors.append("MEDUSA-QUERY-LOCK-IMPORTER-MISSING")
             continue
-        required = {
-            ".": ("@medusajs/eslint-plugin",),
-            "apps/backend": ("@medusajs/framework", "@medusajs/medusa"),
-            "apps/storefront": ("@medusajs/js-sdk",),
+        required_scope, required = {
+            ".": ("devDependencies", ("@medusajs/eslint-plugin",)),
+            "apps/backend": ("dependencies", ("@medusajs/framework", "@medusajs/medusa")),
+            "apps/storefront": ("dependencies", ("@medusajs/js-sdk",)),
         }[importer]
-        direct = {**doc.get("dependencies", {}), **doc.get("devDependencies", {})}
-        for name in required:
-            if name not in direct:
-                errors.append("MEDUSA-QUERY-REQUIRED-PACKAGE-MISSING")
-        for scope in ("dependencies", "devDependencies"):
+        runtime = doc.get(required_scope, {})
+        if not isinstance(runtime, dict):
+            errors.append("MEDUSA-QUERY-MANIFEST-INVALID")
+        else:
+            for name in required:
+                if name not in runtime:
+                    errors.append("MEDUSA-QUERY-REQUIRED-PACKAGE-MISSING")
+        for scope in ("dependencies", "devDependencies", "optionalDependencies"):
             table = doc.get(scope, {})
             if not isinstance(table, dict):
                 errors.append("MEDUSA-QUERY-MANIFEST-INVALID")
@@ -213,7 +239,7 @@ def inspect(root: Path, version: str) -> list[str]:
                     continue
                 if specifier != version:
                     errors.append("MEDUSA-QUERY-MIXED-RELEASE-TRAIN")
-                entry = imp.get(name)
+                entry = imp[scope].get(name)
                 if entry is None:
                     errors.append("MEDUSA-QUERY-LOCK-ENTRY-MISSING")
                     continue

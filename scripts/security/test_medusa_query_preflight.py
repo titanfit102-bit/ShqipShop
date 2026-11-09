@@ -562,6 +562,91 @@ snapshots:
                 encoding="utf-8")
             self.assertEqual(inspect(root, CANDIDATE), [])
 
+    def test_backend_required_runtime_dependency_moved_to_manifest_dev_is_denied(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/apps/backend/package.json"
+            doc = json.loads(path.read_text("utf-8"))
+            doc["devDependencies"] = {
+                "@medusajs/framework": doc["dependencies"].pop("@medusajs/framework")
+            }
+            path.write_text(json.dumps(doc), encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-REQUIRED-PACKAGE-MISSING",
+                          inspect(root, CANDIDATE))
+
+    def test_storefront_required_sdk_moved_to_manifest_dev_is_denied(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/apps/storefront/package.json"
+            doc = json.loads(path.read_text("utf-8"))
+            doc["devDependencies"] = {
+                "@medusajs/js-sdk": doc["dependencies"].pop("@medusajs/js-sdk")
+            }
+            path.write_text(json.dumps(doc), encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-REQUIRED-PACKAGE-MISSING",
+                          inspect(root, CANDIDATE))
+
+    def test_backend_lock_dev_entry_cannot_fake_runtime_dependency(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = path.read_text("utf-8")
+            original = (f"      '@medusajs/framework':\n"
+                        f"        specifier: {CANDIDATE}\n"
+                        f"        version: {CANDIDATE}(@medusajs/cli@{CANDIDATE})\n")
+            self.assertIn(original, body)
+            body = body.replace(original, "", 1)
+            body = body.replace("\n  apps/storefront:\n",
+                                "\n    devDependencies:\n" + original +
+                                "\n  apps/storefront:\n", 1)
+            path.write_text(body, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-ENTRY-MISSING",
+                          inspect(root, CANDIDATE))
+
+    def test_storefront_lock_dev_entry_cannot_fake_runtime_sdk(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = path.read_text("utf-8")
+            original = (f"      '@medusajs/js-sdk':\n"
+                        f"        specifier: {CANDIDATE}\n"
+                        f"        version: {CANDIDATE}\n")
+            self.assertIn(original, body)
+            body = body.replace(original, "", 1)
+            body = body.replace("\npackages:\n",
+                                "\n    devDependencies:\n" + original +
+                                "\npackages:\n", 1)
+            path.write_text(body, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-ENTRY-MISSING",
+                          inspect(root, CANDIDATE))
+
+    def test_duplicate_importer_dependency_scope_is_rejected(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/pnpm-lock.yaml"
+            body = path.read_text("utf-8")
+            body = body.replace("\n  apps/storefront:\n",
+                                "\n    dependencies:\n\n  apps/storefront:\n", 1)
+            path.write_text(body, encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-LOCK-UNREADABLE",
+                          inspect(root, CANDIDATE))
+
+    def test_optional_medusa_manifest_uses_same_version_gate(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            self.fixture(root, CANDIDATE)
+            path = root / "medusa-backend-poc/apps/backend/package.json"
+            doc = json.loads(path.read_text("utf-8"))
+            doc["optionalDependencies"] = {"@medusajs/auth": BASELINE}
+            path.write_text(json.dumps(doc), encoding="utf-8")
+            self.assertIn("MEDUSA-QUERY-MIXED-RELEASE-TRAIN",
+                          inspect(root, CANDIDATE))
+
     def test_lock_parser_does_not_treat_packages_as_importers(self):
         text = """importers:
   apps/backend:
@@ -573,7 +658,11 @@ packages:
   '@medusajs/framework@2.22.0': {}
 """
         o = _lock_importers(text)
-        self.assertEqual(o, {"apps/backend": {"@medusajs/framework": ("2.22.6", "2.22.6(a@1.0)")}})
+        self.assertEqual(
+            o["apps/backend"]["dependencies"],
+            {"@medusajs/framework": ("2.22.6", "2.22.6(a@1.0)")},
+        )
+        self.assertEqual(o["apps/backend"]["devDependencies"], {})
 
 
 if __name__ == "__main__":
