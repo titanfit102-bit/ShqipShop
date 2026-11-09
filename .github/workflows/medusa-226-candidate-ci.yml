@@ -1,0 +1,148 @@
+name: Medusa 2.22.6 disposable CI candidate (NO RELEASE)
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/medusa-226-candidate-ci.yml
+      - scripts/security/medusa_226_ci_candidate.py
+      - scripts/security/test_medusa_226_ci_candidate.py
+      - scripts/security/medusa_226_query_probe.cjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shqipshop-medusa226-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  disposable-candidate:
+    name: Isolated 2.22.6 pnpm, query utility, API boot (not PSP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      NODE_ENV: development
+      SHQIPSHOP_MEDUSA_CANDIDATE_CI: "true"
+      SHQIPSHOP_MEDUSA_CANDIDATE_DIR: ${{ runner.temp }}/shqipshop-medusa226
+      DATABASE_URL: postgres://candidate_ci:disposable_ci_password@127.0.0.1:5432/candidate_ci
+      REDIS_URL: redis://127.0.0.1:6379
+      SHQIPSHOP_REQUIRE_REDIS: "true"
+      WORKER_MODE: server
+      STORE_CORS: http://localhost:8000
+      ADMIN_CORS: http://localhost:9000
+      AUTH_CORS: http://localhost:9000
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: candidate_ci
+          POSTGRES_PASSWORD: disposable_ci_password
+          POSTGRES_DB: candidate_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U candidate_ci -d candidate_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Read-only checkout; no retained credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+      - name: Check preparation tests and preserved financial sentinels
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s scripts/security -p 'test_*.py' -v
+          python scripts/security/medusa_226_ci_candidate.py verify-original
+          python scripts/security/medusa_query_preflight.py
+          python scripts/security/guard.py --finance-contract
+      - name: Prepare 2.22.6 manifest copy inside disposable runner
+        run: |
+          set -euo pipefail
+          python scripts/security/medusa_226_ci_candidate.py prepare --destination "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
+          npm install --global pnpm@10.11.1
+      - name: Regenerate only the disposable candidate pnpm lockfile
+        run: |
+          set -euo pipefail
+          cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
+          pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
+      - name: Require full 2.22.6 candidate manifest, packages, and snapshots
+        run: |
+          set -euo pipefail
+          python scripts/security/medusa_query_preflight.py --candidate --root "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
+          python scripts/security/medusa_226_ci_candidate.py verify-original
+      - name: Frozen install from isolated candidate lockfile
+        run: |
+          set -euo pipefail
+          cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
+          pnpm install --frozen-lockfile
+      - name: Patched query utility positive and negative synthetic tests
+        run: node scripts/security/medusa_226_query_probe.cjs
+      - name: Generate ephemeral CI secrets only
+        run: |
+          set -euo pipefail
+          jwt_secret="$(openssl rand -hex 32)"
+          cookie_secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$jwt_secret"
+          echo "::add-mask::$cookie_secret"
+          echo "JWT_SECRET=$jwt_secret" >> "$GITHUB_ENV"
+          echo "COOKIE_SECRET=$cookie_secret" >> "$GITHUB_ENV"
+      - name: Run isolated 2.22.6 PostgreSQL migrations
+        run: |
+          set -euo pipefail
+          cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
+          pnpm --filter @dtc/backend exec medusa db:migrate
+      - name: Boot isolated 2.22.6 API and verify HTTP health
+        run: |
+          set -euo pipefail
+          cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
+          pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/shqipshop-226-api.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          healthy=0
+          for attempt in $(seq 1 100); do
+            if curl --silent --show-error --fail --max-time 3 http://127.0.0.1:9000/health > /dev/null 2>&1; then
+              healthy=1
+              break
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              break
+            fi
+            sleep 3
+          done
+          if [ "$healthy" -ne 1 ]; then
+            echo "::error::SHQIPSHOP_MEDUSA_226_CANDIDATE_API_HEALTH_FAILED"
+            exit 1
+          fi
+          echo SHQIPSHOP_MEDUSA_226_DISPOSABLE_API_HEALTH_PASSED
+      - name: Confirm checked-in 2.22.0 untouched and release still blocked
+        run: |
+          set -euo pipefail
+          python scripts/security/medusa_226_ci_candidate.py verify-original
+          if python scripts/security/guard.py --release > "$RUNNER_TEMP/shqipshop-226-veto.log" 2>&1; then
+            echo "::error::SHQIPSHOP_MEDUSA_226_RELEASE_VETO_WAS_CLEARED"
+            exit 1
+          fi
+          grep -q 'SEC-MEDUSA-QUERY-PATCHED-TRAIN-UNVERIFIED' "$RUNNER_TEMP/shqipshop-226-veto.log"
+          grep -q 'FIN-RELEASE-RG03-NOT-APPROVED' "$RUNNER_TEMP/shqipshop-226-veto.log"
+          echo SHQIPSHOP_MEDUSA_226_DISPOSABLE_CANDIDATE_RELEASE_STILL_BLOCKED
