@@ -57,6 +57,50 @@ def secret_scan(root: Path) -> int:
     print("SHQIPSHOP_SECURITY_BASELINE_SECRET_PATTERNS_PASSED")
     return 0
 
+
+# Narrow, reviewable source-contract gate: checks that critical financial
+# regression diagnostics and their failing assertions stay wired into CI.
+# Presence checks are not behavioral tests, SAST, or proof of monetary safety.
+FINANCIAL_REGRESSIONS = {
+    "medusa-backend-poc/apps/backend/src/scripts/f08-refund-admin-boundary-ci.ts": (
+        "SHQIPSHOP_F08_STAGE11P_AUTH_ADMIN_UNCAPTURED_REFUND_PERSISTED",
+        "CRITICAL: authenticated Admin refund of uncaptured payment must fail",
+        "SHQIPSHOP_F08_STAGE11O_SINGULAR_ONE_ALL_REFUND_PERSISTED",
+        "CRITICAL: singular workflow accepted 1 ALL over fully refunded capture",
+    ),
+    "medusa-backend-poc/apps/backend/src/scripts/f08-refund-workflow-ci.ts": (
+        "SHQIPSHOP_F08_STAGE11J_ZERO_DECIMAL_ONE_ALL_REFUND_PERSISTED",
+        "CRITICAL: 1 ALL extra request cannot change the persisted refund IDs",
+    ),
+    "medusa-backend-poc/apps/backend/src/scripts/f08-psp-contract-ci.ts": (
+        "SHQIPSHOP_F08_STAGE11I_DIRECT_MODULE_OVER_REFUND_PERSISTED",
+        "CRITICAL: invalid new-key over-refund must not persist a second refund",
+    ),
+    ".github/workflows/medusa-backend-smoke.yml": (
+        "stage11p_admin_rc=$?",
+        "workflow_rc=$?",
+        "singular_rc=$?",
+        "module_rc=$?",
+        'if [ "$exact_rc" -ne 0 ]',
+        '[ "$stage11p_admin_rc" -ne 0 ]',
+        "exit 1",
+    ),
+}
+
+def financial_regression_failures(root: Path) -> list[str]:
+    failures = []
+    for relative_path, tokens in FINANCIAL_REGRESSIONS.items():
+        file = root / relative_path
+        try:
+            body = file.read_text("utf-8")
+        except OSError:
+            failures.append(f"FIN-REGRESSION-SOURCE-MISSING:{relative_path}")
+            continue
+        for idx, token in enumerate(tokens):
+            if token not in body:
+                failures.append(f"FIN-REGRESSION-CONTRACT-MISSING:{relative_path}:{idx + 1}")
+    return failures
+
 def release_failures(root: Path) -> list[str]:
     problems = []
     gradle = (root / "native-medusa/android/app/build.gradle").read_text("utf-8")
@@ -72,10 +116,18 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--scan", action="store_true")
     parser.add_argument("--release", action="store_true")
+    parser.add_argument("--finance-contract", action="store_true")
     args = parser.parse_args()
-    if not (args.scan or args.release):
-        parser.error("specify --scan or --release")
+    if not (args.scan or args.release or args.finance_contract):
+        parser.error("specify --scan, --finance-contract or --release")
     status = secret_scan(ROOT) if args.scan else 0
+    if args.finance_contract or args.release:
+        failures = financial_regression_failures(ROOT)
+        for issue in failures:
+            print(f"::error::{issue}")
+            status = 1
+        if not failures:
+            print("SHQIPSHOP_FINANCIAL_SENTINEL_SOURCE_CONTRACT_PASSED_NOT_MONETARY_SAFETY")
     if args.release:
         for issue in release_failures(ROOT):
             print(f"::error::{issue}")

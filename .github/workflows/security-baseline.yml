@@ -33,6 +33,8 @@ jobs:
           python-version: '3.13'
       - name: Unit-test the high-confidence scanner
         run: python -m unittest discover -s scripts/security -p 'test_*.py' -v
+      - name: Confirm mandatory financial failure sentinels are wired
+        run: python scripts/security/guard.py --finance-contract
       - name: Scan tracked text without printing matched secret values
         run: python scripts/security/guard.py --scan
       - name: Strict static release gate (manual only, no signing/deploy)

@@ -2,7 +2,7 @@
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from guard import scan_bytes, INDICATORS, release_failures
+from guard import scan_bytes, INDICATORS, release_failures, financial_regression_failures, FINANCIAL_REGRESSIONS
 
 class SecretGuardTest(unittest.TestCase):
     def test_token_detection_without_secret_output(self):
@@ -43,6 +43,23 @@ class SecretGuardTest(unittest.TestCase):
                               " } } }\n")
             token.write_text("import SecureStore from 'trusted_store'\n")
             self.assertEqual(release_failures(root), [])
+
+
+    def test_financial_sentinels_are_required_and_mutation_is_detected(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            for path, required in FINANCIAL_REGRESSIONS.items():
+                file = root / path
+                file.parent.mkdir(parents=True, exist_ok=True)
+                file.write_text("\\n".join(required), encoding="utf-8")
+            self.assertEqual(financial_regression_failures(root), [])
+            first = next(iter(FINANCIAL_REGRESSIONS))
+            file = root / first
+            body = file.read_text("utf-8")
+            file.write_text(body.replace(FINANCIAL_REGRESSIONS[first][0], ""), encoding="utf-8")
+            failures = financial_regression_failures(root)
+            self.assertEqual(len(failures), 1)
+            self.assertIn("FIN-REGRESSION-CONTRACT-MISSING", failures[0])
 
 if __name__ == "__main__":
     unittest.main()
