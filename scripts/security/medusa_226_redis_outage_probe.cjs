@@ -75,11 +75,11 @@ function redis(port, args, timeoutMs = 2500) {
   });
 }
 
-async function identity(port, tenant, actor, timeoutMs = 7000) {
+async function identity(port, tenant, actor, timeoutMs = 7000, apiKeyTenant = tenant) {
   const target = tenant[actor];
   const path = actor === "customer" ? "/store/customers/me" : "/admin/users/me";
   const headers = { cookie: target.cookie };
-  if (actor === "customer") headers["x-publishable-api-key"] = tenant.key;
+  if (actor === "customer") headers["x-publishable-api-key"] = apiKeyTenant.key;
   try {
     const result = await fetch("http://" + HOST + ":" + port + path, {
       method: "GET",
@@ -106,7 +106,11 @@ async function validOn(port, tenant, actor) {
   assert.equal(result.id, tenant[actor].id, "Session returned the wrong principal");
 }
 async function denyOn(port, tenant, actor) {
-  const result = await identity(port, tenant, actor);
+  assert.equal(port, 9002, "Only A clone is a foreign-cookie target in this probe");
+  assert.equal(tenant, proof.B, "Only B cookie is tested against A clone");
+  // The Store publishable key is scoped to the TARGET merchant A, not the
+  // foreign cookie owner B; otherwise a 400 only tests key rejection.
+  const result = await identity(port, tenant, actor, 7000, proof.A);
   if (![401, 403].includes(result.status)) probePhase += "_STATUS_" + String(result.status);
   assert.ok([401, 403].includes(result.status),
     "Foreign merchant cookie was not denied");
