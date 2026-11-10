@@ -1,4 +1,5 @@
 import { authenticate, configureStoreSearch, defineMiddlewares } from '@medusajs/framework/http'
+import { enforceStage12xCookieCsrfCi } from './middlewares/stage12x-cookie-csrf-ci'
 import { ensureOrderReader } from './middlewares/ensure-order-reader'
 import {verifyF08StrictRefundCi} from './middlewares/f08-refund-amount-ci'
 import { enforceF08CiBearerPolicy, enforceF08CiProfilePolicy, enforceF08CiOwnerCartPolicy } from './middlewares/f08-revocation-ci'
@@ -7,6 +8,18 @@ import { enforceF08CiBearerPolicy, enforceF08CiProfilePolicy, enforceF08CiOwnerC
 // the route narrows it to published products in the key's sales channels.
 export default defineMiddlewares({
   routes: [
+    {
+      // Stage 12X: two real built-in Medusa profile mutation paths, CI only.
+      // This cannot be mistaken for global production CSRF protection.
+      matcher: '/store/customers/me',
+      method: ['POST', 'DELETE'],
+      middlewares: [enforceStage12xCookieCsrfCi],
+    },
+    {
+      matcher: '/admin/customers/:id',
+      method: ['POST', 'DELETE'],
+      middlewares: [enforceStage12xCookieCsrfCi],
+    },
     {
       // Exact fixture CI only. Outside CI this is a no-op, not a deployed fix.
       matcher: '/admin/payments/:id/refund',
