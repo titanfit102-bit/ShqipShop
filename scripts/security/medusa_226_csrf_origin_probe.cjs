@@ -274,6 +274,17 @@ async function execute(){
       crossSiteSimpleMutationCount:simpleBodyAccept,
       corsExternalOriginDenied:true,browserExploitCertified:false}));
   console.log("SHQIPSHOP_226_STAGE12W_CI_ONLY_CSRF_POSTURE_NOT_PRODUCTION_CERTIFICATION");
+  // A browser-simple application/x-www-form-urlencoded request can be sent
+  // without CORS preflight. A manually supplied cookie is NOT proof a browser
+  // sends that cookie cross-site, but an accepted authenticated mutation is
+  // not a secure server-side CSRF boundary. Keep this candidate CI RED until
+  // a separately authorized fix is implemented and independently verified.
+  if(simpleBodyAccept!==0){
+    phase="BROWSER_SIMPLE_COOKIE_MUTATION_SECURITY_GATE";
+    console.error("::error::SHQIPSHOP_226_STAGE12W_UNTRUSTED_SIMPLE_FORM_MUTATED_COOKIE_SESSION");
+    throw new Error("Stage12W classified unsafe cookie-origin boundary in disposable candidate");
+  }
+  console.log("SHQIPSHOP_226_STAGE12W_SIMPLE_FORM_COOKIE_BOUNDARY_DENIED");
 }
 execute().catch(()=>{
   console.error("::error::SHQIPSHOP_226_STAGE12W_FAILED_AT_"+phase);
