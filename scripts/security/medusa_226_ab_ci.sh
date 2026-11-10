@@ -274,6 +274,8 @@ if [[ "$aof_ready" != "1" ]]; then
 fi
 setsid env DATABASE_URL="$db_a" REDIS_URL="redis://127.0.0.1:6382" \
   JWT_SECRET="$secret_a" COOKIE_SECRET="$cookie_a" \
+  STORE_CORS="http://localhost:8000,https://shop.shop-a.test:9444" \
+  ADMIN_CORS="http://localhost:9000,https://admin.shop-a.test:9446" \
   pnpm --filter @dtc/backend exec medusa develop --port 9003 \
   > "$RUNNER_TEMP/shqipshop226-stage12s-api.log" 2>&1 &
 pid_aof=$!
@@ -299,5 +301,9 @@ export SHQIPSHOP_STAGE12T_NEXT_CIDFILE="$aof_next_cidfile"
 node "$GITHUB_WORKSPACE/scripts/security/medusa_226_aof_volume_probe.cjs"
 # Stage 12W: direct HTTP characterization of customer/Admin cookie CSRF and CORS.
 node "$GITHUB_WORKSPACE/scripts/security/medusa_226_csrf_origin_probe.cjs"
+# Stage 12Y: real Chromium browser, local self-signed HTTPS reverse proxy
+# and different-site form submission. Only disposable Medusa AOF A; never
+# changes the candidate A/B/Production CORS or baseline authorization.
+node "$GITHUB_WORKSPACE/scripts/security/medusa_226_browser_cookie_probe.cjs"
 kill -0 "$pid_a" && kill -0 "$pid_b" && kill -0 "$pid_clone" && kill -0 "$pid_aof"
 echo "SHQIPSHOP_226_AB_NOT_PRODUCTION_OR_PSP_CERTIFICATION"
