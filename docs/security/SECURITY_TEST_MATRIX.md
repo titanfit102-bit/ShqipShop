@@ -1,5 +1,31 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-11 — Stage12AD Chrome HTTPS / PostgreSQL browser-CSRF matrix, Medusa 2.22.6 CI
+
+| Actual Chromium operation | Cookie attached | Browser HTTP result | SQL persisted? | Interpretation |
+| --- | --- | --- | --- | --- |
+| Same-site Admin product JSON, trusted cookie | yes | 200 | yes, then restored | Positive authorized mutation |
+| Attacker iframe form / server-default cookie | no | 401 | no | Cookie omitted, not server-side CSRF proof |
+| **Attacker top-level form / recent server-default cookie** | **yes** | **200** | **yes, then restored** | **Browser-real Admin catalog CSRF in CI** |
+| **Attacker iframe form / Chrome None;Secure cookie fixture** | **yes** | **200** | **yes, then restored** | **Browser-real Admin catalog CSRF in CI fixture** |
+| **Attacker top-level form / Chrome None;Secure cookie fixture** | **yes** | **200** | **yes, then restored** | **Browser-real Admin catalog CSRF in CI fixture** |
+| Attacker JSON fetch / either cookie policy | POST not sent | CORS preflight browser rejection | no | Not a native-form defense |
+| Same-site guest cart JSON with publishable key | yes | 200 | yes, then restored | Positive guest capability test |
+| Attacker guest-cart native forms / both cookie policies | varies | 400 (no key) | no | Missing publishable key, NOT customer CSRF defense |
+| Attacker guest-cart JSON fetch / both policies | POST not sent | CORS preflight browser rejection | no | No write in browser fixture |
+| Production, other browsers, all mutation routes | UNKNOWN | UNKNOWN | UNKNOWN | NO RELEASE |
+
+[Stage12AD code 9c722db](https://github.com/titanfit102-bit/ShqipShop/commit/9c722dbcbfa592c7f847e4fd77e54ecbc80b5704) and [real Chromium HTTPS/AOF CI #42923862169](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42923862169) **SUCCESS as diagnostic evidence, NOT mitigation**. Headless Chromium on disposable self-signed HTTPS (certificate errors bypassed), Medusa 2.22.6, synthetic Admin login and signed Medusa cookie, with PostgreSQL readback and guaranteed restoration: trusted same-site Admin JSON `POST /admin/products/:id` persisted as expected. An **attacker-site top-level native HTML form POST using the genuine recent server-default cookie** sent Cookie, returned **HTTP 200, and persisted a product title change**. Server-default iframe omitted Cookie and returned 401 without mutation.
+
+Using the same genuine Medusa cookie deliberately reconfigured in Chrome's cookie store to `SameSite=None; Secure` (not emitted with these attributes by Medusa), both attacker iframe and top-level forms sent Cookie, returned **200, and persisted product changes**. Every synthetic product value was restored and confirmed directly in PostgreSQL. These cases establish **browser-real CSRF on the scoped Admin product route in disposable 2.22.6 config**; not merely a forged direct HTTP request.
+
+From the attacker origin, credentialed JSON `fetch` generated a real CORS preflight but **no POST** for the Admin product under both cookie policies, and no DB change. **CORS preflight therefore blocked JSON fetch but did NOT block native HTML forms**. For the synthetic guest cart, all attacker native forms had no publishable key and got **400/no mutation**, including default top-level (cookie sent) and SameSite=None iframe/top-level (cookie sent); attacker JSON fetch was stopped before POST by preflight. The allowed same-site browser JSON writes worked and were independently read back/restored. Guest cart testing does NOT establish authenticated owner protection.
+
+**Boundary:** single headless Chromium, local synthetic HTTPS origins and short-lived certificate with browser certificate verification bypassed, new Medusa session cookie in a recent-cookie window, one disposable Medusa 2.22.6 AOF/PostgreSQL backend. No Firefox/WebKit, long-aged cookie, Production TLS/domain topology, complete role/tenant model, global CSRF, session-bound anti-CSRF token, or pinned Medusa 2.22.0 verification. Don't overstate this as a proven live Production compromise. Security impact is nevertheless significant: **the candidate's Admin catalog mutation is demonstrably browser-CSRF-reachable under the tested cookie circumstances**.
+
+Exact Stage12AD code commit: **9 workflows — 8 SUCCESS, 1 FAILURE**; [pinned Medusa 2.22.0 financial CI #42923862020](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42923862020) again accepted/persisted uncaptured Admin refund (11P) and +1 ALL over-refund workflow/singular/direct (11J/O/I). T02 browser-CSRF risk **OPEN**, T05/S13 and RG-01/02/03, G3/G5 **BLOCKED — NO RELEASE**. Draft PR #12 stacked on Draft PR #11; no `main` merge, Production/PSP/payment changes, dependency upgrade or global security-policy rollout.
+
+
 ## 2026-11-11 — Stage12AC real HTTP / SQL persistence, selected routes only
 
 | Disposable Medusa 2.22.6 mutation | HTTP status | PostgreSQL result | Meaning |
