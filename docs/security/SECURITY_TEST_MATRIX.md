@@ -1,5 +1,22 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-10 — Stage12Y genuine Chromium HTTPS cookie delivery matrix
+
+| Actor / browser request | Cookie actually sent | HTTP | Verified meaning |
+| --- | --- | --- | --- |
+| Customer legitimate HTTPS shop-origin credentialed JSON POST | Yes | 200 | Profile changed & restored |
+| Admin legitimate HTTPS admin-origin credentialed JSON POST | Yes | 200 | Profile changed & restored |
+| Customer external iframe form, server-default Lax | No | 400 | No mutation; not CSRF guard proof |
+| Admin external iframe form, server-default Lax | No | 401 | No mutation; browser excluded cookie |
+| Customer external iframe form, controlled None; Secure browser fixture | Yes | 400 | No mutation; missing publishable key, guard unproven |
+| Admin external iframe form, controlled None; Secure browser fixture | Yes | 403 | No mutation; scoped server-side Origin gate PASS |
+| Cookie attribute observation | HttpOnly true, server SameSite/Secure absent; browser default Lax | — | Local CI only |
+| Production/browser diversity/full mutation routes | NOT TESTED | — | OPEN |
+| Native finance | [pinned Medusa 2.22.0 finance CI #42873953944](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42873953944) FAILURE 11I/J/O/P | — | P0 BLOCKED |
+
+[Stage 12Y code 6f21509](https://github.com/titanfit102-bit/ShqipShop/commit/6f215090fe762920c807fb6cbefd3cea8ded791c); [isolated browser/Medusa 2.22.6 CI #42873953863](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42873953863) SUCCESS; exact code SHA 8 SUCCESS / 1 FAILURE. **Boundary:** Browser controlled actual cookie inclusion, but the second cookie policy was created in Chromium's test cookie store; Medusa did NOT emit SameSite=None; Secure. TLS used a temporary untrusted self-signed certificate with browser trust-error bypass, NOT a real PKI deployment. Chrome headless CI only; hidden iframe not top-level form submission, no Firefox/WebKit, no production domain or real customer data. CI-only Stage12X origin guard protects exactly two profile matchers on AOF :9003, NOT all routes, candidate A/B :9000/:9001, checked-in Medusa 2.22.0 or production. No full CSRF-token/session binding, cookie subdomain hardening or bearer JWT revocation.
+
+
 ## 2026-11-10 — Stage 12X isolated Medusa HTTP evidence matrix
 
 | Boundary | Result | Classification |
