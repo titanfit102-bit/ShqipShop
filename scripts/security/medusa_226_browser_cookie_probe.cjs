@@ -314,6 +314,10 @@ async function topLevelNavigation(page,actor,kind,expectedCookie=false){
     marker:"CI-12Z-NO-MUTATION-"+randomBytes(5).toString("hex"),
   });
   const response=await responsePromise;
+  // A response's headers can arrive before Chromium commits the main-frame
+  // navigation. Do not race a subsequent trusted profile read against an
+  // unfinished top-level POST/redirect page load.
+  await page.waitForURL(target,{waitUntil:"domcontentloaded",timeout:12000});
   const matches=navigationEvents.slice(start).filter(x=>x.actor===actor);
   assert.equal(matches.length,1,
     "Top-level browser request count differed from the intended target");
@@ -406,6 +410,11 @@ async function runActor(actor,browser){
         assert.equal(await getProfile(page,actor),changed,
           "Cross-site browser redirect/top-level mutation changed profile");
       }
+    } catch {
+      // Preserve the REAL original test stage in sanitized CI logs, even
+      // though a best-effort profile restore runs in the finally block.
+      console.error("::error::SHQIPSHOP_226_STAGE12Z_PRIMARY_FAILURE_AT_"+phase);
+      throw new Error("Stage12Z browser invariant failed");
     } finally {
       phase=actor.toUpperCase()+"_RESTORE_PROFILE";
       await trustedMutation(page,actor,before);
