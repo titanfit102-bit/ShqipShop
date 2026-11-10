@@ -1,5 +1,28 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-10 — Stage12AB disposable Medusa 2.22.6 runtime auth matrix
+
+| Real HTTP probe | Correct A cookie | Correct A bearer | Missing/invalid | Wrong role | Foreign B cookie / JWT | Boundary |
+| --- | --- | --- | --- | --- | --- | --- |
+| GET Store customer self | 200 | 200 | 401 / 401 | 401 | 401 / 401 | Exact A customer identity |
+| GET Admin user self | 200 | 200 | 401 / 401 | 401 | 401 / 401 | Exact A Admin identity |
+| GET Admin orders | 200 | 200 | 401 guest | 401 customer cookie | 401 B Admin cookie | Authorized read-only list |
+| GET Admin customer detail | 200 | 200 | not checked here | not checked here | not checked here | Same A synthetic customer |
+| POST Store customer profile (bearer positive) | 200 cookie restore | 200 persisted | 401 no auth | 401 wrong-role cookie | 401 B cookie | Read-back and restore |
+| POST Admin customer profile (bearer positive) | 200 cookie restore | 200 persisted | 401 no auth | 401 wrong-role cookie | 401 B cookie | Read-back and restore |
+| POST /auth/session | Valid token yields cookie | Valid bearer exchange 200 | 401 no/invalid | not checked | 401 B customer/Admin JWT | No session cookie on 401 |
+| GET /store/products with publishable key, no buyer session | n/a | n/a | 200 with public key; 400 without key | n/a | not checked | Public catalog; no buyer auth claim |
+| Other compiled unsafe endpoints | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | Outside Stage12AB |
+
+[Stage12AB code 8afff4b](https://github.com/titanfit102-bit/ShqipShop/commit/8afff4b4ab42beaaddede0f7321a6392f3433c13), [Stage12AB isolated Medusa 2.22.6 HTTP CI #42917704819](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42917704819) **SUCCESS**: real Medusa 2.22.6 on disposable PostgreSQL and AOF Redis :6382. For tenant A, both authenticated Store customer GET `/store/customers/me` and Admin GET `/admin/users/me` accepted a newly issued **session cookie** and a newly issued **bearer JWT** with HTTP **200** and the correct synthetic identity. Both returned **401** for missing/invalid credentials, wrong-actor cookie, tenant-B cookie and tenant-B JWT. Admin customer detail GET also accepted Admin cookie/bearer, while Admin order listing accepted Admin cookie/bearer HTTP 200 and rejected guest, customer and tenant-B Admin cookie HTTP 401. Public Store products GET with tenant A's publishable API key and no login returned HTTP 200; with neither key nor session it returned 400 (publishable-key requirement, not proof of private buyer authorization).
+
+**Authenticated writes (real HTTP):** for both `POST /store/customers/me` and `POST /admin/customers/:id`, tenant-A **bearer** update persisted with HTTP **200**; no credential, wrong role and tenant-B cookie were rejected HTTP **401**, without mutation. The original synthetic values were restored using fresh tenant-A cookie and allowed Origin and verified via read-back. `POST /auth/session` issued a new Medusa cookie only after valid JWT exchange; missing/invalid and tenant-B customer/Admin JWT returned **401** without a session cookie. Tenant B's own authenticated endpoints on its independent API :9001 stayed HTTP 200 with its identity unchanged.
+
+**Scope and limitations:** these were selected real Store/Admin/Auth routes, NOT all 334 installed route files/494 exported methods/325 potentially changing methods. Profile POST paths have Stage12X experimental exact-CI-only Origin protection in AOF :9003; the bearer-only positive bypasses that cookie-specific check by design. Real browser cross-site, token revocation, other mutation routes, CSRF-token binding, all-device logout, tenant ownership outside chosen identities, Production, actual PSP and pinned 2.22.0 behavior are NOT newly certified. During the first Stage12AB run, the probe reused a session fixture that had been intentionally expired by earlier AOF TTL tests; that red diagnostic was NOT an auth bypass. The fixed probe uses **fresh Medusa-issued cookies**, does not log credentials, tokens, session values or private identities, and retains all positive/negative regression assertions.
+
+At exact **code SHA**, 9 workflows: **8 SUCCESS, 1 FAILURE**. [pinned Medusa 2.22.0 finance CI #42917704827](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42917704827) reproduced persisted uncaptured Admin refund (11P) and +1 ALL persisted over-refund through workflow/singular/direct module (11J/O/I). T05/S13 P0, RG-01/02/03, G3/G5 remain **BLOCKED — NO RELEASE**. No main merge, Production deploy, payments/PSP modification, baseline dependency change or security policy promotion. PR #12 remains Draft, stacked on Draft PR #11.
+
+
 ## 2026-11-10 — Stage12AA exact installed Medusa 2.22.6 route export matrix
 
 | Version-locked package group | Route files | Exported HTTP methods | Potentially state-changing declarations | HTTP/session validation |
