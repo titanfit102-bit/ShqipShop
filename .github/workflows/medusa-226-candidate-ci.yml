@@ -13,6 +13,7 @@ on:
       - scripts/security/medusa_226_redis_restart_probe.cjs
       - scripts/security/medusa_226_aof_session_probe.cjs
       - scripts/security/medusa_226_aof_volume_probe.cjs
+      - scripts/security/medusa_226_csrf_origin_probe.cjs
   workflow_dispatch:
 
 permissions:
@@ -146,7 +147,7 @@ jobs:
           set -euo pipefail
           cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
           pnpm --filter @dtc/backend exec medusa db:migrate
-      - name: Stage 12O-V isolation, AOF replacement and genuine server-session TTL expiry
+      - name: Stage 12O-W identity, AOF, session expiry and cookie CSRF/CORS characterization
         env:
           SHQIPSHOP_STAGE12R_REDIS_A_ID: ${{ job.services.redis.id }}
           SHQIPSHOP_STAGE12R_REDIS_B_ID: ${{ job.services.redis_b.id }}

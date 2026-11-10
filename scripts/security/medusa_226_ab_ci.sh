@@ -297,5 +297,7 @@ export SHQIPSHOP_STAGE12T_NEXT_CIDFILE="$aof_next_cidfile"
 # then force the genuine disposable Medusa session record to expire and
 # verify that it is not reanimated by another container replacement.
 node "$GITHUB_WORKSPACE/scripts/security/medusa_226_aof_volume_probe.cjs"
+# Stage 12W: direct HTTP characterization of customer/Admin cookie CSRF and CORS.
+node "$GITHUB_WORKSPACE/scripts/security/medusa_226_csrf_origin_probe.cjs"
 kill -0 "$pid_a" && kill -0 "$pid_b" && kill -0 "$pid_clone" && kill -0 "$pid_aof"
 echo "SHQIPSHOP_226_AB_NOT_PRODUCTION_OR_PSP_CERTIFICATION"
