@@ -146,7 +146,7 @@ jobs:
           set -euo pipefail
           cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
           pnpm --filter @dtc/backend exec medusa db:migrate
-      - name: Stage 12O-T identity, Redis failure, AOF and external-volume replacement
+      - name: Stage 12O-U isolation, repeated AOF replacement and logout revocation
         env:
           SHQIPSHOP_STAGE12R_REDIS_A_ID: ${{ job.services.redis.id }}
           SHQIPSHOP_STAGE12R_REDIS_B_ID: ${{ job.services.redis_b.id }}

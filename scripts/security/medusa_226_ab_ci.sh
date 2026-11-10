@@ -113,6 +113,7 @@ pid_aof=""
 aof_container=""
 aof_volume=""
 aof_next_cidfile=""
+aof_third_cidfile=""
 cleanup() {
   for pid in "$pid_a" "$pid_b" "$pid_clone" "$pid_aof"; do
     if [[ -n "$pid" ]]; then
@@ -126,6 +127,12 @@ cleanup() {
     new_id="$(cat "$aof_next_cidfile")"
     if [[ "$new_id" =~ ^[a-f0-9]{64}$ ]]; then
       docker rm -f "$new_id" >/dev/null 2>&1 || true
+    fi
+  fi
+  if [[ -n "$aof_third_cidfile" && -f "$aof_third_cidfile" ]]; then
+    third_id="$(cat "$aof_third_cidfile")"
+    if [[ "$third_id" =~ ^[a-f0-9]{64}$ ]]; then
+      docker rm -f "$third_id" >/dev/null 2>&1 || true
     fi
   fi
   if [[ -n "$aof_volume" && "$aof_volume" == "shqipshop-stage12t-${GITHUB_RUN_ID:-}" ]]; then
@@ -231,6 +238,8 @@ if timeout 2 bash -c 'echo > /dev/tcp/127.0.0.1/6382' >/dev/null 2>&1; then
 fi
 aof_cidfile="$RUNNER_TEMP/shqipshop226-stage12s.cid"
 aof_next_cidfile="$RUNNER_TEMP/shqipshop226-stage12t-next.cid"
+aof_third_cidfile="$RUNNER_TEMP/shqipshop226-stage12u-third.cid"
+export SHQIPSHOP_STAGE12U_THIRD_CIDFILE="$aof_third_cidfile"
 aof_volume="shqipshop-stage12t-$GITHUB_RUN_ID"
 docker volume create --label shqipshop.scope=stage12t-ci "$aof_volume" >/dev/null
 docker run -d --cidfile "$aof_cidfile" \
@@ -275,6 +284,8 @@ node "$GITHUB_WORKSPACE/scripts/security/medusa_226_aof_session_probe.cjs"
 export SHQIPSHOP_STAGE12T_OLD_ID="$aof_container"
 export SHQIPSHOP_STAGE12T_VOLUME="$aof_volume"
 export SHQIPSHOP_STAGE12T_NEXT_CIDFILE="$aof_next_cidfile"
+# The same CI probe now repeats replacement once more to confirm logout
+# remains server-invalidated and a synthetic short Redis TTL still expires.
 node "$GITHUB_WORKSPACE/scripts/security/medusa_226_aof_volume_probe.cjs"
 kill -0 "$pid_a" && kill -0 "$pid_b" && kill -0 "$pid_clone" && kill -0 "$pid_aof"
 echo "SHQIPSHOP_226_AB_NOT_PRODUCTION_OR_PSP_CERTIFICATION"

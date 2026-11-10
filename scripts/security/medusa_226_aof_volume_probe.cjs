@@ -237,6 +237,102 @@ async function main(){
   assert.equal(health.status,200);
   console.log("SHQIPSHOP_226_STAGE12T_REPLACEMENT_FRESH_AUTH_PASSED");
   console.log("SHQIPSHOP_226_STAGE12T_CI_ONLY_NO_BACKUP_HA_JWT_REVOCATION_CLAIM");
+
+  // Stage 12U: the intentionally revoked customer cookie must not be
+  // resurrected when AOF is replayed by a SECOND new Redis container.
+  // Active A customer/Admin cookies must survive; B must remain independent.
+  // The short-lived sentinel only tests Redis TTL, not session-cookie expiry.
+  phase="STAGE12U_PRE_SECOND_REPLACEMENT";
+  const cidfileU=join(temp,"shqipshop226-stage12u-third.cid");
+  assert.equal(env.SHQIPSHOP_STAGE12U_THIRD_CIDFILE,cidfileU);
+  assert(!existsSync(cidfileU),"Third CI container CID file must not preexist");
+  assert.equal(docker("inspect","--format","{{.State.Running}}",newer),"true");
+  assertContainer(newer,"stage12t-ci");
+  await correctA("admin",saved.admin);
+  await correctA("customer",newCustomer);
+  const oldCookie=await request(9003,"customer",saved.customer);
+  assert([401,403].includes(oldCookie.status),"Revoked cookie accepted before second replacement");
+  const expiring="stage12u-expires-"+randomBytes(10).toString("hex");
+  const expiringValue=randomBytes(12).toString("hex");
+  assert.equal(docker("exec",newer,"redis-cli","--raw","SET",expiring,expiringValue,"EX","8"),"OK");
+  assert.equal(docker("exec",newer,"redis-cli","--raw","GET",expiring),expiringValue);
+  assert.equal(docker("exec",newer,"redis-cli","--raw","GET",sentinel),secret);
+  console.log("SHQIPSHOP_226_STAGE12U_PRE_SECOND_REPLACEMENT_REVOCATION_AND_TTL_PASSED");
+
+  phase="STAGE12U_REMOVE_SECOND_CONTAINER";
+  docker("rm","-f",newer);
+  let secondOutage=false;
+  try { await ping(6382,800); } catch { secondOutage=true; }
+  assert(secondOutage,"Second Redis outage was not observed");
+  await bAlive();
+  for (const actor of ["customer","admin"]) {
+    const cookie=actor==="admin"?saved.admin:newCustomer;
+    const r=await request(9003,actor,cookie,proof.A,proof.A.key,1700);
+    assert([401,403,500,502,503,504,"timeout","network"].includes(r.status),
+      "A private identity returned during second Redis replacement");
+  }
+  await bAlive();
+  console.log("SHQIPSHOP_226_STAGE12U_SECOND_HARD_OUTAGE_B_STAYS_INDEPENDENT");
+
+  phase="STAGE12U_NEW_CONTAINER_SAME_AOF_VOLUME";
+  docker("run","-d","--cidfile",cidfileU,
+    "--name","shqipshop-stage12u-"+env.GITHUB_RUN_ID,
+    "--label","shqipshop.scope=stage12u-ci",
+    "--mount","type=volume,source="+volume+",target=/data",
+    "--network","bridge","-p","127.0.0.1:6382:6379",
+    "redis:7-alpine","redis-server","--save","","--appendonly","yes","--appendfsync","always");
+  const third=readFileSync(cidfileU,"utf8").trim();
+  assert(third!==newer && third!==old,"A third, distinct Redis container is required");
+  assertContainer(third,"stage12u-ci");
+  assert.equal(docker("inspect","--format","{{.State.Running}}",third),"true");
+  await waitForRecovery();
+  assert.equal(docker("exec",third,"redis-cli","--raw","GET",sentinel),secret);
+  console.log("SHQIPSHOP_226_STAGE12U_EXTERNAL_VOLUME_SURVIVED_SECOND_REPLACEMENT");
+
+  phase="STAGE12U_ACTIVE_VS_REVOKED_COOKIE";
+  await oldCookieAfterRecovery("admin",saved.admin);
+  await oldCookieAfterRecovery("customer",newCustomer);
+  // Wait for confirmed A Redis HTTP recovery before testing denial: 503 or
+  // timeout must NOT masquerade as secure cookie invalidation.
+  const revoked=await request(9003,"customer",saved.customer);
+  assert([401,403].includes(revoked.status),
+    "Previously logged-out cookie was resurrected after AOF replay");
+  await deniedB("customer");
+  await deniedB("admin");
+  const wrongRole=await request(9003,"admin",newCustomer);
+  assert([401,403].includes(wrongRole.status),
+    "Active customer cookie wrongly accepted as Admin");
+  await bAlive();
+  console.log("SHQIPSHOP_226_STAGE12U_REVOKED_COOKIE_STAYS_DENIED_ACTIVE_A_B_SESSIONS_VALID");
+
+  phase="STAGE12U_SYNTHETIC_TTL_EXPIRES";
+  const ttlAtRecovery=Number(docker("exec",third,"redis-cli","--raw","PTTL",expiring));
+  assert(Number.isInteger(ttlAtRecovery) && ttlAtRecovery<=8000 && ttlAtRecovery>=-2,
+    "Synthetic TTL was reset or invalid after AOF replay");
+  const expiryDeadline=Date.now()+11000;
+  let expired=false;
+  while (Date.now()<expiryDeadline) {
+    if(docker("exec",third,"redis-cli","--raw","EXISTS",expiring)==="0") {
+      expired=true;break;
+    }
+    await new Promise(resolve=>setTimeout(resolve,500));
+  }
+  assert(expired,"Short synthetic Redis TTL failed to expire");
+  await correctA("admin",saved.admin);
+  await correctA("customer",newCustomer);
+  const stillRevoked=await request(9003,"customer",saved.customer);
+  assert([401,403].includes(stillRevoked.status));
+  await bAlive();
+  console.log("SHQIPSHOP_226_STAGE12U_SYNTHETIC_REDIS_TTL_EXPIRED_NOT_COOKIE_TTL_CERTIFICATION");
+
+  phase="STAGE12U_FRESH_SESSION_AFTER_SECOND_REPLACEMENT";
+  const finalCookie=await newAofCookie("customer");
+  await correctA("customer",finalCookie);
+  await deniedB("customer");
+  const healthy=await fetch(api+"9003/health",{signal:AbortSignal.timeout(5000)});
+  assert.equal(healthy.status,200);
+  console.log("SHQIPSHOP_226_STAGE12U_SECOND_REPLACEMENT_FRESH_LOGIN_PASSED");
+  console.log("SHQIPSHOP_226_STAGE12U_CI_ONLY_NO_JWT_REVOCATION_OR_PRODUCTION_TTL_CLAIM");
 }
 main().catch(()=>{
   console.error("::error::SHQIPSHOP_226_STAGE12T_FAILED_AT_"+phase);
