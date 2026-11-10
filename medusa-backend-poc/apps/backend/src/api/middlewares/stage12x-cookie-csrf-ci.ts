@@ -1,7 +1,7 @@
 /**
  * Stage 12X: experimental, strictly disposable Medusa 2.22.6 CI-only
  * cookie-mutation origin gate. NOT a production CSRF policy. This guards
- * only the two tested customer/Admin profile mutations and does not replace
+ * only the two tested customer/Admin profile mutations on the disposable AOF test instance and does not replace
  * per-session CSRF tokens, SameSite/Secure cookies or full route coverage.
  */
 import type { MedusaRequest, MedusaResponse, MedusaNextFunction } from "@medusajs/framework/http"
@@ -12,7 +12,7 @@ const scoped = (): boolean =>
   process.env.SHQIPSHOP_MEDUSA_CANDIDATE_CI === "true" &&
   process.env.SHQIPSHOP_REQUIRE_REDIS === "true" &&
   /^[0-9]+$/.test(process.env.GITHUB_RUN_ID ?? "") &&
-  /^redis:\/\/127\.0\.0\.1:(6379|6381|6382)$/.test(process.env.REDIS_URL ?? "")
+  /^redis:\/\/127\.0\.0\.1:6382$/.test(process.env.REDIS_URL ?? "")
 
 function origins(value: string | undefined): Set<string> {
   const result = new Set<string>()
