@@ -95,7 +95,9 @@ function exportedMethods(ts, source, filename) {
     assignment(expr.right);
     if(isModuleExports(expr.left) && ts.isObjectLiteralExpression(expr.right)){
       for(const property of expr.right.properties){
-        if(ts.isPropertyAssignment(property)||ts.isShorthandPropertyAssignment(property))
+        if(ts.isPropertyAssignment(property) ||
+           ts.isShorthandPropertyAssignment(property) ||
+           ts.isMethodDeclaration(property))
           mark(propName(property.name));
       }
     }
