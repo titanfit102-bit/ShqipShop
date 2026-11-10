@@ -210,7 +210,7 @@ async function trustedMutation(page,actor,value){
     last.hasCookie && last.status===200,
     "Trusted browser mutation did not use actual cookie or allowlisted Origin");
 }
-async function attackerForm(page,actor,marker){
+async function attackerForm(page,actor,marker,expectedCookie=false){
   const isAdmin=actor==="admin";
   const route=isAdmin?"/admin/customers/"+encodeURIComponent(proof.A.customer.id):
     "/store/customers/me";
@@ -241,12 +241,18 @@ async function attackerForm(page,actor,marker){
     "Browser did not transmit cross-site form metadata");
   assert([400,401,403].includes(result.status()),
     "Cross-site browser form unexpectedly succeeded");
+  assert.equal(recorded.hasCookie,expectedCookie,
+    "Browser cookie transmission differed from the controlled SameSite fixture");
+  if(expectedCookie && actor==="admin")
+    assert.equal(result.status(),403,
+      "Authenticated cross-site Admin form did not hit the 403 server boundary");
   assert.equal(recorded.status,result.status(),
     "HTTPS proxy and real browser status mismatch");
   // Note whether the browser automatically delivered Cookie; a denied
   // request WITHOUT Cookie is NOT evidence of the server-side CSRF guard.
   console.log("SHQIPSHOP_226_STAGE12Y_"+actor.toUpperCase()+
     "_BROWSER_CROSS_SITE_FORM_CLASS",JSON.stringify({
+      cookiePolicy:expectedCookie?"NONE_SECURE_BROWSER_FIXTURE":"SERVER_DEFAULT_LAX",
       cookieSent:recorded.hasCookie,httpStatus:result.status(),
       originMatched:true,fetchSiteCrossSite:true,serverMutation:false,
     }));
@@ -270,6 +276,24 @@ async function runActor(actor,browser){
         "CI-12Y-UNTRUSTED-"+randomBytes(5).toString("hex"));
       assert.equal(await getProfile(page,actor),changed,
         "Cross-site browser form unexpectedly modified profile");
+      // Second browser-controlled case: SAME real signed Medusa cookie,
+      // but with deliberately configured cross-site-capable attributes.
+      // This does not assert that the Medusa development server sets them.
+      phase=actor.toUpperCase()+"_NONE_SECURE_BROWSER_COOKIE_FIXTURE";
+      const existing=(await context.cookies(API)).find(c=>c.name==="connect.sid");
+      assert(existing && existing.value.length>30);
+      await context.addCookies([{
+        name:existing.name,value:existing.value,url:API,
+        httpOnly:true,secure:true,sameSite:"None",
+      }]);
+      const replaced=(await context.cookies(API)).find(c=>c.name==="connect.sid");
+      assert(replaced && replaced.secure && replaced.sameSite==="None",
+        "Chrome SameSite=None; Secure setup did not apply");
+      phase=actor.toUpperCase()+"_CROSS_SITE_FORM_WITH_COOKIE";
+      await attackerForm(page,actor,
+        "CI-12Y-WITH-COOKIE-"+randomBytes(5).toString("hex"),true);
+      assert.equal(await getProfile(page,actor),changed,
+        "Real browser cross-site cookie POST changed profile");
     } finally {
       phase=actor.toUpperCase()+"_RESTORE_PROFILE";
       await trustedMutation(page,actor,before);
@@ -294,7 +318,7 @@ async function main(){
   await runActor("customer",browser);
   phase="ADMIN";
   await runActor("admin",browser);
-  console.log("SHQIPSHOP_226_STAGE12Y_BROWSER_TLS_CROSS_SITE_CLASSIFICATION_PASSED");
+  console.log("SHQIPSHOP_226_STAGE12Y_BROWSER_LAX_AND_NONE_SECURE_COOKIE_CLASSIFICATION_PASSED");
   console.log("SHQIPSHOP_226_STAGE12Y_NOT_PRODUCTION_CERTIFICATE_OR_PSP");
 }
 main().catch(()=>{
