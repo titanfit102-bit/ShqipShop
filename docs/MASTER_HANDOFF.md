@@ -1,5 +1,16 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-10 — Stage 12X exact continuation checkpoint
+
+[code fb6e77b](https://github.com/titanfit102-bit/ShqipShop/commit/fb6e77b6b1f9d10bfbe4adb050fac57b336c29af); isolated Medusa 2.22.6 [CI #42867499601](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42867499601) SUCCESS: 72/72 Python tests, 5/5 Node policy cases, real PostgreSQL/Redis AOF HTTP. Trusted A customer/Admin origin JSON POST 200 with snapshot restored; foreign-origin JSON and form POST 403 without mutation; missing Origin and conflicting cross-site Fetch Metadata 403; B tenant stayed isolated. Original Stage12W fail-closed sentinel was retained.
+
+**Boundary and authorization:** all code is limited to isolated CI and the existing `feat/merchant-auth-boundary-ci`; version/lockfiles, financial logic, main and Production unchanged. Exact-CI-only profile cookie guard runs exclusively with temporary GitHub CI flags and Redis AOF :6382 on candidate :9003. It does NOT protect candidate A/B :9000/:9001, checked-in Medusa 2.22.0, other routes or Production. Real HTTP covered POST only; DELETE denial was unit-tested only. Browser HTTPS cross-site cookie delivery, SameSite/Secure behavior, trusted external storefront exceptions, token-based CSRF defense, full-route protection and JWT revocation are unverified.
+
+9 code-SHA workflows: **8 SUCCESS / 1 FAILURE**. [finance CI #42867499508](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42867499508) failed uncaptured Admin refund 11P and persisted +1 ALL over-refund 11I/J/O; 11E/F recovery passed. T05/S13 P0, RG-01/02/03, G3/G5 and release BLOCKED; no main, merge, Production, payment or dependency upgrades. PR #12 Draft on PR #11 Draft.
+
+**NEXT Stage 12Y:** actual Chromium/Firefox browser cross-site form/cookie behavior in controlled local HTTPS two-site topology (including trustworthy storefront origin positives, untrusted negatives), followed by inventory of remaining cookie-authenticated mutation routes. Do not promote CI-only guard to production absent a separately approved CSRF policy and financial remediation. This documentation commit will have a distinct SHA and requires its own post-commit check classification.
+
+
 ## 2026-11-10 — Stage 12W handoff: server Origin/CSRF gap plus independent finance release veto
 
 [Stage 12W diagnostic source eead501](https://github.com/titanfit102-bit/ShqipShop/commit/eead501adec74df561fc5506e78b12052a5971ca) and [diagnostic CI #42859845639](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42859845639) measured actual authenticated HTTP POST mutations for synthetic A customer / Admin. Valid allowed-origin A cookies modified only A fixture data; missing, wrong-role and merchant-B cookies were denied without mutation. CORS preflight allowed the designated customer/Admin origins, and did NOT allow https://external.example.invalid. However, manually attaching valid cookies to POST from that external Origin and Sec-Fetch-Site=cross-site modified customer and Admin data: JSON HTTP 200 both; text/plain HTTP 400 unchanged; browser-simple application/x-www-form-urlencoded HTTP 200 and modified both.

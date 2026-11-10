@@ -1,5 +1,24 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-10 — Stage 12X isolated Medusa HTTP evidence matrix
+
+| Boundary | Result | Classification |
+| --- | --- | --- |
+| Allowed-origin customer/Admin cookie JSON POST | HTTP 200, own data restored | Real AOF CI PASS |
+| Untrusted Origin JSON POST with manual Cookie | 403, no mutation | Real AOF CI PASS |
+| Untrusted Origin form POST with manual Cookie | 403, no mutation | Real AOF CI PASS |
+| Missing Origin / cross-site metadata | 403, no mutation | Real AOF CI PASS |
+| Browser-simple text/plain POST | 400, no mutation | Real AOF CI PASS |
+| Policy guard on DELETE and non-CI passthrough | 5/5 Node unit cases | Unit only |
+| Isolated candidate / PG / Redis / 72 Python tests | [CI #42867499601](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42867499601) SUCCESS | CI proof, not Production |
+| Real HTTPS browser cross-site Cookie | NOT TESTED | Stage12Y OPEN |
+| Native pinned finance | [finance CI #42867499508](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42867499508) FAILURE 11I/J/O/P | P0 BLOCKED |
+
+Exact-CI-only profile cookie guard runs exclusively with temporary GitHub CI flags and Redis AOF :6382 on candidate :9003. It does NOT protect candidate A/B :9000/:9001, checked-in Medusa 2.22.0, other routes or Production. Real HTTP covered POST only; DELETE denial was unit-tested only. Browser HTTPS cross-site cookie delivery, SameSite/Secure behavior, trusted external storefront exceptions, token-based CSRF defense, full-route protection and JWT revocation are unverified.
+
+9 code-SHA workflows: **8 SUCCESS / 1 FAILURE**. [finance CI #42867499508](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42867499508) failed uncaptured Admin refund 11P and persisted +1 ALL over-refund 11I/J/O; 11E/F recovery passed. T05/S13 P0, RG-01/02/03, G3/G5 and release BLOCKED; no main, merge, Production, payment or dependency upgrades. PR #12 Draft on PR #11 Draft.
+
+
 ## 2026-11-10 — Stage 12W CORS versus server-side CSRF HTTP regressions
 
 | Check | Real disposable Medusa 2.22.6 outcome | Classification |
