@@ -10,6 +10,7 @@ on:
       - scripts/security/medusa_226_http_probe.cjs
       - scripts/security/medusa_226_ab_ci.sh
       - scripts/security/medusa_226_redis_outage_probe.cjs
+      - scripts/security/medusa_226_redis_restart_probe.cjs
   workflow_dispatch:
 
 permissions:
@@ -143,7 +144,10 @@ jobs:
           set -euo pipefail
           cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
           pnpm --filter @dtc/backend exec medusa db:migrate
-      - name: Stage 12O/P/Q A/B merchant JWT, cookie process and controlled Redis stall on 2.22.6
+      - name: Stage 12O/P/Q/R A/B identity, controlled Redis stall and isolated hard restart
+        env:
+          SHQIPSHOP_STAGE12R_REDIS_A_ID: ${{ job.services.redis.id }}
+          SHQIPSHOP_STAGE12R_REDIS_B_ID: ${{ job.services.redis_b.id }}
         run: bash "$GITHUB_WORKSPACE/scripts/security/medusa_226_ab_ci.sh"
       - name: Export disposable Medusa publishable key for real HTTP paths
         env:

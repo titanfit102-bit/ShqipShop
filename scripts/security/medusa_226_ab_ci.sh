@@ -197,4 +197,5 @@ curl -fsS --max-time 5 http://127.0.0.1:9000/health >/dev/null
 curl -fsS --max-time 5 http://127.0.0.1:9001/health >/dev/null
 echo "SHQIPSHOP_226_STAGE12P_SAME_MERCHANT_CROSS_PROCESS_COOKIE_PASSED"
 node "$GITHUB_WORKSPACE/scripts/security/medusa_226_redis_outage_probe.cjs"
+node "$GITHUB_WORKSPACE/scripts/security/medusa_226_redis_restart_probe.cjs"
 echo "SHQIPSHOP_226_AB_NOT_PRODUCTION_OR_PSP_CERTIFICATION"
