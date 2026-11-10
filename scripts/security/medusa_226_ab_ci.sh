@@ -308,5 +308,9 @@ node "$GITHUB_WORKSPACE/scripts/security/medusa_226_browser_cookie_probe.cjs"
 # Stage 12AB: real AOF Medusa 2.22.6 HTTP actor/credential classification.
 # Separate from the two-path CI-only CSRF guard and outside payment/PSP.
 node "$GITHUB_WORKSPACE/scripts/security/medusa_226_auth_modes_probe.cjs"
+# Stage 12AC: selected product/guest-cart direct HTTP and disposable PostgreSQL
+# persisted-state checks; URLs scoped to the temporary A/B merchant databases.
+SHQIPSHOP_STAGE12AC_DB_A="$db_a" SHQIPSHOP_STAGE12AC_DB_B="$db_b" \
+ node "$GITHUB_WORKSPACE/scripts/security/medusa_226_mutation_gap_probe.cjs"
 kill -0 "$pid_a" && kill -0 "$pid_b" && kill -0 "$pid_clone" && kill -0 "$pid_aof"
 echo "SHQIPSHOP_226_AB_NOT_PRODUCTION_OR_PSP_CERTIFICATION"

@@ -18,6 +18,7 @@ on:
       - scripts/security/medusa_226_csrf_origin_probe.cjs
       - scripts/security/medusa_226_browser_cookie_probe.cjs
       - scripts/security/medusa_226_auth_modes_probe.cjs
+      - scripts/security/medusa_226_mutation_gap_probe.cjs
       - scripts/security/medusa_226_csrf_policy.test.mjs
       - medusa-backend-poc/apps/backend/src/api/middlewares/stage12x-cookie-csrf-ci.ts
       - medusa-backend-poc/apps/backend/src/api/middlewares.ts
