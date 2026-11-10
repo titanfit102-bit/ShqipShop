@@ -7,6 +7,8 @@ on:
       - scripts/security/medusa_226_ci_candidate.py
       - scripts/security/test_medusa_226_ci_candidate.py
       - scripts/security/medusa_226_query_probe.cjs
+      - scripts/security/medusa_226_route_inventory.cjs
+      - scripts/security/medusa_226_route_inventory.test.cjs
       - scripts/security/medusa_226_http_probe.cjs
       - scripts/security/medusa_226_ab_ci.sh
       - scripts/security/medusa_226_redis_outage_probe.cjs
@@ -135,6 +137,11 @@ jobs:
           set -euo pipefail
           cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
           pnpm install --frozen-lockfile
+      - name: Stage 12AA AST unit tests and installed Medusa built-in route export inventory
+        run: |
+          set -euo pipefail
+          node --test scripts/security/medusa_226_route_inventory.test.cjs
+          node scripts/security/medusa_226_route_inventory.cjs
       - name: Prepare disposable real browser probe with pinned browser client
         run: |
           set -euo pipefail
