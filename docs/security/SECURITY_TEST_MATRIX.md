@@ -1,5 +1,23 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-10 — Stage 12U repeated Redis AOF replacement, revoked cookie and synthetic TTL
+
+| Check | Expected / observed | Evidence |
+| --- | --- | --- |
+| Pre-second-replacement | A customer logout denied old cookie; A active customer/Admin accepted | [CI #42848271272](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42848271272) PASS |
+| Hard outage / replacement | Replace second container with third different ID, same AOF named volume; B Redis/sessions healthy; A protected identity not exposed during outage | PASS |
+| AOF continuity | Synthetic long-lived key and two active A customer/Admin cookies survived replacement with correct identities | PASS |
+| Negative auth | Previously logged-out A customer cookie denied 401/403 after restart; foreign B and wrong-role cookies denied | PASS |
+| Short-lived Redis key | Synthetic Redis SET EX 8 eventually expires after AOF replay (not session-cookie expiry) | PASS |
+| Fresh A login | New A cookie accepted after second replacement | PASS |
+| Outside scope | Real cookie max age / absolute expiry, bearer JWT logout revocation, disk loss, backups, HA, live PSP, production auth | OPEN |
+| Finance blocker | Pinned Medusa 2.22.0 uncaptured/+1 ALL refund invariants fail | [backend #42848271246](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42848271246) FAILURE, P0 BLOCKED |
+
+**Scope and limitations:** same-host, disposable Redis 7 AOF volume and Medusa candidate 2.22.6 on a GitHub runner. Container replacement and cookie revocation integrity do NOT certify cookie/absolute session expiry, complete all-device logout, bearer JWT invalidation (post-logout JWT replay still OPEN), CSRF/TLS protections, damaged disk, off-host backup restore, replica failover, production durability or RPO/RTO. Retaining AOF sessions must never imply protected sessions survive credential compromise safely. Only temporary CI test script, CI lifecycle cleanup and workflow step label changed; checked-in Medusa remains 2.22.0, no production setting/financial contract/merge/deploy changes, PR #12 Draft and main untouched.
+
+**Next bounded stage:** design and independently verify synthetic cookie-expiration/absolute TTL semantics and logout/JWT revocation contracts, with negative identity and tenant-isolation cases, before any production policy decision. Never equate synthetic Redis-key TTL to user cookie expiration, and do not lift financial release gates.
+
+
 ## 2026-11-10 — Stage 12T AOF external named volume and cookie invalidation (EXACT-SHA CI VERIFIED)
 
 | Test | Evidence / expected invariant | Status |
