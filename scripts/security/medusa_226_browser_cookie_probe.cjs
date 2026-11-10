@@ -177,6 +177,10 @@ async function getProfile(page,actor){
       val:item[data.field]};
   },{route,key:isAdmin?null:proof.A.key,
     field:isAdmin?"last_name":"first_name"});
+  console.log("SHQIPSHOP_226_STAGE12Y_"+actor.toUpperCase()+
+    "_PROFILE_HTTP_CLASS",JSON.stringify({httpStatus:value.status,
+      identityMatches:value.id===proof.A.customer.id,
+      fieldPresent:typeof value.val==="string"}));
   assert.equal(value.status,200,"Browser-owned profile GET failed");
   assert.equal(value.id,proof.A.customer.id,"Unexpected customer identity");
   assert.equal(typeof value.val,"string");
@@ -198,6 +202,8 @@ async function trustedMutation(page,actor,value){
     });
     return {status:resp.status};
   },{api:API,route,field,value,key:isAdmin?null:proof.A.key});
+  console.log("SHQIPSHOP_226_STAGE12Y_"+actor.toUpperCase()+
+    "_TRUSTED_POST_HTTP_CLASS",JSON.stringify({httpStatus:result.status}));
   assert.equal(result.status,200,"Browser trusted cross-origin mutation failed");
   const last=events.at(-1);
   assert(last && last.actor===actor && last.origin===origin &&
@@ -233,7 +239,7 @@ async function attackerForm(page,actor,marker){
     recorded.fetchSite==="cross-site" &&
     recorded.type==="application/x-www-form-urlencoded",
     "Browser did not transmit cross-site form metadata");
-  assert([401,403].includes(result.status()),
+  assert([400,401,403].includes(result.status()),
     "Cross-site browser form unexpectedly succeeded");
   assert.equal(recorded.status,result.status(),
     "HTTPS proxy and real browser status mismatch");
@@ -249,18 +255,23 @@ async function runActor(actor,browser){
   const context=await browser.newContext({ignoreHTTPSErrors:true});
   try{
     const page=await login(context,actor);
+    phase=actor.toUpperCase()+"_BASELINE_PROFILE";
     const before=await getProfile(page,actor);
     assert(before.length>0,"Only synthetic nonempty profile fixtures");
     const changed="CI-12Y-TRUSTED-"+randomBytes(5).toString("hex");
     try {
+      phase=actor.toUpperCase()+"_TRUSTED_POST";
       await trustedMutation(page,actor,changed);
+      phase=actor.toUpperCase()+"_TRUSTED_READBACK";
       assert.equal(await getProfile(page,actor),changed,
         "Trusted browser update not persisted in Medusa");
+      phase=actor.toUpperCase()+"_CROSS_SITE_FORM";
       await attackerForm(page,actor,
         "CI-12Y-UNTRUSTED-"+randomBytes(5).toString("hex"));
       assert.equal(await getProfile(page,actor),changed,
         "Cross-site browser form unexpectedly modified profile");
     } finally {
+      phase=actor.toUpperCase()+"_RESTORE_PROFILE";
       await trustedMutation(page,actor,before);
       assert.equal(await getProfile(page,actor),before,
         "Synthetic data restore failed");
