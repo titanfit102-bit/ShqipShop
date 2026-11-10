@@ -1,5 +1,22 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-10 — Stage 12S AOF persistence comparison matrix (EXACT-SHA CI VERIFIED)
+
+| Scope | Positive / negative outcome | Evidence |
+| --- | --- | --- |
+| Default Redis from Stage12R | Hard restart restored connection but lost synthetic key and four old A cookie checks | [Stage 12R CI 42835225603](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42835225603) |
+| Dedicated Redis AOF | appendonly yes; appendfsync always; RDB disabled; synthetic key and correct A customer/Admin cookie identities before crash | [Stage 12S CI 42838944829](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42838944829) SUCCESS |
+| Forced AOF crash | SIGKILL of isolated AOF service only; B stays authenticated; A protected identities not returned | SUCCESS |
+| Same-container AOF restart | AOF key survives, original A customer/Admin cookies valid with correct IDs; fresh authentication passes | SUCCESS |
+| Foreign B cookie | Denied by A process before and after AOF crash | SUCCESS |
+| Unverified | Container replacement, external volume, disk corruption, backups, production failover, token revocation | OPEN / UNKNOWN |
+| Pinned native finance 2.22.0 | Uncaptured and 1 ALL excess refunds persist (known-red P0) | [Backend CI 42838944734](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42838944734) FAILURE / RELEASE BLOCKED |
+
+**Exact comparison:** Stage 12R default Redis A on port 6379 lost its disposable sentinel and 4/4 old cookie reads after hard restart; Stage 12S AOF Redis on separate port 6382 kept its sentinel and both original cookies across a hard restart of the same container. This is evidence of session persistence for the exact CI AOF setting, NOT proof of persistence after container removal/replacement, external volume loss, disk failure, AOF corruption, HA failover, reliable backups, replication, encryption at rest, or production RPO/RTO. Longer-lived cookies also extend the risk of stolen-session replay; server JWT revocation after logout remains OPEN and is not improved by AOF.
+
+**Authorization and implementation:** changed only `scripts/security/medusa_226_aof_session_probe.cjs`, `scripts/security/medusa_226_ab_ci.sh` and `.github/workflows/medusa-226-candidate-ci.yml`. AOF is switched on only in a newly created temporary Docker container; no Medusa production version/config/dependency change, no existing merchant Redis service persistence change, no live PSP, no main merge. Checked-in Medusa is still 2.22.0; PR #12 remains Draft.
+
+
 ## 2026-11-10 — Stage 12R: Redis restart and session durability (CI VERIFIED, RELEASE BLOCKED)
 
 [Code 5afef2a](https://github.com/titanfit102-bit/ShqipShop/commit/5afef2ab5ed2c4e9c0c6c2b925d584e93e64f297) and [candidate CI 42835225603](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42835225603) SUCCESS, 72 Python tests. In isolated Medusa 2.22.6 CI, Redis A was stopped and restarted; B remained healthy. No private A identity was returned during the outage. Redis A reconnected, but a synthetic data sentinel was lost and all four old A cookie checks were denied. Fresh A customer/Admin authentication and cookies then worked across both A processes; B remained isolated. This shows reconnection and new-login recovery, NOT persistence of old sessions or Redis HA.
