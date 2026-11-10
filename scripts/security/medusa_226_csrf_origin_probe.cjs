@@ -237,6 +237,26 @@ async function execute(){
       await restore(route,actor,cookie,baseline);
     }
 
+    // Stage 12X: cookie-authenticated writes without a trustworthy Origin
+    // or with a cross-site Fetch Metadata signal must fail before mutation.
+    // An HTTP client can forge these headers, so origin + metadata are
+    // both checked; neither is proof of actual browser cookie attachment.
+    phase="MISSING_ORIGIN_"+actor;
+    const missing=await modify(route,actor,cookie,
+      {[route.prop]:"CI-12X-NO-ORIGIN-"+randomBytes(5).toString("hex")});
+    assert.equal(missing.status,403,
+      "Cookie mutation missing Origin was not fail-closed");
+    await ensureUntouched(route,actor,cookie,baseline,"missing Origin denied");
+    phase="FETCH_METADATA_"+actor;
+    const spoofed=await modify(route,actor,cookie,
+      {[route.prop]:"CI-12X-FETCH-CROSS-"+randomBytes(5).toString("hex")},
+      {origin:route.positiveOrigin,crossSite:true});
+    assert.equal(spoofed.status,403,
+      "Cross-site Fetch Metadata was not denied for same-site trust origin");
+    await ensureUntouched(route,actor,cookie,baseline,"Fetch Metadata denied");
+    console.log("SHQIPSHOP_226_STAGE12X_"+actor.toUpperCase()+
+      "_MISSING_ORIGIN_AND_CROSS_SITE_DENIED");
+
     // Browser-simple text/plain is not preflighted. Test its parser/guard
     // separately; HTTP client deliberately supplies Cookie manually.
     phase="SIMPLE_BODY_"+actor;
@@ -279,12 +299,12 @@ async function execute(){
   // sends that cookie cross-site, but an accepted authenticated mutation is
   // not a secure server-side CSRF boundary. Keep this candidate CI RED until
   // a separately authorized fix is implemented and independently verified.
-  if(simpleBodyAccept!==0){
+  if(originAccept!==0 || simpleBodyAccept!==0){
     phase="BROWSER_SIMPLE_COOKIE_MUTATION_SECURITY_GATE";
-    console.error("::error::SHQIPSHOP_226_STAGE12W_UNTRUSTED_SIMPLE_FORM_MUTATED_COOKIE_SESSION");
-    throw new Error("Stage12W classified unsafe cookie-origin boundary in disposable candidate");
+    console.error("::error::SHQIPSHOP_226_STAGE12X_UNTRUSTED_COOKIE_CROSS_ORIGIN_MUTATION");
+    throw new Error("Stage12X cookie-origin boundary remains unsafe in disposable candidate");
   }
-  console.log("SHQIPSHOP_226_STAGE12W_SIMPLE_FORM_COOKIE_BOUNDARY_DENIED");
+  console.log("SHQIPSHOP_226_STAGE12X_JSON_AND_SIMPLE_FORM_COOKIE_BOUNDARY_DENIED");
 }
 execute().catch(()=>{
   console.error("::error::SHQIPSHOP_226_STAGE12W_FAILED_AT_"+phase);
