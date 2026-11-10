@@ -1,5 +1,25 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-10 — Stage12Z Chromium HTTPS top-level / 302 / 307 matrix
+
+| Actor (recent default cookie; repeated with None;Secure browser fixture) | Target method | Cookie sent | HTTP | Meaning |
+| --- | --- | --- | --- | --- |
+| Customer attacker direct form | POST | yes | 400 | Missing publishable key; no mutation; CSRF guard not independently proved |
+| Customer attacker 302 redirect | GET | yes | 400 | POST became GET; no mutation |
+| Customer attacker 307 redirect (Origin:null) | POST | yes | 400 | POST preserved; missing publishable key; no mutation |
+| Admin attacker direct form | POST | yes | 403 | Scoped cookie-origin gate denied; no mutation |
+| Admin attacker 302 redirect | GET | yes | 200 | Authenticated read-only GET; no mutation |
+| Admin attacker 307 redirect (Origin:null) | POST | yes | 403 | Scoped origin check denied; no mutation |
+| Both trusted origin profile JSON writes | POST | yes | 200 | Positive mutation and restore, CI only |
+| Alternate browsers/Production/global Medusa endpoints | — | UNKNOWN | UNKNOWN | OUT OF SCOPE / NO RELEASE |
+
+[Stage12Z code bc91261](https://github.com/titanfit102-bit/ShqipShop/commit/bc9126146f6a1a20430129f01d811d4d5dac0c0c) and [isolated 2.22.6 Chromium HTTPS CI #42886843904](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42886843904) **SUCCESS**. In real headless Chrome, both synthetic customer and Admin sessions sent genuine Medusa cookies from the attacker site on all TOP-LEVEL variants using server-issued recent cookies (no explicit SameSite/Secure) and again with a controlled browser SameSite=None; Secure fixture. Direct form POST stayed POST; 302 transformed POST to GET; 307 retained POST and had Origin:null with Sec-Fetch-Site:cross-site. For each cookie configuration, customer direct/307 POST returned 400 (no publishable API key; NOT proof of the customer CSRF guard) and 302 GET returned 400. Admin direct/307 POST returned 403 with cookie (scoped Origin/metadata guard), while 302 GET returned 200 (read only); all profile values were unchanged and synthetic positive trusted writes were restored. Default iframe POST still omitted the cookie, unlike recent-cookie top-level POST. The initial Stage12Z code attempt was red due to a browser navigation/readback race; corrected by waiting for navigation commit; the exact later CI is the sole green evidence.
+
+**Limit:** one real headless Chrome on ephemeral self-signed local HTTPS with bypassed certificate verification, disposable Medusa 2.22.6 AOF instance :9003 only. Session cookies were actual synthetic credentials; the SameSite=None variant was deliberately set in Chrome's cookie store rather than by Medusa. Other browsers, expiry beyond recent-cookie window, additional sites, production TLS, login/logout, cross-tenant writes and all other mutation routes are NOT verified. The Stage12X CSRF middleware is CI-only and covers ONLY /store/customers/me and /admin/customers/:id for POST/DELETE; not main A/B services or production.
+
+At exact code SHA: **9 workflows = 8 SUCCESS + 1 FAILURE**. [Pinned Medusa 2.22.0 finance CI #42886844202](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42886844202) again observed persisted uncaptured Admin refund (11P) and +1 ALL over-refund via workflow/singular/direct-module (11J/O/I). Financial T05/S13, RG-01/02/03, G3/G5 **BLOCKED — NO RELEASE**. No main merge, Production, PSP, payment/refund implementation, baseline dependency or lockfile changes; PR #12 remains Draft stacked on Draft PR #11.
+
+
 ## 2026-11-10 — Stage12Y genuine Chromium HTTPS cookie delivery matrix
 
 | Actor / browser request | Cookie actually sent | HTTP | Verified meaning |
