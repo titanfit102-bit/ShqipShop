@@ -14,6 +14,9 @@ on:
       - scripts/security/medusa_226_aof_session_probe.cjs
       - scripts/security/medusa_226_aof_volume_probe.cjs
       - scripts/security/medusa_226_csrf_origin_probe.cjs
+      - scripts/security/medusa_226_csrf_policy.test.mjs
+      - medusa-backend-poc/apps/backend/src/api/middlewares/stage12x-cookie-csrf-ci.ts
+      - medusa-backend-poc/apps/backend/src/api/middlewares.ts
   workflow_dispatch:
 
 permissions:
@@ -131,8 +134,10 @@ jobs:
           set -euo pipefail
           cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
           pnpm install --frozen-lockfile
-      - name: Patched query utility positive and negative synthetic tests
-        run: node scripts/security/medusa_226_query_probe.cjs
+      - name: Patched query utility and isolated Stage 12X CSRF gate units
+        run: |
+          node scripts/security/medusa_226_query_probe.cjs
+          node --experimental-strip-types --test scripts/security/medusa_226_csrf_policy.test.mjs
       - name: Generate ephemeral CI secrets only
         run: |
           set -euo pipefail
@@ -147,7 +152,7 @@ jobs:
           set -euo pipefail
           cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
           pnpm --filter @dtc/backend exec medusa db:migrate
-      - name: Stage 12O-W identity, AOF, session expiry and cookie CSRF/CORS characterization
+      - name: Stage 12O-X identity, AOF, session expiry and isolated cookie CSRF mitigation
         env:
           SHQIPSHOP_STAGE12R_REDIS_A_ID: ${{ job.services.redis.id }}
           SHQIPSHOP_STAGE12R_REDIS_B_ID: ${{ job.services.redis_b.id }}
