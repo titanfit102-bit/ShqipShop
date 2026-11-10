@@ -1,5 +1,14 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-10 — Stage 12R: Redis restart and session durability (CI VERIFIED, RELEASE BLOCKED)
+
+[Code 5afef2a](https://github.com/titanfit102-bit/ShqipShop/commit/5afef2ab5ed2c4e9c0c6c2b925d584e93e64f297) and [candidate CI 42835225603](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42835225603) SUCCESS, 72 Python tests. In isolated Medusa 2.22.6 CI, Redis A was stopped and restarted; B remained healthy. No private A identity was returned during the outage. Redis A reconnected, but a synthetic data sentinel was lost and all four old A cookie checks were denied. Fresh A customer/Admin authentication and cookies then worked across both A processes; B remained isolated. This shows reconnection and new-login recovery, NOT persistence of old sessions or Redis HA.
+
+Exactly nine workflows on the code SHA: eight SUCCESS; [pinned Medusa 2.22.0 backend 42835225696](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42835225696) genuine FAILURE of uncaptured and +1 ALL refunds. 11E/11F order/payment retry checks passed. T05/S13, RG-01/02/03 and G3/G5 remain BLOCKED. Bearer JWT revocation after logout remains OPEN. Production persistence, failover, real PSP and disaster recovery are unverified.
+
+Only disposable CI scripts and candidate workflow changed; pinned Medusa 2.22.0, main, production, and Draft PR #12 remain untouched. Next: define session durability/re-login behavior and test persistence separately; production auth, finance and dependency upgrade require separate authorization.
+
+
 ## 2026-11-09 — Stage 12Q: Redis A bounded stall and session recovery on disposable Medusa 2.22.6 (CI VERIFIED; RELEASE BLOCKED)
 
 [Stage 12Q source a0e4df3](https://github.com/titanfit102-bit/ShqipShop/commit/a0e4df3e529a5ab9958471b4b8ca96d6f72ee510) / [disposable candidate CI 42709446325](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42709446325) **SUCCESS**, including **72/72 Python tests**. Three local Medusa 2.22.6 processes (A :9000, A-clone :9002, B :9001), separate merchant PostgreSQL databases and separate Redis endpoints A :6379/B :6381, reused the existing Stage 12O/P authenticated customer/Admin session fixtures. CI issued bounded Redis A `CLIENT PAUSE 16000 ALL`; independent Redis B `PING` stayed healthy. During the confirmed A stall, A-clone cookie requests returned only 401/403/503/504 or timed out (no HTTP 200 private identity); B customer/Admin sessions remained valid. A Redis resumed automatically (verified fresh `PING`), both A sessions then returned HTTP 200 with correct identities on :9000/:9002, B foreign cookies were denied on A-clone, B sessions remained valid and all three API health checks passed. Stage 12N safe/unsafe Store query checks and the final unchanged-source/release-veto check also passed.
