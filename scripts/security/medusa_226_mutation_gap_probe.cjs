@@ -116,6 +116,9 @@ async function adminProduct(adminA,adminB,customerA){
   const hostile=await update(foreign,adminA,evil);
   const observed=pg("A","product","title",id);
   const status=classify(hostile.status,observed,trusted,foreign);
+  assert.equal(hostile.status,403,"Stage12AE Admin product Origin gate absent");
+  assert.equal(status,"NO_CHANGE","Stage12AE Admin product mutation persisted");
+  console.log("SHQIPSHOP_226_STAGE12AE_ADMIN_PRODUCT_DIRECT_HTTP_403_NO_SQL_CHANGE");
   assert.equal(pg("B","product","title",bid),beforeB,"B product mutated");
   console.log("SHQIPSHOP_226_STAGE12AC_ADMIN_PRODUCT_CLASS",JSON.stringify({
    trusted:positive.status,missing:d.missing,wrongRole:d.wrongRole,

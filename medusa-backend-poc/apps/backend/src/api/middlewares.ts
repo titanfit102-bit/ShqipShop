@@ -21,6 +21,14 @@ export default defineMiddlewares({
       middlewares: [enforceStage12xCookieCsrfCi],
     },
     {
+      // Stage12AE: one additional built-in Admin product mutation, CI AOF only.
+      // The handler itself independently checks the exact runner+Redis scope.
+      // This is NOT global Medusa CSRF policy and does not change Production.
+      matcher: '/admin/products/:id',
+      method: ['POST'],
+      middlewares: [enforceStage12xCookieCsrfCi],
+    },
+    {
       // Exact fixture CI only. Outside CI this is a no-op, not a deployed fix.
       matcher: '/admin/payments/:id/refund',
       method: ['POST'],

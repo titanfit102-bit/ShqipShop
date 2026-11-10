@@ -49,12 +49,14 @@ function check(options={}){
     "Unexpected dispatch outcome");
   return passes===1?"NEXT":"403";
 }
-test("trusted customer/Admin JSON cookie writes pass the extra CI gate",()=>{
+test("trusted customer/Admin profile and Stage12AE product JSON cookie writes pass",()=>{
   assert.equal(check(),"NEXT");
   assert.equal(check({path:"/admin/customers/cus_synthetic"}),"NEXT");
+  assert.equal(check({path:"/admin/products/prod_synthetic"}),"NEXT");
 });
-test("external/missing/null origins fail closed on BOTH profile paths",()=>{
-  for(const path of ["/store/customers/me","/admin/customers/cus_synthetic"]){
+test("external/missing/null origins fail closed on profiles and Admin product",()=>{
+  for(const path of ["/store/customers/me",
+      "/admin/customers/cus_synthetic","/admin/products/prod_synthetic"]){
     assert.equal(check({path,headers:{origin:"https://external.example.invalid"}}),"403");
     assert.equal(check({path,noOrigin:true}),"403");
     assert.equal(check({path,headers:{origin:"null"}}),"403");
@@ -66,21 +68,43 @@ test("form, plain body and inconsistent Referer/Fetch Metadata are rejected",()=
   assert.equal(check({headers:{"sec-fetch-site":"cross-site"}}),"403");
   assert.equal(check({headers:{referer:"https://external.example.invalid/"}}),"403");
   assert.equal(check({headers:{"content-type":"application/json; charset=utf-8"}}),"NEXT");
+  const product="/admin/products/prod_synthetic";
+  assert.equal(check({path:product,headers:{"content-type":"application/x-www-form-urlencoded"}}),"403");
+  assert.equal(check({path:product,headers:{"sec-fetch-site":"cross-site"}}),"403");
+  assert.equal(check({path:product,headers:{referer:"https://external.example.invalid/"}}),"403");
+  assert.equal(check({path:product,headers:{"content-type":"application/json; charset=utf-8"}}),"NEXT");
 });
 test("foreign cookie DELETE cannot reach the scoped customer/Admin handler",()=>{
   assert.equal(check({method:"DELETE",headers:{origin:"https://external.example.invalid"}}),"403");
   assert.equal(check({method:"DELETE",path:"/admin/customers/cus_synthetic",
     headers:{origin:"https://external.example.invalid"}}),"403");
 });
+test("Stage12AE product matcher is POST-only and never widens to neighbors",()=>{
+  assert.equal(check({path:"/admin/products/prod_synthetic",method:"GET",
+    headers:{origin:"https://external.example.invalid"}}),"NEXT");
+  assert.equal(check({path:"/admin/products/prod_synthetic",method:"DELETE",
+    headers:{origin:"https://external.example.invalid"}}),"NEXT");
+  assert.equal(check({path:"/admin/products",headers:{origin:"https://external.example.invalid"}}),"NEXT");
+  assert.equal(check({path:"/admin/products/prod_synthetic/variants/var_test",
+    headers:{origin:"https://external.example.invalid"}}),"NEXT");
+  assert.equal(check({path:"/admin/customers/cus_synthetic",method:"GET",
+    headers:{origin:"https://external.example.invalid"}}),"NEXT");
+});
 test("out-of-scope requests and all non-CI traffic remain untouched",()=>{
   assert.equal(check({noCookie:true}),"NEXT");
+  assert.equal(check({path:"/admin/products/prod_synthetic",noCookie:true,
+    headers:{origin:"https://external.example.invalid"}}),"NEXT");
   assert.equal(check({method:"GET"}),"NEXT");
   assert.equal(check({path:"/store/carts/cart_synthetic"}),"NEXT");
   process.env.REDIS_URL="redis://127.0.0.1:6379";
   assert.equal(check({headers:{origin:"https://external.example.invalid"}}),"NEXT");
+  assert.equal(check({path:"/admin/products/prod_synthetic",
+    headers:{origin:"https://external.example.invalid"}}),"NEXT");
   process.env.REDIS_URL="redis://127.0.0.1:6382";
   process.env.SHQIPSHOP_MEDUSA_CANDIDATE_CI="false";
   assert.equal(check({headers:{origin:"https://external.example.invalid"}}),"NEXT");
+  assert.equal(check({path:"/admin/products/prod_synthetic",
+    headers:{origin:"https://external.example.invalid"}}),"NEXT");
   process.env.SHQIPSHOP_MEDUSA_CANDIDATE_CI="true";
 });
 console.log("SHQIPSHOP_226_STAGE12X_UNIT_ONLY_NOT_BROWSER_OR_PRODUCTION_PROOF");

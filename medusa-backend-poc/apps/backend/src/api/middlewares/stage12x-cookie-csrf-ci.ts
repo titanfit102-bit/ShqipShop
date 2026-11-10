@@ -1,8 +1,9 @@
 /**
  * Stage 12X: experimental, strictly disposable Medusa 2.22.6 CI-only
  * cookie-mutation origin gate. NOT a production CSRF policy. This guards
- * only the two tested customer/Admin profile mutations on the disposable AOF test instance and does not replace
- * per-session CSRF tokens, SameSite/Secure cookies or full route coverage.
+ * only the two tested customer/Admin profile mutations AND the selected
+ * Stage12AE POST /admin/products/:id mutation on the disposable AOF instance.
+ * This is not a production fix, per-session CSRF token, or global route policy.
  */
 import type { MedusaRequest, MedusaResponse, MedusaNextFunction } from "@medusajs/framework/http"
 
@@ -47,7 +48,9 @@ export function enforceStage12xCookieCsrfCi(
   const route = req.originalUrl?.split("?")[0] ?? req.path
   const isCustomer = route === "/store/customers/me" || route === "/store/customers/me/"
   const isAdmin = /^\/admin\/customers\/[^/]+\/?$/.test(route)
-  if (!isCustomer && !isAdmin) return next()
+  const isAdminProductPost = req.method === "POST" &&
+    /^\/admin\/products\/[^/]+\/?$/.test(route)
+  if (!isCustomer && !isAdmin && !isAdminProductPost) return next()
 
   const expected = origins(isCustomer ? process.env.STORE_CORS : process.env.ADMIN_CORS)
   const origin = req.headers.origin

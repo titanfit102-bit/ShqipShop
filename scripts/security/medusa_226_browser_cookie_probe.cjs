@@ -567,6 +567,14 @@ async function adForm(page,s,mode,marker,policy){
   assert([200,400,401,403,404,415,422].includes(response.status()),
     "Unexpected real browser form HTTP status");
   const persistence=adClassify(s,s.expected,marker);
+  // Stage12AE: the same previously successful real-browser CSRF attempt
+  // MUST now fail explicitly, not merely be recorded as a characterization.
+  if(s.kind==="admin-product"){
+    assert.equal(response.status(),event.cookieSent?403:401,
+      "Stage12AE Admin product native-form attack not explicitly denied");
+    assert.equal(persistence,"NO_CHANGE",
+      "Stage12AE Admin product browser attack persisted a mutation");
+  }
   console.log("SHQIPSHOP_226_STAGE12AD_FORM_CLASS",JSON.stringify({
     route:s.kind,mode,cookiePolicy:policy,cookieSent:event.cookieSent,
     publicKeySent:event.publicKeySent,httpStatus:response.status(),persistence,
@@ -657,6 +665,7 @@ async function runStage12AD(browser){
   await adCases(browser,{kind:"admin-product",id:product.id,
     route:"/admin/products/"+encodeURIComponent(product.id),
     field:"title",original:initialTitle,expected:initialTitle});
+  console.log("SHQIPSHOP_226_STAGE12AE_REAL_CHROMIUM_ADMIN_PRODUCT_CSRF_DENIED_AND_SQL_UNCHANGED");
   phase="12AD_GUEST_CART_CREATE";
   const regions=await adHttp("GET","/store/regions",
     {"x-publishable-api-key":proof.A.key});
