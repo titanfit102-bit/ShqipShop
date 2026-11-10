@@ -114,6 +114,7 @@ aof_container=""
 aof_volume=""
 aof_next_cidfile=""
 aof_third_cidfile=""
+aof_fourth_cidfile=""
 cleanup() {
   for pid in "$pid_a" "$pid_b" "$pid_clone" "$pid_aof"; do
     if [[ -n "$pid" ]]; then
@@ -133,6 +134,12 @@ cleanup() {
     third_id="$(cat "$aof_third_cidfile")"
     if [[ "$third_id" =~ ^[a-f0-9]{64}$ ]]; then
       docker rm -f "$third_id" >/dev/null 2>&1 || true
+    fi
+  fi
+  if [[ -n "$aof_fourth_cidfile" && -f "$aof_fourth_cidfile" ]]; then
+    fourth_id="$(cat "$aof_fourth_cidfile")"
+    if [[ "$fourth_id" =~ ^[a-f0-9]{64}$ ]]; then
+      docker rm -f "$fourth_id" >/dev/null 2>&1 || true
     fi
   fi
   if [[ -n "$aof_volume" && "$aof_volume" == "shqipshop-stage12t-${GITHUB_RUN_ID:-}" ]]; then
@@ -240,6 +247,8 @@ aof_cidfile="$RUNNER_TEMP/shqipshop226-stage12s.cid"
 aof_next_cidfile="$RUNNER_TEMP/shqipshop226-stage12t-next.cid"
 aof_third_cidfile="$RUNNER_TEMP/shqipshop226-stage12u-third.cid"
 export SHQIPSHOP_STAGE12U_THIRD_CIDFILE="$aof_third_cidfile"
+aof_fourth_cidfile="$RUNNER_TEMP/shqipshop226-stage12v-fourth.cid"
+export SHQIPSHOP_STAGE12V_FOURTH_CIDFILE="$aof_fourth_cidfile"
 aof_volume="shqipshop-stage12t-$GITHUB_RUN_ID"
 docker volume create --label shqipshop.scope=stage12t-ci "$aof_volume" >/dev/null
 docker run -d --cidfile "$aof_cidfile" \
@@ -284,8 +293,9 @@ node "$GITHUB_WORKSPACE/scripts/security/medusa_226_aof_session_probe.cjs"
 export SHQIPSHOP_STAGE12T_OLD_ID="$aof_container"
 export SHQIPSHOP_STAGE12T_VOLUME="$aof_volume"
 export SHQIPSHOP_STAGE12T_NEXT_CIDFILE="$aof_next_cidfile"
-# The same CI probe now repeats replacement once more to confirm logout
-# remains server-invalidated and a synthetic short Redis TTL still expires.
+# Stage 12U/12V: repeat AOF container replacement, prove logout denial,
+# then force the genuine disposable Medusa session record to expire and
+# verify that it is not reanimated by another container replacement.
 node "$GITHUB_WORKSPACE/scripts/security/medusa_226_aof_volume_probe.cjs"
 kill -0 "$pid_a" && kill -0 "$pid_b" && kill -0 "$pid_clone" && kill -0 "$pid_aof"
 echo "SHQIPSHOP_226_AB_NOT_PRODUCTION_OR_PSP_CERTIFICATION"

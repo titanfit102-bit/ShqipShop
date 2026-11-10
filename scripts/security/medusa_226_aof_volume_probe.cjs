@@ -118,6 +118,7 @@ async function bAlive(){
     assert.equal(r.id,proof.B[actor].id,"B identity mismatch");
   }
 }
+let lastSessionCookieAttributes=null;
 async function newAofCookie(actor){
   const kind=actor==="customer"?"customer":"user";
   const email=actor==="customer"?"shopper-a@shqipshop.example.invalid":"admin-a@shqipshop.example.invalid";
@@ -133,8 +134,14 @@ async function newAofCookie(actor){
     method:"POST",headers:{authorization:"Bearer "+token},signal:AbortSignal.timeout(12000),
   });
   assert.equal(session.status,200,"Synthetic A cookie exchange failed");
-  const cookie=(session.headers.getSetCookie?.()??[])
-    .map(c=>c.split(";")[0]).find(c=>c.startsWith("connect.sid="));
+  const sessionCookies=session.headers.getSetCookie?.()??[];
+  const exact=sessionCookies.find(c=>c.startsWith("connect.sid="));
+  lastSessionCookieAttributes={
+    httpOnly:/(?:^|;)\s*httponly(?:;|$)/i.test(exact??""),
+    explicitExpiry:/(?:^|;)\s*(?:max-age|expires)=/i.test(exact??""),
+    sameSite:/(?:^|;)\s*samesite=/i.test(exact??""),
+  };
+  const cookie=(exact??"").split(";")[0];
   assert(cookie,"Missing synthetic A cookie");
   await correctA(actor,cookie);
   return cookie;
@@ -333,6 +340,106 @@ async function main(){
   assert.equal(healthy.status,200);
   console.log("SHQIPSHOP_226_STAGE12U_SECOND_REPLACEMENT_FRESH_LOGIN_PASSED");
   console.log("SHQIPSHOP_226_STAGE12U_CI_ONLY_NO_JWT_REVOCATION_OR_PRODUCTION_TTL_CLAIM");
+
+  // Stage 12V operates on the genuine Redis session record corresponding to
+  // the Medusa-created connect.sid cookie (not a synthetic stand-alone key).
+  // Expiration is accelerated ONLY by a scoped PEXPIRE on this CI cookie's
+  // own server-side session. This does not simulate browser wall-clock expiry.
+  phase="STAGE12V_REAL_SESSION_LOOKUP";
+  const fourthCidfile=join(temp,"shqipshop226-stage12v-fourth.cid");
+  assert.equal(env.SHQIPSHOP_STAGE12V_FOURTH_CIDFILE,fourthCidfile);
+  assert(!existsSync(fourthCidfile),"Fourth CI container CID file must not preexist");
+  assert(lastSessionCookieAttributes?.httpOnly===true,
+    "Medusa login session cookie lacks HttpOnly in scoped CI");
+  console.log("SHQIPSHOP_226_STAGE12V_BROWSER_COOKIE_ATTRS",JSON.stringify({
+    httpOnly:lastSessionCookieAttributes.httpOnly,
+    sameSite:lastSessionCookieAttributes.sameSite,
+    explicitExpiry:lastSessionCookieAttributes.explicitExpiry,
+  }));
+  const signedValue=decodeURIComponent(finalCookie.slice("connect.sid=".length));
+  const sidMatch=/^s:([A-Za-z0-9_-]{10,})\.[A-Za-z0-9_-]+$/.exec(signedValue);
+  assert(sidMatch,"Medusa signed session cookie format not recognized");
+  const sessionKey="sess:"+sidMatch[1];
+  // Never print cookie, session ID, Redis key or private principals.
+  assert.equal(docker("exec",third,"redis-cli","--raw","EXISTS",sessionKey),"1",
+    "Authenticated session does not have expected Medusa Redis record");
+  const nativeSessionPttl=Number(docker("exec",third,"redis-cli","--raw","PTTL",sessionKey));
+  assert(Number.isInteger(nativeSessionPttl) && nativeSessionPttl>0,
+    "Authenticated Medusa Redis session has no positive server-side TTL");
+  await correctA("admin",saved.admin);
+  await bAlive();
+  console.log("SHQIPSHOP_226_STAGE12V_REAL_MEDUSA_SESSION_TTL_PRESENT");
+
+  phase="STAGE12V_EXPIRE_REAL_SESSION";
+  assert.equal(docker("exec",third,"redis-cli","--raw","PEXPIRE",sessionKey,"2400"),"1",
+    "Scoped CI session expiry could not be shortened");
+  const boundedTtl=Number(docker("exec",third,"redis-cli","--raw","PTTL",sessionKey));
+  assert(Number.isInteger(boundedTtl)&&boundedTtl>0&&boundedTtl<=2400,
+    "Scoped Medusa session TTL did not shorten");
+  const expireUntil=Date.now()+12000;
+  let gone=false;
+  while(Date.now()<expireUntil){
+    if(docker("exec",third,"redis-cli","--raw","EXISTS",sessionKey)==="0"){
+      gone=true;break;
+    }
+    await new Promise(r=>setTimeout(r,350));
+  }
+  assert(gone,"Genuine Redis session record failed to expire");
+  const expiredCookie=await request(9003,"customer",finalCookie);
+  assert([401,403].includes(expiredCookie.status),
+    "Expired Medusa server-side session cookie was still accepted");
+  await correctA("admin",saved.admin);
+  await bAlive();
+  console.log("SHQIPSHOP_226_STAGE12V_EXPIRED_REAL_SESSION_COOKIE_DENIED");
+
+  phase="STAGE12V_REPLACE_CONTAINER_WITH_EXPIRED_RECORD";
+  assertContainer(third,"stage12u-ci");
+  docker("rm","-f",third);
+  let fourthOutage=false;
+  try{await ping(6382,950);}catch{fourthOutage=true;}
+  assert(fourthOutage,"Fourth Redis outage was not actually observed");
+  await bAlive();
+  for(const actor of ["customer","admin"]){
+    const cookie=actor==="customer"?finalCookie:saved.admin;
+    const outage=await request(9003,actor,cookie,proof.A,proof.A.key,1700);
+    assert([401,403,500,502,503,504,"timeout","network"].includes(outage.status),
+      "Private A principal disclosed during fourth Redis outage");
+  }
+  await bAlive();
+  docker("run","-d","--cidfile",fourthCidfile,
+    "--name","shqipshop-stage12v-"+env.GITHUB_RUN_ID,
+    "--label","shqipshop.scope=stage12v-ci",
+    "--mount","type=volume,source="+volume+",target=/data",
+    "--network","bridge","-p","127.0.0.1:6382:6379",
+    "redis:7-alpine","redis-server","--save","","--appendonly","yes","--appendfsync","always");
+  const fourth=readFileSync(fourthCidfile,"utf8").trim();
+  assert(fourth!==old&&fourth!==newer&&fourth!==third);
+  assertContainer(fourth,"stage12v-ci");
+  assert.equal(docker("inspect","--format","{{.State.Running}}",fourth),"true");
+  await waitForRecovery();
+  assert.equal(docker("exec",fourth,"redis-cli","--raw","EXISTS",sessionKey),"0",
+    "Expired Medusa session record was resurrected after AOF replay");
+  assert.equal(docker("exec",fourth,"redis-cli","--raw","GET",sentinel),secret,
+    "Positive AOF storage control failed after fourth replacement");
+  await oldCookieAfterRecovery("admin",saved.admin);
+  const afterReplay=await request(9003,"customer",finalCookie);
+  assert([401,403].includes(afterReplay.status),
+    "Expired real session cookie was accepted after AOF replay");
+  await deniedB("customer");
+  await deniedB("admin");
+  await bAlive();
+  console.log("SHQIPSHOP_226_STAGE12V_EXPIRED_SESSION_NOT_RESTORED_BY_AOF");
+
+  phase="STAGE12V_FRESH_AUTH_AFTER_EXPIRY";
+  const renewed=await newAofCookie("customer");
+  await correctA("customer",renewed);
+  const oldAgain=await request(9003,"customer",finalCookie);
+  assert([401,403].includes(oldAgain.status),
+    "Fresh login unexpectedly revived expired old session");
+  await correctA("admin",saved.admin);
+  await bAlive();
+  console.log("SHQIPSHOP_226_STAGE12V_NEW_SESSION_WORKS_OLD_EXPIRY_STAYS_DENIED");
+  console.log("SHQIPSHOP_226_STAGE12V_CI_FORCED_SERVER_TTL_NOT_NATURAL_COOKIE_EXPIRY_OR_JWT_REVOCATION");
 }
 main().catch(()=>{
   console.error("::error::SHQIPSHOP_226_STAGE12T_FAILED_AT_"+phase);
