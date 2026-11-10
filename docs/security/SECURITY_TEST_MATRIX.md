@@ -1,5 +1,30 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-11 — Stage12AC real HTTP / SQL persistence, selected routes only
+
+| Disposable Medusa 2.22.6 mutation | HTTP status | PostgreSQL result | Meaning |
+| --- | --- | --- | --- |
+| Admin product, trusted Origin + A Admin cookie | 200 | Title changed; later restored | Positive authorized action |
+| Admin product, missing cookie | 401 | No change | Role/identity denial |
+| Admin product, A customer cookie | 401 | No change | Role denial |
+| Admin product, B Admin cookie | 401 | No change | Merchant isolation denial |
+| Admin product, external Origin + A Admin cookie + JSON | **200** | **Title changed**; later restored | Server Origin trust gap in direct HTTP; browser attack UNKNOWN |
+| Guest cart, A publishable key, no cookie | 200 | Email changed; later restored | Guest capability positive |
+| Guest cart, no publishable key | 400 | No change | API key validation; not session CSRF |
+| Guest cart, B publishable key | 400 | No change | Key scope, not proof of authenticated ownership |
+| Guest cart, external Origin + A key + A customer cookie + JSON | **200** | **Email changed**; later restored | Guest possession boundary; browser attack UNKNOWN |
+| Real Chromium for these two exact routes | NOT TESTED | UNKNOWN | NEXT Stage12AD |
+| Nonselected Medusa mutation routes / Production | NOT TESTED | UNKNOWN | OPEN; NO RELEASE |
+
+[Stage 12AC code 282de11](https://github.com/titanfit102-bit/ShqipShop/commit/282de11407b6fb395f85b8abcef7ca448a3e2ca0); [isolated Medusa 2.22.6 PostgreSQL/HTTP CI #42921000702](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42921000702) **SUCCESS as a diagnostic classifier, NOT a CSRF security pass**. Real AOF candidate :9003 with fresh synthetic admin/customer cookies and tenant-B independent admin. On built-in `POST /admin/products/:id`, trusted Admin cookie JSON POST returned 200 and updated the product title in **actual PostgreSQL**; no credentials, wrong customer role and B-admin cookie returned 401 and left the DB row unchanged. An **external-Origin JSON POST manually carrying the genuine A Admin cookie** returned **HTTP 200 and the title WAS PERSISTED**. A `finally` restore returned its original title; both A and B product database rows matched original values afterward.
+
+For a separately created synthetic **guest**, NOT account-owned, cart, `POST /store/carts/:id` with A publishable key and no session returned 200 and persisted an email change. Missing and B-merchant publishable keys returned 400 without mutation. An external-Origin request with the A public key and a manually attached A customer cookie returned **200 and persisted** another email change. The test restored the original synthetic cart email and verified via direct PostgreSQL SELECT; the guest cart itself exists only in disposable CI DB and is discarded with the runner. No payment session, actual order, charge, refund or PSP operation was attempted.
+
+**Critical interpretation:** 200 and persisted on external-Origin requests means these **selected** routes did not enforce a server-side exact Origin denial on the manually constructed HTTP requests. It is NOT yet evidence of practical browser CSRF: manual Cookie and JSON headers differ from browser form requests, credentialed cross-origin JSON may be blocked by CORS preflight, and the guest cart is a possession-capability resource whose A publishable key is intentionally public. Do not count guest-cart write as customer cookie ownership bypass or all Medusa routes as exposed. Existing experimental Stage12X Origin policy covers only two *profile* matchers, NOT product or cart mutations. Production cookie policy, alternate browsers, real storefront domain, full token binding and global CSRF remain UNKNOWN/OPEN.
+
+Exact Stage12AC **code SHA** checks: **9 workflows = 8 SUCCESS / 1 FAILURE**. [Pinned Medusa 2.22.0 finance CI #42921000452](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42921000452) again persisted an uncaptured Admin refund (11P), plus 1 ALL excessive refund through workflow (11J), singular (11O), and direct module (11I). Financial T05/S13 P0, RG-01/02/03, G3/G5 remain **BLOCKED; NO RELEASE**. PR #12 Draft remains stacked on PR #11 Draft; `main`, Production, PSP, baseline Medusa dependency/lockfile and payment code unchanged.
+
+
 ## 2026-11-10 — Stage12AB disposable Medusa 2.22.6 runtime auth matrix
 
 | Real HTTP probe | Correct A cookie | Correct A bearer | Missing/invalid | Wrong role | Foreign B cookie / JWT | Boundary |
