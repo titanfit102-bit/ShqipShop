@@ -1,5 +1,27 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-10 — Stage 12W CORS versus server-side CSRF HTTP regressions
+
+| Check | Real disposable Medusa 2.22.6 outcome | Classification |
+| --- | --- | --- |
+| Trusted customer/Admin cookie mutation | HTTP 200, correct own fixture updated and restored | Positive PASS |
+| Missing/foreign/wrong-role cookie | HTTP 401/403, A and B records unchanged | Negative PASS |
+| Untrusted Origin CORS preflight | External Origin not allowed (trusted storefront/Admin origins allowed) | CORS PASS only |
+| External Origin with manually attached cookie, application/json | Customer/Admin POST 200 and mutated each synthetic record | Server-side Origin enforcement GAP |
+| External Origin with manually attached cookie, text/plain | 400, no modification on both routes | Simple-body negative PASS |
+| External Origin with manually attached cookie, application/x-www-form-urlencoded | Customer/Admin POST 200 and changed own fixture | Server-side CSRF risk / FAIL-CLOSED CI |
+| Candidate HTTP cookie flags on localhost | HttpOnly and Expires yes; SameSite and Secure absent | Observation only, production UNKNOWN |
+| Browser exploit proof | No browser-driven cookie transmission test | NOT VERIFIED |
+| CI CSRF fail-closed gate | [Run 42861306367](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42861306367) failed at security sentinel after classification | VERIFIED RED |
+| Native finance | [Run 42861306553](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42861306553) persisted uncaptured/+1 ALL refunds | P0 RELEASE BLOCKED |
+
+**Threat boundaries:** isolated Medusa 2.22.6 development Set-Cookie had HttpOnly=true and explicit Expires/Max-Age, but SameSite ABSENT and Secure ABSENT on localhost HTTP (not representative proof of HTTPS Production). The Node HTTP client deliberately provided cookies: this proves server-side Origin/Fetch Metadata enforcement was insufficient on two mutation routes under this fixture, NOT that a real browser would automatically attach cookies or that a complete browser CSRF exploit was proven. CORS denial of an origin does not by itself prevent simple cross-site form POSTs, so investigate browser cookie attachment, SameSite default semantics, Sec-Fetch-Site/Origin/Referer validation, body parsing, CSRF tokens and subdomain trust. See OWASP CSRF Prevention Cheat Sheet. Restore after each probe verified, no real users or payment mutations.
+
+**Exact source-SHA workflows:** 9 completed, **7 SUCCESS / 2 FAILURE**. Stage12W candidate #42861306367 FAILED intentionally on CSRF sentinel. [Pinned Medusa 2.22.0 native backend #42861306553](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42861306553) independently FAILED: uncaptured Admin refund (11P) and persisted +1 ALL over-refund through workflow/singular/direct module paths (11J/11O/11I); 11E/11F order/payment retry PASS. RG-01/02/03, T05/S13 and G3/G5 remain BLOCKED, NO RELEASE.
+
+**Next scoped stage 12X:** verify actual browser cross-site cookie behavior under a realistic local HTTPS/site topology; develop and test a fail-closed CI-only origin/Fetch-Metadata/CSRF boundary for cookie-authenticated POST/DELETE with trusted cross-origin storefront exceptions, before separately authorizing any production security policy. Do not conflate diagnostics with verified exploit or clear finance P0 and JWT revocation.
+
+
 ## 2026-11-10 — Stage 12V session expiry matrix
 
 | Boundary | Scoped outcome | Status |
