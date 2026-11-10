@@ -305,5 +305,8 @@ node "$GITHUB_WORKSPACE/scripts/security/medusa_226_csrf_origin_probe.cjs"
 # and different-site form submission. Only disposable Medusa AOF A; never
 # changes the candidate A/B/Production CORS or baseline authorization.
 node "$GITHUB_WORKSPACE/scripts/security/medusa_226_browser_cookie_probe.cjs"
+# Stage 12AB: real AOF Medusa 2.22.6 HTTP actor/credential classification.
+# Separate from the two-path CI-only CSRF guard and outside payment/PSP.
+node "$GITHUB_WORKSPACE/scripts/security/medusa_226_auth_modes_probe.cjs"
 kill -0 "$pid_a" && kill -0 "$pid_b" && kill -0 "$pid_clone" && kill -0 "$pid_aof"
 echo "SHQIPSHOP_226_AB_NOT_PRODUCTION_OR_PSP_CERTIFICATION"
