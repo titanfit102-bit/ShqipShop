@@ -1,6 +1,6 @@
 "use strict";
 /**
- * Stage 12Y: browser-driven HTTPS cross-site cookie/CSRF classification.
+ * Stages 12Y-12Z: browser-driven HTTPS cross-site cookie/CSRF classification.
  * Disposable GitHub CI only. Never logs session cookies, tokens, names or
  * passwords. Real Medusa 2.22.6 AOF instance (:9003) remains authoritative.
  * This is NOT a production HTTPS certificate or complete CSRF policy test.
@@ -44,6 +44,7 @@ const EVIL="https://attacker.bad-shop.test:9445";
 const ADMIN="https://admin.shop-a.test:9446";
 const domains=["api.shop-a.test","shop.shop-a.test","attacker.bad-shop.test","admin.shop-a.test"];
 const events=[];
+const navigationEvents=[];
 const instances=[];
 let browser;
 let phase="START";
@@ -77,6 +78,19 @@ function handler(host,req,res){
   if(req.headers.host !== host+":"+ports.find(p=>p.host===host).port){
     res.writeHead(421);res.end();return;
   }
+  // Fixed, synthetic attacker-controlled redirect fixtures. Never accept
+  // arbitrary target parameters or redirect outside the disposable API.
+  const redirect=host==="attacker.bad-shop.test" && req.method==="POST" ?
+    /^\/__stage12z\/redirect\/(302|307)\/(customer|admin)$/.exec(String(req.url??"")) : null;
+  if(redirect){
+    const target=redirect[2]==="admin" ?
+      "/admin/customers/"+encodeURIComponent(proof.A.customer.id) : "/store/customers/me";
+    res.writeHead(Number(redirect[1]),{
+      location:API+target,"cache-control":"no-store",
+    });
+    res.end();
+    return;
+  }
   if(host!=="api.shop-a.test"){
     res.writeHead(200,{"content-type":"text/html; charset=utf-8",
       "cache-control":"no-store","x-content-type-options":"nosniff"});
@@ -90,11 +104,11 @@ function handler(host,req,res){
     return;
   }
   const route=String(req.url??"").split("?")[0];
-  const isMutation=req.method==="POST" &&
-    (route==="/store/customers/me" ||
-      /^\/admin\/customers\/[^/]+\/?$/.test(route));
-  const event=isMutation?{
+  const profileRoute=route==="/store/customers/me" ||
+    /^\/admin\/customers\/[^/]+\/?$/.test(route);
+  const observed=profileRoute && ["POST","GET"].includes(req.method)?{
     actor:route.startsWith("/admin/")?"admin":"customer",
+    method:req.method,
     origin:typeof req.headers.origin==="string"?req.headers.origin:"ABSENT",
     fetchSite:typeof req.headers["sec-fetch-site"]==="string"?
       req.headers["sec-fetch-site"]:"ABSENT",
@@ -103,13 +117,15 @@ function handler(host,req,res){
     type:String(req.headers["content-type"]??"").split(";")[0],
     status:0,
   }:null;
+  if(observed)navigationEvents.push(observed);
+  const event=observed?.method==="POST"?observed:null;
   if(event)events.push(event);
   const out=http.request({
     hostname:"127.0.0.1",port:9003,method:req.method,path:req.url,
     headers:{...req.headers,host:"localhost:9003"},
     timeout:9000,
   },response=>{
-    if(event)event.status=response.statusCode;
+    if(observed)observed.status=response.statusCode;
     res.writeHead(response.statusCode??502,response.headers);
     response.pipe(res);
   });
@@ -257,6 +273,83 @@ async function attackerForm(page,actor,marker,expectedCookie=false){
       originMatched:true,fetchSiteCrossSite:true,serverMutation:false,
     }));
 }
+/**
+ * A cross-site TOP-LEVEL browser navigation, not an iframe or a
+ * manually-injected request Cookie. 302 converts browser POST to GET;
+ * 307 preserves POST. Check the observed method independently to avoid
+ * treating a successful 302 GET as a successful credentialed write.
+ *
+ * expectedCookie=true only for the deliberately configured browser cookie
+ * fixture (SameSite=None; Secure). Server-default cookie inclusion is
+ * deliberately classified rather than hardcoded: recent Chrome
+ * default-Lax+POST navigation grace can differ from iframe behavior.
+ */
+async function topLevelNavigation(page,actor,kind,expectedCookie=false){
+  assert(["direct","302","307"].includes(kind));
+  const isAdmin=actor==="admin";
+  const route=isAdmin?"/admin/customers/"+encodeURIComponent(proof.A.customer.id):
+    "/store/customers/me";
+  const target=API+route;
+  const expectedMethod=kind==="302"?"GET":"POST";
+  const start=navigationEvents.length;
+  await page.goto(EVIL+"/",{waitUntil:"load"});
+  const responsePromise=page.waitForResponse(r=>
+    r.url()===target && r.request().method()===expectedMethod,
+    {timeout:12000});
+  await page.evaluate(data=>{
+    const form=document.createElement("form");
+    form.method="POST";
+    form.enctype="application/x-www-form-urlencoded";
+    form.action=data.action;
+    const input=document.createElement("input");
+    input.name=data.field;
+    input.value=data.marker;
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit(); // top-level navigation; no target/iframe
+  },{
+    action:kind==="direct"?target:
+      EVIL+"/__stage12z/redirect/"+kind+"/"+actor,
+    field:isAdmin?"last_name":"first_name",
+    marker:"CI-12Z-NO-MUTATION-"+randomBytes(5).toString("hex"),
+  });
+  const response=await responsePromise;
+  const matches=navigationEvents.slice(start).filter(x=>x.actor===actor);
+  assert.equal(matches.length,1,
+    "Top-level browser request count differed from the intended target");
+  const recorded=matches[0];
+  assert.equal(recorded.method,expectedMethod,
+    "Redirect unexpectedly changed the browser target method");
+  assert.equal(recorded.status,response.status(),
+    "Browser observed an HTTP status different from the HTTPS proxy");
+  assert(["cross-site","same-site","same-origin","none"].includes(recorded.fetchSite),
+    "Missing or unexpected Fetch Metadata on top-level navigation");
+  if(expectedCookie)assert.equal(recorded.hasCookie,true,
+    "SameSite=None; Secure fixture cookie was NOT sent on top-level navigation");
+  if(expectedMethod==="POST"){
+    assert([400,401,403].includes(response.status()),
+      "Top-level browser cross-site POST was unexpectedly accepted");
+    if(isAdmin && recorded.hasCookie)
+      assert.equal(response.status(),403,
+        "Authenticated Admin top-level cross-site POST bypassed the origin gate");
+    if(isAdmin && !recorded.hasCookie)
+      assert.equal(response.status(),401,
+        "Unauthenticated Admin top-level cross-site POST unexpected response");
+  }
+  const originClass=recorded.origin===EVIL?"ATTACKER":
+    recorded.origin==="null"?"NULL":
+    recorded.origin==="ABSENT"?"ABSENT":"OTHER";
+  assert.notEqual(originClass,"OTHER",
+    "Top-level browser request carried an unclassified Origin");
+  console.log("SHQIPSHOP_226_STAGE12Z_"+actor.toUpperCase()+
+    "_TOP_LEVEL_NAV_CLASS",JSON.stringify({
+      redirect:kind,cookiePolicy:expectedCookie?
+        "NONE_SECURE_BROWSER_FIXTURE":"SERVER_DEFAULT_RECENT",
+      method:recorded.method,cookieSent:recorded.hasCookie,
+      originClass,fetchSite:recorded.fetchSite,
+      httpStatus:response.status(),
+    }));
+}
 async function runActor(actor,browser){
   const context=await browser.newContext({ignoreHTTPSErrors:true});
   try{
@@ -276,6 +369,16 @@ async function runActor(actor,browser){
         "CI-12Y-UNTRUSTED-"+randomBytes(5).toString("hex"));
       assert.equal(await getProfile(page,actor),changed,
         "Cross-site browser form unexpectedly modified profile");
+      // Stage 12Z: top-level form navigation and browser redirects from
+      // an attacker origin while the issued cookie remains unmodified.
+      // Default-Lax browser grace may transmit recent cookies on top-level
+      // POST; classify actual Cookie, never claim it was necessarily absent.
+      for(const kind of ["direct","302","307"]){
+        phase=actor.toUpperCase()+"_DEFAULT_TOP_LEVEL_"+kind;
+        await topLevelNavigation(page,actor,kind);
+        assert.equal(await getProfile(page,actor),changed,
+          "Server-default top-level cross-site navigation modified profile");
+      }
       // Second browser-controlled case: SAME real signed Medusa cookie,
       // but with deliberately configured cross-site-capable attributes.
       // This does not assert that the Medusa development server sets them.
@@ -294,6 +397,15 @@ async function runActor(actor,browser){
         "CI-12Y-WITH-COOKIE-"+randomBytes(5).toString("hex"),true);
       assert.equal(await getProfile(page,actor),changed,
         "Real browser cross-site cookie POST changed profile");
+      // Stage 12Z: SameSite=None; Secure forces real credential delivery
+      // in the top-level and redirect variants. 302 GET may succeed;
+      // 307 POST must be denied on the scope-guarded Admin route.
+      for(const kind of ["direct","302","307"]){
+        phase=actor.toUpperCase()+"_NONE_SECURE_TOP_LEVEL_"+kind;
+        await topLevelNavigation(page,actor,kind,true);
+        assert.equal(await getProfile(page,actor),changed,
+          "Cross-site browser redirect/top-level mutation changed profile");
+      }
     } finally {
       phase=actor.toUpperCase()+"_RESTORE_PROFILE";
       await trustedMutation(page,actor,before);
@@ -319,6 +431,7 @@ async function main(){
   phase="ADMIN";
   await runActor("admin",browser);
   console.log("SHQIPSHOP_226_STAGE12Y_BROWSER_LAX_AND_NONE_SECURE_COOKIE_CLASSIFICATION_PASSED");
+  console.log("SHQIPSHOP_226_STAGE12Z_BROWSER_TOP_LEVEL_AND_302_307_REDIRECT_CLASSIFICATION_PASSED");
   console.log("SHQIPSHOP_226_STAGE12Y_NOT_PRODUCTION_CERTIFICATE_OR_PSP");
 }
 main().catch(()=>{
