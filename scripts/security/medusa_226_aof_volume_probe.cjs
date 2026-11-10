@@ -357,13 +357,37 @@ async function main(){
     explicitExpiry:lastSessionCookieAttributes.explicitExpiry,
   }));
   const signedValue=decodeURIComponent(finalCookie.slice("connect.sid=".length));
-  const sidMatch=/^s:([A-Za-z0-9_-]{10,})\.[A-Za-z0-9_-]+$/.exec(signedValue);
-  assert(sidMatch,"Medusa signed session cookie format not recognized");
-  const sessionKey="sess:"+sidMatch[1];
-  // Never print cookie, session ID, Redis key or private principals.
+  assert(signedValue.startsWith("s:"),"Medusa cookie missing expected signature marker");
+  const lastDot=signedValue.lastIndexOf(".");
+  assert(lastDot>12 && lastDot<signedValue.length-2,
+    "Medusa signed session cookie lacked separable session ID");
+  const sessionId=signedValue.slice(2,lastDot);
+  assert(sessionId.length>=10 && sessionId.length<=256 && !/[\s*\r\n]/.test(sessionId),
+    "Unexpected Medusa session ID shape");
+  console.log("SHQIPSHOP_226_STAGE12V_COOKIE_SESSION_ID_PARSED_NO_SECRET");
+  // Session keys are Medusa 'sess:' prefixed by default. Resolve only the
+  // exact ID from the real signed cookie. The fallback scan handles a valid
+  // prefixed key without ever printing session names or other Redis keys.
+  const expected="sess:"+sessionId;
+  const exactExists=docker("exec",third,"redis-cli","--raw","EXISTS",expected)==="1";
+  const matches=exactExists?[]:docker("exec",third,"redis-cli","--raw","--scan",
+    "--pattern","*"+sessionId+"*").split("\n")
+    .filter(key=>key.startsWith("sess:") && key.endsWith(sessionId));
+  console.log("SHQIPSHOP_226_STAGE12V_REDIS_SESSION_KEY_MATCH_CLASS",JSON.stringify({
+    standardPrefix:exactExists,alternativeMatches:matches.length,
+  }));
+  assert(exactExists||matches.length===1,
+    "Authentic Medusa cookie could not be mapped to one Redis session key");
+  const sessionKey=exactExists?expected:matches[0];
+  // Never print cookie, session ID, Redis key, session content or principals.
   assert.equal(docker("exec",third,"redis-cli","--raw","EXISTS",sessionKey),"1",
-    "Authenticated session does not have expected Medusa Redis record");
+    "Authenticated session key vanished before targeted TTL test");
   const nativeSessionPttl=Number(docker("exec",third,"redis-cli","--raw","PTTL",sessionKey));
+  console.log("SHQIPSHOP_226_STAGE12V_SESSION_NATIVE_TTL_CLASS",JSON.stringify({
+    positive:Number.isInteger(nativeSessionPttl) && nativeSessionPttl>0,
+    noExpiry:nativeSessionPttl===-1,
+    missing:nativeSessionPttl===-2,
+  }));
   assert(Number.isInteger(nativeSessionPttl) && nativeSessionPttl>0,
     "Authenticated Medusa Redis session has no positive server-side TTL");
   await correctA("admin",saved.admin);
