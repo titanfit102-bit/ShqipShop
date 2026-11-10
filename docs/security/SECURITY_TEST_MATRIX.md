@@ -1,5 +1,28 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-10 — Stage12AA exact installed Medusa 2.22.6 route export matrix
+
+| Version-locked package group | Route files | Exported HTTP methods | Potentially state-changing declarations | HTTP/session validation |
+| --- | ---: | ---: | ---: | --- |
+| Admin | 255 | 393 | 269 | UNKNOWN |
+| Store | 48 | 55 | 26 | UNKNOWN |
+| Auth | 16 | 20 | 16 | UNKNOWN |
+| Cloud, Hooks, RBAC | 15 | 26 | 14 | UNKNOWN |
+| **Total** | **334** | **494** | **325** | **NOT CERTIFIED** |
+
+| Gate | Outcome | Evidence type |
+| --- | --- | --- |
+| TypeScript AST method parser positive and false-positive negatives | 6/6 PASS | CI unit |
+| Installed version check, all compiled route.js modules parsed | 2.22.6, 0 unresolved | Disposable package static |
+| Stage12X two-path guard for Store/Admin profile | Scoped CI-only | NOT global route/session coverage |
+| Session/bearer/tenant/side-effect mapping for installed routes | UNKNOWN | Stage12AB NEXT |
+| Pinned original Medusa finance P0 | [FAILURE CI #42891775014](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42891775014) | RELEASE BLOCKED |
+
+[Stage12AA code e388f01](https://github.com/titanfit102-bit/ShqipShop/commit/e388f0181e42dd810afdf8b117a9108996885857), [Medusa 2.22.6 disposable CI #42891774946](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42891774946) **SUCCESS**: checked an exact 2.22.6 installed pnpm package under RUNNER_TEMP, AST-parsed only compiled dist/api route.js exports without invoking handlers. Identified **334 route files**, **494 exported HTTP method declarations**, **325 potentially state-changing method declarations** (POST/PUT/PATCH/DELETE), with **0 unresolved route files**. Admin 255 routes/393 methods/269 potentially changing; Store 48/55/26; Auth 16/20/16; Cloud+Hooks+RBAC 15/26/14. Six of six AST positives/negatives PASS, including prevention of false positives from comments, strings, non-exported names and void-only initializers; existing Stage12X policy, AOF, browser, identity and merchant-boundary checks remained successful.
+
+**Evidence classification:** static exported-method inventory of the *installed* disposable 2.22.6 package only. A source-file declaration is not proof of an active registered endpoint, caller session auth, bearer permission, availability under feature flags or an actual state mutation. GET/HEAD are not independently proven side-effect-free; POST can also implement reads. Auth middleware composition and per-route cookie acceptance UNKNOWN; framework vs project custom routing may differ. Production baseline 2.22.0 remains pinned, not inventoried by this candidate evidence. All global T02 CSRF, JWT/session revocation and Production gates OPEN.
+
+
 ## 2026-11-10 — Stage12Z Chromium HTTPS top-level / 302 / 307 matrix
 
 | Actor (recent default cookie; repeated with None;Secure browser fixture) | Target method | Cookie sent | HTTP | Meaning |
