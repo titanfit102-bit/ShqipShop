@@ -12,6 +12,7 @@ on:
       - scripts/security/medusa_226_redis_outage_probe.cjs
       - scripts/security/medusa_226_redis_restart_probe.cjs
       - scripts/security/medusa_226_aof_session_probe.cjs
+      - scripts/security/medusa_226_aof_volume_probe.cjs
   workflow_dispatch:
 
 permissions:
@@ -145,7 +146,7 @@ jobs:
           set -euo pipefail
           cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
           pnpm --filter @dtc/backend exec medusa db:migrate
-      - name: Stage 12O-S identity, session stall/crash and disposable AOF comparison
+      - name: Stage 12O-T identity, Redis failure, AOF and external-volume replacement
         env:
           SHQIPSHOP_STAGE12R_REDIS_A_ID: ${{ job.services.redis.id }}
           SHQIPSHOP_STAGE12R_REDIS_B_ID: ${{ job.services.redis_b.id }}

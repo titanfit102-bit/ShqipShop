@@ -111,14 +111,27 @@ pid_b=""
 pid_clone=""
 pid_aof=""
 aof_container=""
+aof_volume=""
+aof_next_cidfile=""
 cleanup() {
   for pid in "$pid_a" "$pid_b" "$pid_clone" "$pid_aof"; do
     if [[ -n "$pid" ]]; then
       kill -TERM -- "-$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
     fi
   done
-  if [[ -n "$aof_container" ]]; then
+  if [[ -n "$aof_container" && "$aof_container" =~ ^[a-f0-9]{64}$ ]]; then
     docker rm -f "$aof_container" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "$aof_next_cidfile" && -f "$aof_next_cidfile" ]]; then
+    new_id="$(cat "$aof_next_cidfile")"
+    if [[ "$new_id" =~ ^[a-f0-9]{64}$ ]]; then
+      docker rm -f "$new_id" >/dev/null 2>&1 || true
+    fi
+  fi
+  if [[ -n "$aof_volume" && "$aof_volume" == "shqipshop-stage12t-${GITHUB_RUN_ID:-}" ]]; then
+    if [[ "$(docker volume inspect --format '{{ index .Labels "shqipshop.scope" }}' "$aof_volume" 2>/dev/null || true)" == "stage12t-ci" ]]; then
+      docker volume rm "$aof_volume" >/dev/null 2>&1 || true
+    fi
   fi
 }
 trap cleanup EXIT
@@ -217,9 +230,13 @@ if timeout 2 bash -c 'echo > /dev/tcp/127.0.0.1/6382' >/dev/null 2>&1; then
   echo "::error::SHQIPSHOP_226_STAGE12S_REDIS_PORT_OCCUPIED"; exit 1
 fi
 aof_cidfile="$RUNNER_TEMP/shqipshop226-stage12s.cid"
+aof_next_cidfile="$RUNNER_TEMP/shqipshop226-stage12t-next.cid"
+aof_volume="shqipshop-stage12t-$GITHUB_RUN_ID"
+docker volume create --label shqipshop.scope=stage12t-ci "$aof_volume" >/dev/null
 docker run -d --cidfile "$aof_cidfile" \
   --name "shqipshop-stage12s-$GITHUB_RUN_ID" \
   --label shqipshop.scope=stage12s-ci \
+  --mount "type=volume,source=$aof_volume,target=/data" \
   --network bridge -p 127.0.0.1:6382:6379 \
   redis:7-alpine redis-server --save "" --appendonly yes --appendfsync always \
   > /dev/null
@@ -255,5 +272,9 @@ if [[ "$aof_api_ready" != "1" ]]; then
 fi
 export SHQIPSHOP_STAGE12S_AOF_ID="$aof_container"
 node "$GITHUB_WORKSPACE/scripts/security/medusa_226_aof_session_probe.cjs"
+export SHQIPSHOP_STAGE12T_OLD_ID="$aof_container"
+export SHQIPSHOP_STAGE12T_VOLUME="$aof_volume"
+export SHQIPSHOP_STAGE12T_NEXT_CIDFILE="$aof_next_cidfile"
+node "$GITHUB_WORKSPACE/scripts/security/medusa_226_aof_volume_probe.cjs"
 kill -0 "$pid_a" && kill -0 "$pid_b" && kill -0 "$pid_clone" && kill -0 "$pid_aof"
 echo "SHQIPSHOP_226_AB_NOT_PRODUCTION_OR_PSP_CERTIFICATION"
