@@ -1,5 +1,25 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-10 — Stage 12V session expiry matrix
+
+| Boundary | Scoped outcome | Status |
+| --- | --- | --- |
+| Genuine session key | Signed customer connect.sid maps to actual sess: key, native TTL positive | CI PASS |
+| Server expiry | Targeted disposable session PEXPIRE 2400 ms; expired cookie denied 401/403 | CI PASS |
+| AOF reload | AOF retained active A/B sessions and sentinel; expired cookie/key not restored | CI PASS |
+| Cookie attributes | HttpOnly and explicit expiry yes; SameSite absent in development candidate | OBSERVED, CSRF review OPEN |
+| Not certified | Natural browser expiry, production auth, bearer JWT revocation, host loss, PSP | OPEN |
+| Finance | Medusa 2.22.0 uncaptured/+1 ALL persisted refund failures | P0, NO RELEASE |
+
+[Stage 12V source 507798b](https://github.com/titanfit102-bit/ShqipShop/commit/507798b8a27137b12d65f166d21a6054c73550fb), [isolated Medusa 2.22.6 CI #42854128435](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42854128435): SUCCESS with 72/72 Python tests. A real signed synthetic Medusa connect.sid mapped to its actual Redis sess: record with native positive TTL. CI-only PEXPIRE 2400 ms was applied to that exact record. After expiry the cookie returned 401/403, and the expired record/cookie did not revive after another AOF container replacement on the same disposable volume. Active A Admin and B sessions remained correctly isolated, and a new A customer session worked.
+
+Observed on the 2.22.6 disposable development candidate: HttpOnly=true, explicit cookie expiry=true, SameSite attribute ABSENT. The missing attribute needs a separate CSRF/cookie-hardening investigation; it is not proof of a production exploit. The short CI-forced server-side TTL does not prove natural browser cookie expiry, absolute lifetime or bearer JWT revocation; post-logout JWT replay remains OPEN.
+
+At exact code SHA, all nine workflows completed: 8 SUCCESS, 1 genuine FAILURE. [Pinned Medusa 2.22.0 backend #42854128884](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42854128884) again persisted Admin refund without capture (11P) and +1 ALL excess refunds (11J/11O/11I), while 11E/11F order/payment retries passed. T05/S13 P0, RG-01/02/03 and G3/G5 stay BLOCKED: NO RELEASE.
+
+Next: Stage 12W evaluate SameSite/CSRF exposure on cookie-authenticated customer and Admin mutation routes using disposable positive/negative cases, separately assess JWT revocation and natural expiry. No production policy or release change without separate authorization and P0 remediation.
+
+
 ## 2026-11-10 — Stage 12U repeated Redis AOF replacement, revoked cookie and synthetic TTL
 
 | Check | Expected / observed | Evidence |

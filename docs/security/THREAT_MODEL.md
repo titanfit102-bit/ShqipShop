@@ -1,5 +1,16 @@
 # ShqipShop — Threat Model (current, privacy-safe)
 
+## 2026-11-10 — Stage 12V T02 expired-cookie replay and SameSite investigation
+
+[Stage 12V source 507798b](https://github.com/titanfit102-bit/ShqipShop/commit/507798b8a27137b12d65f166d21a6054c73550fb), [isolated Medusa 2.22.6 CI #42854128435](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42854128435): SUCCESS with 72/72 Python tests. A real signed synthetic Medusa connect.sid mapped to its actual Redis sess: record with native positive TTL. CI-only PEXPIRE 2400 ms was applied to that exact record. After expiry the cookie returned 401/403, and the expired record/cookie did not revive after another AOF container replacement on the same disposable volume. Active A Admin and B sessions remained correctly isolated, and a new A customer session worked.
+
+Negative replay of an expired session cookie passed after AOF restore, but unexpired cookie theft, cross-site state-changing requests and post-logout bearer JWT remain OPEN. SameSite was absent on a candidate response; no CSRF exploit was demonstrated.
+
+At exact code SHA, all nine workflows completed: 8 SUCCESS, 1 genuine FAILURE. [Pinned Medusa 2.22.0 backend #42854128884](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42854128884) again persisted Admin refund without capture (11P) and +1 ALL excess refunds (11J/11O/11I), while 11E/11F order/payment retries passed. T05/S13 P0, RG-01/02/03 and G3/G5 stay BLOCKED: NO RELEASE.
+
+Only synthetic CI Redis/session test script, temporary-container cleanup and candidate workflow step label changed. Initial code attempt [#42852968439](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42852968439) failed at session-record identification; corrected exact signed-cookie lookup passed on #42854128435. No Medusa production dependency/package/lock, live auth, financial logic, production settings, main merge or Draft PR status changed.
+
+
 ## 2026-11-10 — Stage 12U T02 revoked-cookie resurrection negative regression
 
 [Stage12U source 013c4f4](https://github.com/titanfit102-bit/ShqipShop/commit/013c4f4072027b1e2dd85c6bc446cbc558e0a2db) / [disposable Medusa 2.22.6 CI #42848271272](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42848271272): **SUCCESS**, 72/72 Python tests. Stage12U extends Stage12T's CI-only persistent Redis AOF named volume on localhost:6382 with a SECOND full Redis container removal and replacement, resulting in three different container IDs across the original / first / second replacement. After a pre-restart logout, the original A customer cookie remained denied (401/403) following the second replacement, while A Admin cookie and newly authenticated A customer cookie remained valid with their correct principal IDs. Foreign B cookies and customer-as-Admin were rejected; merchant B Redis and customer/Admin remained independent during hard outage and recovery. The original AOF key survived the second replacement, fresh A customer login succeeded and all tested processes remained healthy. A short-lived synthetic Redis key EX 8 expired after AOF replay, proving only Redis key TTL—not Medusa cookie expiration.
