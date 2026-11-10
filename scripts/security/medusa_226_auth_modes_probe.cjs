@@ -58,12 +58,13 @@ async function call(port,method,route,headers={},body){
 function identityHeaders(actor,mode,tenant="A"){
  const p=proof[tenant];
  const headers=actor==="customer"?{"x-publishable-api-key":proof.A.key}:{};
- if(mode==="cookie")headers.cookie=p[actor].cookie;
+ if(mode==="cookie")headers.cookie=freshCookies[tenant][actor];
  if(mode==="token")headers.authorization="Bearer "+tokens[tenant][actor];
  if(mode==="invalid")headers.authorization="Bearer invalid-stage12ab-token";
  return headers;
 }
 const tokens={A:{},B:{}};
+const freshCookies={A:{},B:{}};
 const credentials={
  A:{customer:["shopper-a@shqipshop.example.invalid","SHQIPSHOP_A_CUSTOMER_PASSWORD"],
     admin:["admin-a@shqipshop.example.invalid","SHQIPSHOP_A_ADMIN_PASSWORD"]},
@@ -87,8 +88,9 @@ async function login(tenant,actor){
  const sess=await call(port,"POST","/auth/session",
   {authorization:"Bearer "+r.data.token});
  assert.equal(sess.status,200,"Synthetic bearer-to-cookie exchange failed");
- assert((sess.headers.getSetCookie?.()??[]).some(x=>x.startsWith("connect.sid=")),
-  "Actual Medusa session cookie was not issued");
+ const signed=(sess.headers.getSetCookie?.()??[]).find(x=>x.startsWith("connect.sid="));
+ assert(signed && signed.length>40,"Actual Medusa session cookie was not issued");
+ freshCookies[tenant][actor]=signed.split(";")[0];
 }
 async function readRole(actor,route,responseKey,expectedId){
  const correct=identityHeaders(actor,"cookie");
@@ -107,6 +109,8 @@ async function readRole(actor,route,responseKey,expectedId){
    {...headers,"x-publishable-api-key":proof.A.key}:headers;
   const r=await call(9003,"GET",route,withKey);
   statuses[label]=r.status;
+  console.log("SHQIPSHOP_226_STAGE12AB_"+actor.toUpperCase()+
+    "_IDENTITY_MODE_CLASS",JSON.stringify({mode:label,httpStatus:r.status}));
   if(label==="cookie"||label==="bearer"){
    assert.equal(r.status,200,"Expected real "+actor+" "+label+" authenticated GET");
    assert.equal(r.data[responseKey]?.id,expectedId,
@@ -211,9 +215,9 @@ async function mutationBoundary(p){
    if(p.actor==="customer")
      headers["x-publishable-api-key"]=proof.A.key;
    if(mode==="wrong")
-     headers.cookie=proof.A[p.actor==="customer"?"admin":"customer"].cookie;
+     headers.cookie=freshCookies.A[p.actor==="customer"?"admin":"customer"];
    if(mode==="foreign")
-     headers.cookie=proof.B[p.actor].cookie;
+     headers.cookie=freshCookies.B[p.actor];
    const r=await call(9003,"POST",p.route,headers,JSON.stringify({[p.prop]:negative}));
    statuses[label]=r.status;
    denied(r.status,p.actor+" mutation "+label);
