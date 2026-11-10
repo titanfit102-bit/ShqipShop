@@ -1,5 +1,23 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-10 — Stage 12T AOF external named volume and cookie invalidation (EXACT-SHA CI VERIFIED)
+
+| Test | Evidence / expected invariant | Status |
+| --- | --- | --- |
+| Disposable volume | Redis AOF Docker volume with scoped label; original container removed, replacement has different ID and same attached volume | [CI #42843451926](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42843451926) PASS |
+| Storage continuity | Synthetic Redis key survives container deletion and recreation | PASS |
+| Auth continuity | Original A customer/Admin cookie identities accepted after replacement; fresh A login works | PASS |
+| Isolation during outage | B customer/Admin remains valid; protected A identity not returned while container absent | PASS |
+| Negative authorization | B foreign cookie, anonymous and customer-as-Admin requests denied on A | PASS |
+| Cookie logout | Logged-out A customer cookie replay denied; A Admin and B remain authenticated | PASS |
+| Not tested | Host or volume loss, backups, migration, expiry/rotation, JWT revocation, production availability | OPEN / UNKNOWN |
+| Financial safety | Pinned Medusa 2.22.0 persists uncaptured/+1 ALL refunds | [Backend #42843451925](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42843451925) genuine FAILURE, P0 BLOCKED |
+
+**Scope:** named volume survived a single **same-host CI Docker container replacement**, but was destroyed at job cleanup; this is NOT a production persistence deployment, off-host backup, volume migration, disk-loss recovery, corrupted AOF repair, Redis replication/failover, RPO/RTO, HTTPS/CSRF, PSP or HA proof. Restoring cookies may also restore stolen sessions; cookie logout tested here does NOT revoke the independent bearer JWTs (Stage12O still found post-logout JWTs HTTP 200). Production session TTL/rotation and all-device revocation remain OPEN. No changes to pinned Medusa 2.22.0, auth runtime, payments, production, main, or PR #12 Draft status.
+
+**Next authorized test direction:** in disposable CI, verify expiry and logout-invalidation persistence across a SECOND container replacement and classify backup/restore limitations. Do not approve production AOF or dependency version promotion without separate architecture, encryption, backup and security review; native finance P0 and JWT revocation need independent remediation authorization.
+
+
 ## 2026-11-10 — Stage 12S AOF persistence comparison matrix (EXACT-SHA CI VERIFIED)
 
 | Scope | Positive / negative outcome | Evidence |
