@@ -45,6 +45,7 @@ const ADMIN="https://admin.shop-a.test:9446";
 const domains=["api.shop-a.test","shop.shop-a.test","attacker.bad-shop.test","admin.shop-a.test"];
 const events=[];
 const navigationEvents=[];
+const stage12adEvents=[];
 const instances=[];
 let browser;
 let phase="START";
@@ -117,6 +118,23 @@ function handler(host,req,res){
     type:String(req.headers["content-type"]??"").split(";")[0],
     status:0,
   }:null;
+  // Stage12AD: inspect only scoped product/cart method+Origin+Cookie facts.
+  // Never record body values, session tokens, publishable key, IDs or usernames.
+  const isAdminProduct=/^\/admin\/products\/[^/]+\/?$/.test(route);
+  const isGuestCart=/^\/store\/carts\/[^/]+\/?$/.test(route);
+  const adObserved=(isAdminProduct||isGuestCart)&&["POST","OPTIONS"].includes(req.method)?{
+    target:isAdminProduct?"admin-product":"guest-cart",
+    method:req.method,
+    origin:typeof req.headers.origin==="string"?req.headers.origin:"ABSENT",
+    fetchSite:typeof req.headers["sec-fetch-site"]==="string"?
+      req.headers["sec-fetch-site"]:"ABSENT",
+    cookieSent:typeof req.headers.cookie==="string"&&
+      /(?:^|;\s*)connect\.sid=/.test(req.headers.cookie),
+    contentType:String(req.headers["content-type"]??"").split(";")[0],
+    publicKeySent:typeof req.headers["x-publishable-api-key"]==="string",
+    status:0,
+  }:null;
+  if(adObserved)stage12adEvents.push(adObserved);
   if(observed)navigationEvents.push(observed);
   const event=observed?.method==="POST"?observed:null;
   if(event)events.push(event);
@@ -126,6 +144,7 @@ function handler(host,req,res){
     timeout:9000,
   },response=>{
     if(observed)observed.status=response.statusCode;
+    if(adObserved)adObserved.status=response.statusCode;
     res.writeHead(response.statusCode??502,response.headers);
     response.pipe(res);
   });
@@ -425,6 +444,244 @@ async function runActor(actor,browser){
       "_TRUSTED_POSITIVE_AND_UNTRUSTED_NEGATIVE_PASSED");
   } finally {await context.close();}
 }
+
+/**
+ * Stage 12AD: browser-initiated product/cart mutation characterization, not
+ * exploitation of real users. Both routes are outside Stage12X's profile guard.
+ * Every successful browser mutation is restored with a separate signed CI
+ * cookie (or the guest's publishable key) and verified in disposable Postgres.
+ */
+function adDb(field,id){
+  assert(["title","email"].includes(field),"Allowed CI column only");
+  const table=field==="title"?"product":"cart";
+  assert(new RegExp("^(?:prod|cart)_[A-Za-z0-9_-]{8,}$").test(id));
+  const uri=new URL(env.SHQIPSHOP_STAGE12AD_DB_A);
+  assert(uri.protocol==="postgres:"&&uri.hostname==="127.0.0.1"&&uri.port==="5432"&&
+    uri.username==="shqipshop_226_a"&&uri.pathname==="/shqipshop_226_a"&&
+    uri.password.length>8&&!uri.hash&&!uri.search,"Exact synthetic A DB only");
+  const q="SELECT COALESCE("+field+",'') FROM "+table+
+    " WHERE id='"+id+"' AND deleted_at IS NULL";
+  const out=spawnSync("psql",["-X","-A","-t","-v","ON_ERROR_STOP=1",
+    "-d",env.SHQIPSHOP_STAGE12AD_DB_A,"-c",q],
+    {encoding:"utf8",timeout:12000,stdio:["ignore","pipe","ignore"]});
+  assert.equal(out.status,0,"Disposable PostgreSQL readback failed");
+  return out.stdout.trim();
+}
+async function adHttp(method,route,headers={},body){
+  const res=await fetch("http://127.0.0.1:9003"+route,{method,headers,
+    body:body===undefined?undefined:JSON.stringify(body),
+    redirect:"manual",signal:AbortSignal.timeout(12000)});
+  const raw=await res.text();
+  let data={};try{data=JSON.parse(raw)}catch{}
+  return {status:res.status,data};
+}
+async function adContextCookie(ctx){
+  const c=(await ctx.cookies(API)).find(c=>c.name==="connect.sid");
+  assert(c&&c.httpOnly&&c.value.length>30);
+  return {value:c.value,header:"connect.sid="+c.value};
+}
+async function adPolicyNone(ctx){
+  const original=await adContextCookie(ctx);
+  await ctx.addCookies([{name:"connect.sid",value:original.value,url:API,
+    secure:true,httpOnly:true,sameSite:"None"}]);
+  const next=(await ctx.cookies(API)).find(c=>c.name==="connect.sid");
+  assert(next&&next.value===original.value&&next.sameSite==="None"&&next.secure,
+    "Real Chromium None;Secure cookie fixture mismatch");
+}
+async function adRestore(s,baseline){
+  const headers={"content-type":"application/json"};
+  if(s.kind==="admin-product"){
+    headers.cookie=s.restoreCookie;
+    headers.origin=ADMIN;
+  } else {
+    headers["x-publishable-api-key"]=proof.A.key;
+    headers.origin=SHOP;
+  }
+  const r=await adHttp("POST",s.route,headers,{[s.field]:baseline});
+  assert.equal(r.status,200,"Scoped synthetic browser state restore failed");
+  assert.equal(adDb(s.field,s.id),baseline,"Browser probe database restore unverified");
+}
+function adObservedAfter(before,s){
+  return stage12adEvents.slice(before).filter(x=>x.target===s.kind);
+}
+async function adTrustedBrowser(page,s,value){
+  await page.goto(s.kind==="admin-product"?ADMIN+"/":SHOP+"/",{waitUntil:"load"});
+  const before=stage12adEvents.length;
+  const outcome=await page.evaluate(async d=>{
+    try{
+      const headers={"content-type":"application/json"};
+      if(d.key)headers["x-publishable-api-key"]=d.key;
+      const r=await fetch(d.target,{method:"POST",credentials:"include",headers,
+        body:JSON.stringify({[d.field]:d.value})});
+      return {type:"HTTP",status:r.status};
+    }catch(error){return {type:"ERROR",error:error?.name??"unknown"}}
+  },{target:API+s.route,field:s.field,value,key:s.kind==="guest-cart"?proof.A.key:null});
+  assert.deepEqual(outcome,{type:"HTTP",status:200},
+    "Genuine trusted browser JSON write failed");
+  const events=adObservedAfter(before,s).filter(x=>x.method==="POST");
+  assert.equal(events.length,1,"Trusted JSON POST was not observed by HTTPS reverse proxy");
+  assert.equal(events[0].cookieSent,true,"Genuine Medusa cookie absent on trusted browser write");
+  assert.equal(events[0].status,200);
+  assert.equal(adDb(s.field,s.id),value,"Trusted browser mutation not persisted");
+  console.log("SHQIPSHOP_226_STAGE12AD_"+s.kind.toUpperCase().replace("-","_")+
+    "_TRUSTED_BROWSER_JSON_PERSISTED");
+}
+function adClassify(s,before,marker){
+  const after=adDb(s.field,s.id);
+  assert(after===before||after===marker,"Unexpected mutation of synthetic DB value");
+  return after===marker?"PERSISTED":"NO_CHANGE";
+}
+async function adForm(page,s,mode,marker,policy){
+  phase="12AD_"+s.kind+"_FORM_"+policy+"_"+mode;
+  const start=stage12adEvents.length;
+  await page.goto(EVIL+"/",{waitUntil:"load"});
+  const target=API+s.route;
+  const responsePromise=page.waitForResponse(r=>
+    r.url()===target&&r.request().method()==="POST",{timeout:14000});
+  await page.evaluate(d=>{
+    const form=document.createElement("form");
+    form.method="POST";form.action=d.target;
+    form.enctype="application/x-www-form-urlencoded";
+    if(d.mode==="iframe"){
+      const frame=document.createElement("iframe");
+      frame.name="stage12ad-synthetic-frame";frame.style.display="none";
+      document.body.appendChild(frame);form.target=frame.name;
+    }
+    const input=document.createElement("input");
+    input.name=d.field;input.value=d.value;form.appendChild(input);
+    document.body.appendChild(form);form.submit();
+  },{target,field:s.field,value:marker,mode});
+  const response=await responsePromise;
+  if(mode==="top-level")
+    await page.waitForURL(target,{waitUntil:"domcontentloaded",timeout:14000});
+  else await response.finished();
+  const events=adObservedAfter(start,s).filter(x=>x.method==="POST");
+  assert.equal(events.length,1,"Expected one real native form POST");
+  const event=events[0];
+  assert.equal(event.origin,EVIL,"Unexpected native form origin");
+  assert.equal(event.fetchSite,"cross-site","Expected real cross-site browser metadata");
+  assert.equal(event.contentType,"application/x-www-form-urlencoded");
+  assert.equal(event.status,response.status());
+  if(policy==="NONE_SECURE_FIXTURE")assert(event.cookieSent,
+    "None; Secure Chrome fixture did not send real Medusa cookie");
+  assert([200,400,401,403,404,415,422].includes(response.status()),
+    "Unexpected real browser form HTTP status");
+  const persistence=adClassify(s,s.expected,marker);
+  console.log("SHQIPSHOP_226_STAGE12AD_FORM_CLASS",JSON.stringify({
+    route:s.kind,mode,cookiePolicy:policy,cookieSent:event.cookieSent,
+    publicKeySent:event.publicKeySent,httpStatus:response.status(),persistence,
+    realBrowser:true,
+  }));
+  if(persistence==="PERSISTED")await adRestore(s,s.expected);
+}
+async function adCrossFetch(page,s,marker,policy){
+  phase="12AD_"+s.kind+"_JSON_FETCH_"+policy;
+  const start=stage12adEvents.length;
+  await page.goto(EVIL+"/",{waitUntil:"load"});
+  const result=await page.evaluate(async d=>{
+    try{
+      const headers={"content-type":"application/json"};
+      if(d.key)headers["x-publishable-api-key"]=d.key;
+      const r=await fetch(d.target,{method:"POST",mode:"cors",
+        credentials:"include",headers,
+        body:JSON.stringify({[d.field]:d.value})});
+      return {kind:"HTTP",status:r.status};
+    }catch(error){return {kind:"BROWSER_REJECTED",type:error?.name??"unknown"}}
+  },{target:API+s.route,field:s.field,value:marker,
+    key:s.kind==="guest-cart"?proof.A.key:null});
+  const events=adObservedAfter(start,s);
+  const options=events.filter(x=>x.method==="OPTIONS");
+  const posts=events.filter(x=>x.method==="POST");
+  assert(options.length>=1,"Real JSON cross-site fetch was not preflighted");
+  assert(posts.length<=1,"Repeated cross-site POST request");
+  if(posts.length===0)assert.equal(result.kind,"BROWSER_REJECTED",
+    "Cross-site JSON without POST did not produce browser CORS denial");
+  const persistence=adClassify(s,s.expected,marker);
+  console.log("SHQIPSHOP_226_STAGE12AD_JSON_FETCH_CLASS",JSON.stringify({
+    route:s.kind,cookiePolicy:policy,
+    preflightObserved:options.length>=1,postSent:posts.length===1,
+    cookieOnPost:posts.length?posts[0].cookieSent:false,
+    browserResult:result.kind,httpStatus:posts.length?posts[0].status:null,
+    persistence,realBrowser:true,
+  }));
+  if(persistence==="PERSISTED")await adRestore(s,s.expected);
+}
+async function adCases(browser,s){
+  const ctx=await browser.newContext({ignoreHTTPSErrors:true});
+  try{
+    const page=await login(ctx,s.kind==="admin-product"?"admin":"customer");
+    const signed=await adContextCookie(ctx);
+    s.restoreCookie=signed.header;
+    const trusted=s.kind==="admin-product"?
+      "CI-12AD-TRUSTED-"+randomBytes(5).toString("hex"):
+      "ci12ad-trusted-"+randomBytes(5).toString("hex")+"@example.invalid";
+    try{
+      phase="12AD_"+s.kind+"_TRUSTED";
+      await adTrustedBrowser(page,s,trusted);
+      s.expected=trusted;
+      for(const policy of ["SERVER_RECENT_DEFAULT","NONE_SECURE_FIXTURE"]){
+        if(policy==="NONE_SECURE_FIXTURE")await adPolicyNone(ctx);
+        for(const mode of ["iframe","top-level"]){
+          const marker=s.kind==="admin-product"?
+            "CI-12AD-ATTACK-"+randomBytes(5).toString("hex"):
+            "ci12ad-attack-"+randomBytes(5).toString("hex")+"@example.invalid";
+          await adForm(page,s,mode,marker,policy);
+        }
+        const marker=s.kind==="admin-product"?
+          "CI-12AD-JSON-"+randomBytes(5).toString("hex"):
+          "ci12ad-json-"+randomBytes(5).toString("hex")+"@example.invalid";
+        await adCrossFetch(page,s,marker,policy);
+      }
+    }finally{
+      phase="12AD_"+s.kind+"_RESTORE_ORIGINAL";
+      if(adDb(s.field,s.id)!==s.original)await adRestore(s,s.original);
+      assert.equal(adDb(s.field,s.id),s.original,
+        "Final original synthetic value not restored");
+    }
+  }finally{await ctx.close();}
+}
+async function runStage12AD(browser){
+  phase="12AD_ADMIN_BASELINE";
+  const ctx=await browser.newContext({ignoreHTTPSErrors:true});
+  let product;
+  try{
+    await login(ctx,"admin");
+    const c=await adContextCookie(ctx);
+    const list=await adHttp("GET","/admin/products?limit=1",{cookie:c.header});
+    assert.equal(list.status,200);
+    product=list.data.products?.[0];
+    assert(product?.id&&typeof product.title==="string"&&product.title.length>0);
+  }finally{await ctx.close();}
+  const initialTitle=adDb("title",product.id);
+  assert.equal(initialTitle,product.title);
+  await adCases(browser,{kind:"admin-product",id:product.id,
+    route:"/admin/products/"+encodeURIComponent(product.id),
+    field:"title",original:initialTitle,expected:initialTitle});
+  phase="12AD_GUEST_CART_CREATE";
+  const regions=await adHttp("GET","/store/regions",
+    {"x-publishable-api-key":proof.A.key});
+  assert.equal(regions.status,200);
+  const region=regions.data.regions?.find(x=>x.name==="Shqipëri"&&x.currency_code==="all");
+  assert(region?.id);
+  const created=await adHttp("POST","/store/carts",
+    {"x-publishable-api-key":proof.A.key,"content-type":"application/json",
+      origin:SHOP},{region_id:region.id});
+  assert.equal(created.status,200);
+  const id=created.data.cart?.id;
+  assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(id));
+  const original="ci12ad-original-"+randomBytes(5).toString("hex")+"@example.invalid";
+  const cartRoute="/store/carts/"+encodeURIComponent(id);
+  const prepared=await adHttp("POST",cartRoute,
+    {"x-publishable-api-key":proof.A.key,"content-type":"application/json",origin:SHOP},
+    {email:original});
+  assert.equal(prepared.status,200);
+  assert.equal(adDb("email",id),original);
+  await adCases(browser,{kind:"guest-cart",id,route:cartRoute,
+    field:"email",original,expected:original});
+  console.log("SHQIPSHOP_226_STAGE12AD_REAL_CHROMIUM_HTML_AND_FETCH_SQL_CLASSIFICATION_COMPLETE");
+  console.log("SHQIPSHOP_226_STAGE12AD_CI_BROWSER_FIXTURES_NOT_PRODUCTION_TLS_OR_GLOBAL_CSRF");
+}
+
 async function main(){
   phase="TLS";
   await proxyServers(issueCert());
@@ -439,6 +696,8 @@ async function main(){
   await runActor("customer",browser);
   phase="ADMIN";
   await runActor("admin",browser);
+  phase="STAGE12AD";
+  await runStage12AD(browser);
   console.log("SHQIPSHOP_226_STAGE12Y_BROWSER_LAX_AND_NONE_SECURE_COOKIE_CLASSIFICATION_PASSED");
   console.log("SHQIPSHOP_226_STAGE12Z_BROWSER_TOP_LEVEL_AND_302_307_REDIRECT_CLASSIFICATION_PASSED");
   console.log("SHQIPSHOP_226_STAGE12Y_NOT_PRODUCTION_CERTIFICATE_OR_PSP");

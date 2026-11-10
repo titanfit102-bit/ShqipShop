@@ -304,7 +304,8 @@ node "$GITHUB_WORKSPACE/scripts/security/medusa_226_csrf_origin_probe.cjs"
 # Stage 12Y: real Chromium browser, local self-signed HTTPS reverse proxy
 # and different-site form submission. Only disposable Medusa AOF A; never
 # changes the candidate A/B/Production CORS or baseline authorization.
-node "$GITHUB_WORKSPACE/scripts/security/medusa_226_browser_cookie_probe.cjs"
+SHQIPSHOP_STAGE12AD_DB_A="$db_a" \
+ node "$GITHUB_WORKSPACE/scripts/security/medusa_226_browser_cookie_probe.cjs"
 # Stage 12AB: real AOF Medusa 2.22.6 HTTP actor/credential classification.
 # Separate from the two-path CI-only CSRF guard and outside payment/PSP.
 node "$GITHUB_WORKSPACE/scripts/security/medusa_226_auth_modes_probe.cjs"
