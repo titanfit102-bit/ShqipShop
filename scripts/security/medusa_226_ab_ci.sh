@@ -109,12 +109,17 @@ fi
 pid_a=""
 pid_b=""
 pid_clone=""
+pid_aof=""
+aof_container=""
 cleanup() {
-  for pid in "$pid_a" "$pid_b" "$pid_clone"; do
+  for pid in "$pid_a" "$pid_b" "$pid_clone" "$pid_aof"; do
     if [[ -n "$pid" ]]; then
       kill -TERM -- "-$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
     fi
   done
+  if [[ -n "$aof_container" ]]; then
+    docker rm -f "$aof_container" >/dev/null 2>&1 || true
+  fi
 }
 trap cleanup EXIT
 setsid env DATABASE_URL="$db_a" REDIS_URL="$redis_a" \
@@ -198,4 +203,57 @@ curl -fsS --max-time 5 http://127.0.0.1:9001/health >/dev/null
 echo "SHQIPSHOP_226_STAGE12P_SAME_MERCHANT_CROSS_PROCESS_COOKIE_PASSED"
 node "$GITHUB_WORKSPACE/scripts/security/medusa_226_redis_outage_probe.cjs"
 node "$GITHUB_WORKSPACE/scripts/security/medusa_226_redis_restart_probe.cjs"
+
+# Stage 12S: a NEW disposable Redis with append-only persistence starts with
+# AOF enabled. No mutation of the A or B service Redis instances. No real data.
+if [[ -z "${GITHUB_RUN_ID:-}" || ! "$GITHUB_RUN_ID" =~ ^[0-9]+$ ||
+      "$SHQIPSHOP_MEDUSA_CANDIDATE_CI" != "true" ]]; then
+  echo "::error::SHQIPSHOP_226_STAGE12S_SCOPE_REJECTED"; exit 1
+fi
+if curl -fsS --max-time 2 http://127.0.0.1:9003/health >/dev/null 2>&1; then
+  echo "::error::SHQIPSHOP_226_STAGE12S_API_PORT_OCCUPIED"; exit 1
+fi
+if timeout 2 bash -c 'echo > /dev/tcp/127.0.0.1/6382' >/dev/null 2>&1; then
+  echo "::error::SHQIPSHOP_226_STAGE12S_REDIS_PORT_OCCUPIED"; exit 1
+fi
+aof_cidfile="$RUNNER_TEMP/shqipshop226-stage12s.cid"
+docker run -d --cidfile "$aof_cidfile" \
+  --name "shqipshop-stage12s-$GITHUB_RUN_ID" \
+  --label shqipshop.scope=stage12s-ci \
+  --network bridge -p 127.0.0.1:6382:6379 \
+  redis:7-alpine redis-server --save "" --appendonly yes --appendfsync always \
+  > /dev/null
+aof_container="$(cat "$aof_cidfile")"
+[[ "$aof_container" =~ ^[a-f0-9]{64}$ ]] || {
+  echo "::error::SHQIPSHOP_226_STAGE12S_INVALID_CONTAINER"; exit 1
+}
+aof_ready=0
+for attempt in $(seq 1 50); do
+  if [[ "$(docker exec "$aof_container" redis-cli PING 2>/dev/null || true)" == "PONG" ]]; then
+    aof_ready=1; break
+  fi
+  sleep 1
+done
+if [[ "$aof_ready" != "1" ]]; then
+  echo "::error::SHQIPSHOP_226_STAGE12S_REDIS_NOT_READY"; exit 1
+fi
+setsid env DATABASE_URL="$db_a" REDIS_URL="redis://127.0.0.1:6382" \
+  JWT_SECRET="$secret_a" COOKIE_SECRET="$cookie_a" \
+  pnpm --filter @dtc/backend exec medusa develop --port 9003 \
+  > "$RUNNER_TEMP/shqipshop226-stage12s-api.log" 2>&1 &
+pid_aof=$!
+aof_api_ready=0
+for attempt in $(seq 1 100); do
+  if curl -fsS --max-time 3 http://127.0.0.1:9003/health >/dev/null 2>&1; then
+    aof_api_ready=1; break
+  fi
+  if ! kill -0 "$pid_aof" 2>/dev/null; then break; fi
+  sleep 3
+done
+if [[ "$aof_api_ready" != "1" ]]; then
+  echo "::error::SHQIPSHOP_226_STAGE12S_AOF_API_NOT_READY"; exit 1
+fi
+export SHQIPSHOP_STAGE12S_AOF_ID="$aof_container"
+node "$GITHUB_WORKSPACE/scripts/security/medusa_226_aof_session_probe.cjs"
+kill -0 "$pid_a" && kill -0 "$pid_b" && kill -0 "$pid_clone" && kill -0 "$pid_aof"
 echo "SHQIPSHOP_226_AB_NOT_PRODUCTION_OR_PSP_CERTIFICATION"
