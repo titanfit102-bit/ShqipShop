@@ -157,6 +157,7 @@ function inventoryCandidate({ts,apiRoot}) {
   assert(methodRows.filter(x=>x.unsafe).length>=25,"Too few unsafe Medusa methods");
   for(const [route,method] of [
     ["/store/customers/me","POST"],["/admin/customers/:id","POST"],
+    ["/admin/regions/:id","POST"],
   ]){
     assert(found.get(route)?.includes(method),"Expected built-in mutation path missing: "+route);
   }
@@ -176,6 +177,7 @@ function printSummary(result) {
   }
   const watched=[
     "/store/customers/me","/admin/customers/:id",
+    "/admin/regions/:id",
     "/store/carts/:id","/store/carts/:id/line-items",
     "/store/carts/:id/complete","/admin/payments/:id/refund",
   ];

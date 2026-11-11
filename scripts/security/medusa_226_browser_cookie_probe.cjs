@@ -121,9 +121,10 @@ function handler(host,req,res){
   // Stage12AD: inspect only scoped product/cart method+Origin+Cookie facts.
   // Never record body values, session tokens, publishable key, IDs or usernames.
   const isAdminProduct=/^\/admin\/products\/[^/]+\/?$/.test(route);
+  const isAdminRegion=/^\/admin\/regions\/[^/]+\/?$/.test(route);
   const isGuestCart=/^\/store\/carts\/[^/]+\/?$/.test(route);
-  const adObserved=(isAdminProduct||isGuestCart)&&["POST","OPTIONS"].includes(req.method)?{
-    target:isAdminProduct?"admin-product":"guest-cart",
+  const adObserved=(isAdminProduct||isAdminRegion||isGuestCart)&&["POST","OPTIONS"].includes(req.method)?{
+    target:isAdminProduct?"admin-product":isAdminRegion?"admin-region":"guest-cart",
     method:req.method,
     origin:typeof req.headers.origin==="string"?req.headers.origin:"ABSENT",
     fetchSite:typeof req.headers["sec-fetch-site"]==="string"?
@@ -452,9 +453,10 @@ async function runActor(actor,browser){
  * cookie (or the guest's publishable key) and verified in disposable Postgres.
  */
 function adDb(field,id){
-  assert(["title","email"].includes(field),"Allowed CI column only");
-  const table=field==="title"?"product":"cart";
-  assert(new RegExp("^(?:prod|cart)_[A-Za-z0-9_-]{8,}$").test(id));
+  const columns={title:["product","prod"],email:["cart","cart"],name:["region","reg"]};
+  assert(Object.hasOwn(columns,field),"Allowed CI column only");
+  const [table,prefix]=columns[field];
+  assert(new RegExp("^"+prefix+"_[A-Za-z0-9_-]{8,}$").test(id));
   const uri=new URL(env.SHQIPSHOP_STAGE12AD_DB_A);
   assert(uri.protocol==="postgres:"&&uri.hostname==="127.0.0.1"&&uri.port==="5432"&&
     uri.username==="shqipshop_226_a"&&uri.pathname==="/shqipshop_226_a"&&
@@ -490,7 +492,7 @@ async function adPolicyNone(ctx){
 }
 async function adRestore(s,baseline){
   const headers={"content-type":"application/json"};
-  if(s.kind==="admin-product"){
+  if(s.kind.startsWith("admin-")){
     headers.cookie=s.restoreCookie;
     headers.origin=ADMIN;
   } else {
@@ -505,7 +507,7 @@ function adObservedAfter(before,s){
   return stage12adEvents.slice(before).filter(x=>x.target===s.kind);
 }
 async function adTrustedBrowser(page,s,value){
-  await page.goto(s.kind==="admin-product"?ADMIN+"/":SHOP+"/",{waitUntil:"load"});
+  await page.goto(s.kind.startsWith("admin-")?ADMIN+"/":SHOP+"/",{waitUntil:"load"});
   const before=stage12adEvents.length;
   const outcome=await page.evaluate(async d=>{
     try{
@@ -532,7 +534,7 @@ function adClassify(s,before,marker){
   return after===marker?"PERSISTED":"NO_CHANGE";
 }
 async function adForm(page,s,mode,marker,policy){
-  phase="12AD_"+s.kind+"_FORM_"+policy+"_"+mode;
+  phase=(s.kind==="admin-region"?"12AF_":"12AD_")+s.kind+"_FORM_"+policy+"_"+mode;
   const start=stage12adEvents.length;
   await page.goto(EVIL+"/",{waitUntil:"load"});
   const target=API+s.route;
@@ -575,7 +577,9 @@ async function adForm(page,s,mode,marker,policy){
     assert.equal(persistence,"NO_CHANGE",
       "Stage12AE Admin product browser attack persisted a mutation");
   }
-  console.log("SHQIPSHOP_226_STAGE12AD_FORM_CLASS",JSON.stringify({
+  console.log(s.kind==="admin-region"?
+    "SHQIPSHOP_226_STAGE12AF_ADMIN_REGION_BROWSER_FORM_CLASS":
+    "SHQIPSHOP_226_STAGE12AD_FORM_CLASS",JSON.stringify({
     route:s.kind,mode,cookiePolicy:policy,cookieSent:event.cookieSent,
     publicKeySent:event.publicKeySent,httpStatus:response.status(),persistence,
     realBrowser:true,
@@ -583,7 +587,7 @@ async function adForm(page,s,mode,marker,policy){
   if(persistence==="PERSISTED")await adRestore(s,s.expected);
 }
 async function adCrossFetch(page,s,marker,policy){
-  phase="12AD_"+s.kind+"_JSON_FETCH_"+policy;
+  phase=(s.kind==="admin-region"?"12AF_":"12AD_")+s.kind+"_JSON_FETCH_"+policy;
   const start=stage12adEvents.length;
   await page.goto(EVIL+"/",{waitUntil:"load"});
   const result=await page.evaluate(async d=>{
@@ -605,7 +609,9 @@ async function adCrossFetch(page,s,marker,policy){
   if(posts.length===0)assert.equal(result.kind,"BROWSER_REJECTED",
     "Cross-site JSON without POST did not produce browser CORS denial");
   const persistence=adClassify(s,s.expected,marker);
-  console.log("SHQIPSHOP_226_STAGE12AD_JSON_FETCH_CLASS",JSON.stringify({
+  console.log(s.kind==="admin-region"?
+    "SHQIPSHOP_226_STAGE12AF_ADMIN_REGION_JSON_FETCH_CLASS":
+    "SHQIPSHOP_226_STAGE12AD_JSON_FETCH_CLASS",JSON.stringify({
     route:s.kind,cookiePolicy:policy,
     preflightObserved:options.length>=1,postSent:posts.length===1,
     cookieOnPost:posts.length?posts[0].cookieSent:false,
@@ -617,31 +623,31 @@ async function adCrossFetch(page,s,marker,policy){
 async function adCases(browser,s){
   const ctx=await browser.newContext({ignoreHTTPSErrors:true});
   try{
-    const page=await login(ctx,s.kind==="admin-product"?"admin":"customer");
+    const page=await login(ctx,s.kind.startsWith("admin-")?"admin":"customer");
     const signed=await adContextCookie(ctx);
     s.restoreCookie=signed.header;
-    const trusted=s.kind==="admin-product"?
-      "CI-12AD-TRUSTED-"+randomBytes(5).toString("hex"):
+    const trusted=s.kind.startsWith("admin-")?
+      "CI-"+(s.kind==="admin-region"?"12AF":"12AD")+"-TRUSTED-"+randomBytes(5).toString("hex"):
       "ci12ad-trusted-"+randomBytes(5).toString("hex")+"@example.invalid";
     try{
-      phase="12AD_"+s.kind+"_TRUSTED";
+      phase=(s.kind==="admin-region"?"12AF_":"12AD_")+s.kind+"_TRUSTED";
       await adTrustedBrowser(page,s,trusted);
       s.expected=trusted;
       for(const policy of ["SERVER_RECENT_DEFAULT","NONE_SECURE_FIXTURE"]){
         if(policy==="NONE_SECURE_FIXTURE")await adPolicyNone(ctx);
         for(const mode of ["iframe","top-level"]){
-          const marker=s.kind==="admin-product"?
-            "CI-12AD-ATTACK-"+randomBytes(5).toString("hex"):
+          const marker=s.kind.startsWith("admin-")?
+            "CI-"+(s.kind==="admin-region"?"12AF":"12AD")+"-ATTACK-"+randomBytes(5).toString("hex"):
             "ci12ad-attack-"+randomBytes(5).toString("hex")+"@example.invalid";
           await adForm(page,s,mode,marker,policy);
         }
-        const marker=s.kind==="admin-product"?
-          "CI-12AD-JSON-"+randomBytes(5).toString("hex"):
+        const marker=s.kind.startsWith("admin-")?
+          "CI-"+(s.kind==="admin-region"?"12AF":"12AD")+"-JSON-"+randomBytes(5).toString("hex"):
           "ci12ad-json-"+randomBytes(5).toString("hex")+"@example.invalid";
         await adCrossFetch(page,s,marker,policy);
       }
     }finally{
-      phase="12AD_"+s.kind+"_RESTORE_ORIGINAL";
+      phase=(s.kind==="admin-region"?"12AF_":"12AD_")+s.kind+"_RESTORE_ORIGINAL";
       if(adDb(s.field,s.id)!==s.original)await adRestore(s,s.original);
       assert.equal(adDb(s.field,s.id),s.original,
         "Final original synthetic value not restored");
@@ -691,6 +697,32 @@ async function runStage12AD(browser){
   console.log("SHQIPSHOP_226_STAGE12AD_CI_BROWSER_FIXTURES_NOT_PRODUCTION_TLS_OR_GLOBAL_CSRF");
 }
 
+
+/** Stage12AF: one other high-impact built-in Admin commerce-region setting.
+ * Only the synthetic region name is modified, never currency/tax/providers.
+ */
+async function runStage12AF(browser){
+  phase="12AF_ADMIN_REGION_BASELINE";
+  const ctx=await browser.newContext({ignoreHTTPSErrors:true});
+  let region;
+  try{
+    await login(ctx,"admin");
+    const signed=await adContextCookie(ctx);
+    const list=await adHttp("GET","/admin/regions?limit=100",{cookie:signed.header});
+    assert.equal(list.status,200,"Region Admin list unavailable");
+    region=list.data.regions?.find(x=>x.name==="Shqipëri"&&x.currency_code==="all");
+    assert(region?.id&&/^reg_[A-Za-z0-9_-]{8,}$/.test(region.id),
+      "Expected seeded synthetic Albania region");
+  }finally{await ctx.close();}
+  const original=adDb("name",region.id);
+  assert.equal(original,region.name,"Browser region HTTP/SQL baseline mismatch");
+  await adCases(browser,{kind:"admin-region",id:region.id,
+    route:"/admin/regions/"+encodeURIComponent(region.id),
+    field:"name",original,expected:original});
+  console.log("SHQIPSHOP_226_STAGE12AF_REAL_CHROMIUM_REGION_CSRF_CLASSIFICATION_AND_RESTORE_PASSED");
+  console.log("SHQIPSHOP_226_STAGE12AF_CI_ONLY_NOT_PRODUCTION_CSRF_CERTIFICATION");
+}
+
 async function main(){
   phase="TLS";
   await proxyServers(issueCert());
@@ -707,6 +739,8 @@ async function main(){
   await runActor("admin",browser);
   phase="STAGE12AD";
   await runStage12AD(browser);
+  phase="STAGE12AF";
+  await runStage12AF(browser);
   console.log("SHQIPSHOP_226_STAGE12Y_BROWSER_LAX_AND_NONE_SECURE_COOKIE_CLASSIFICATION_PASSED");
   console.log("SHQIPSHOP_226_STAGE12Z_BROWSER_TOP_LEVEL_AND_302_307_REDIRECT_CLASSIFICATION_PASSED");
   console.log("SHQIPSHOP_226_STAGE12Y_NOT_PRODUCTION_CERTIFICATE_OR_PSP");

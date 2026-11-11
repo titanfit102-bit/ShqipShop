@@ -38,7 +38,8 @@ for(const [merchant,name] of [["A","shqipshop_226_a"],["B","shqipshop_226_b"]]){
 }
 function pg(tenant,table,column,id){
  assert((table==="product"&&column==="title"&&/^prod_[A-Za-z0-9_-]{8,}$/.test(id))||
-   (table==="cart"&&column==="email"&&/^cart_[A-Za-z0-9_-]{8,}$/.test(id)));
+   (table==="cart"&&column==="email"&&/^cart_[A-Za-z0-9_-]{8,}$/.test(id))||
+   (table==="region"&&column==="name"&&/^reg_[A-Za-z0-9_-]{8,}$/.test(id)));
  const query="SELECT COALESCE("+column+",'') FROM "+table+
    " WHERE id='"+id+"' AND deleted_at IS NULL";
  return execFileSync("psql",["-X","-A","-t","-v","ON_ERROR_STOP=1",
@@ -135,6 +136,59 @@ async function adminProduct(adminA,adminB,customerA){
   assert.equal(pg("B","product","title",bid),beforeB);
  }
 }
+
+async function adminRegion(adminA,adminB,customerA){
+ phase="12AF_ADMIN_REGION_BASELINE";
+ const [a,b]=await Promise.all([
+  call(9003,"GET","/admin/regions?limit=100",{cookie:adminA}),
+  call(9001,"GET","/admin/regions?limit=100",{cookie:adminB}),
+ ]);
+ assert.equal(a.status,200,"A Admin region listing failed");
+ assert.equal(b.status,200,"B Admin region listing failed");
+ const ar=a.data.regions?.find(x=>x.name==="Shqipëri"&&x.currency_code==="all");
+ const br=b.data.regions?.find(x=>x.name==="Shqipëri"&&x.currency_code==="all");
+ assert(ar?.id&&br?.id&&ar.id!==br.id,"Independent CI Albania regions missing");
+ const original=pg("A","region","name",ar.id);
+ const originalB=pg("B","region","name",br.id);
+ assert.equal(original,ar.name);assert.equal(originalB,br.name);
+ const trusted="CI-12AF-TRUSTED-"+nonce(),other="CI-12AF-FOREIGN-"+nonce();
+ const update=(name,cookie,origin)=>call(9003,"POST",
+  "/admin/regions/"+encodeURIComponent(ar.id),headers(cookie,null,origin),{name});
+ try{
+  phase="12AF_REGION_TRUSTED";
+  const positive=await update(trusted,adminA,good.admin);
+  assert.equal(positive.status,200,"Trusted Admin region mutation denied");
+  assert.equal(pg("A","region","name",ar.id),trusted,"Region write not persisted");
+  phase="12AF_REGION_CREDENTIAL_DENIAL";
+  const statuses={};
+  for(const [label,cookie] of [["missing",null],["customer",customerA],["merchantB",adminB]]){
+   const rejected=await update(other,cookie,good.admin);
+   statuses[label]=rejected.status;
+   denied(rejected.status,label+" Admin region write");
+   assert.equal(pg("A","region","name",ar.id),trusted,"Denied region write persisted");
+  }
+  phase="12AF_REGION_UNTRUSTED_ORIGIN";
+  const foreign=await update(other,adminA,evil);
+  const state=classify(foreign.status,pg("A","region","name",ar.id),trusted,other);
+  assert.equal(pg("B","region","name",br.id),originalB,"Tenant B region changed");
+  console.log("SHQIPSHOP_226_STAGE12AF_REGION_DIRECT_HTTP_POSTGRES_CLASS",JSON.stringify({
+   trusted:positive.status,missing:statuses.missing,wrongRole:statuses.customer,
+   foreignMerchant:statuses.merchantB,foreignOriginHttp:foreign.status,
+   foreignOriginPersistence:state,browserAttackNotYetMeasured:true,
+  }));
+ }finally{
+  phase="12AF_REGION_RESTORE";
+  if(pg("A","region","name",ar.id)!==original){
+   const restored=await update(original,adminA,good.admin);
+   assert.equal(restored.status,200,"Region name restoration rejected");
+  }
+  assert.equal(pg("A","region","name",ar.id),original,
+   "A region name not restored in PostgreSQL");
+  assert.equal(pg("B","region","name",br.id),originalB,
+   "B region name changed during test");
+ }
+}
+
 async function guestCart(customerA,adminB){
  phase="CART_CREATE";
  const regions=await call(9003,"GET","/store/regions",
@@ -196,6 +250,7 @@ async function main(){
  const adminB=await login(9001,"B","admin");
  const customerA=await login(9003,"A","customer");
  await adminProduct(adminA,adminB,customerA);
+ await adminRegion(adminA,adminB,customerA);
  await guestCart(customerA,adminB);
  const a=await call(9003,"GET","/health"),b=await call(9001,"GET","/health");
  assert.equal(a.status,200);assert.equal(b.status,200);
