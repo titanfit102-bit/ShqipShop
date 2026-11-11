@@ -1,5 +1,30 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-11 — Stage12AE pre/post browser CSRF regression, 2.22.6 CI only
+
+| Selected case | Stage12AD before | Stage12AE exact-code CI | PostgreSQL |
+| --- | --- | --- | --- |
+| Admin product, trusted same-site JSON + Cookie | 200 | **200** | Updated, original restored |
+| Attacker iframe form, server-default cookie omitted | 401 | **401** | No mutation (no Cookie) |
+| Attacker top-level form, recent server-default Cookie sent | **200/persisted** | **403** | **No mutation** |
+| Attacker iframe form, None;Secure Cookie sent | **200/persisted** | **403** | **No mutation** |
+| Attacker top-level form, None;Secure Cookie sent | **200/persisted** | **403** | **No mutation** |
+| Direct foreign-Origin Admin Cookie JSON POST | **200/persisted** | **403** | **No mutation** |
+| Missing credentials / wrong role / B Admin cookie | 401 | **401** | No mutation |
+| Attacker JSON fetch | Preflight blocks POST | Preflight blocks POST | No mutation |
+| Stage12X unit policy checks | 5 prior | **6 PASS** | Synthetic Node/TS units |
+| Guest cart, missing publishable key browser form | 400 | **400** | No mutation, not owner-CSRF proof |
+| Other Medusa mutations / Production | UNKNOWN | **UNKNOWN** | No global certification |
+
+[Stage12AE code 2e3222d](https://github.com/titanfit102-bit/ShqipShop/commit/2e3222d1fa006f9bc9d045697b35360267922f4f), [exact Medusa 2.22.6 browser/HTTP CI #42927329805](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42927329805) **SUCCESS**: extended the existing *CI-only, AOF port 6382, Medusa 2.22.6* Stage12X cookie Origin/Fetch-Metadata/JSON guard by exactly one additional `POST /admin/products/:id` matcher. Tested with real Chromium + original signed Medusa Admin cookie: the previously exploitable **recent server-default top-level attacker form with Cookie** now returned **403 and no PostgreSQL mutation**; controlled `SameSite=None; Secure` attacker iframe and top-level forms with Cookie also returned **403 / no mutation**. Server-default iframe omitted Cookie and returned **401 / no mutation** (not evidence of the guard).
+
+Trusted same-site Admin JSON POST continued to return **200 and persist**, and the synthetic product title was restored to its original value with direct PostgreSQL readback; tenant-B resource stayed isolated. Manual foreign-Origin Admin-cookie JSON POST also returned **403**, not the predecessor Stage12AC's 200+persisted. Credential-free, wrong-role and B-admin cookie writes remained 401. Six Stage12X TypeScript unit tests passed, including exact-only POST matching, denied external/missing/invalid Origins, rejected browser form content type, fail-closed Fetch Metadata, and out-of-scope/non-CI pass-through. Existing customer/Admin profile Stage12X, Stage12Y-Z browser, Stage12AB identity, Stage12AC guest-cart tests all remained successful.
+
+**Boundaries:** this is an **isolated experimental CI-only gate**, not Medusa 2.22.0/Production CSRF remediation. It applies only to the two existing customer/Admin profile route matchers plus the new Admin product POST matcher, with explicit runner/version/Redis conditions; other 322+ changing methods from the installed inventory are not claimed safe. Browser JSON `fetch` attacker preflight remains blocked before POST; the guest-cart public-key and possession behavior is unchanged and not evidence of registered-cart ownership. No production config, session cookie policy, global anti-CSRF token, payment/PSP, dependency lockfile, main or release gates changed. Previous exploitable CI evidence remains preserved in [Stage12AD pre-guard CI #42923862169](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42923862169).
+
+**Release veto unchanged:** exact Stage12AE code SHA 9 GitHub workflows = **8 SUCCESS / 1 FAILURE**. [pinned 2.22.0 financial CI #42927330046](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42927330046) again persisted **uncaptured Admin refund** (11P) and **+1 ALL over-refunds** (11J, 11O, 11I) in disposable native 2.22.0 flows. T02 global CSRF **OPEN**, T05/S13 P0 and RG-01/02/03, G3/G5 **BLOCKED: NO RELEASE**. Draft PR #12 remains stacked on PR #11; no main merge.
+
+
 ## 2026-11-11 — Stage12AD Chrome HTTPS / PostgreSQL browser-CSRF matrix, Medusa 2.22.6 CI
 
 | Actual Chromium operation | Cookie attached | Browser HTTP result | SQL persisted? | Interpretation |
