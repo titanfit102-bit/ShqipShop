@@ -1,5 +1,31 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-11 — Stage12AF Admin region real HTTP / Chromium / PostgreSQL matrix
+
+| Scoped Medusa 2.22.6 CI case | Browser/HTTP | Persisted? | Interpretation |
+| --- | --- | --- | --- |
+| A Admin trusted JSON region-name POST | 200 | Yes; then restored | Positive authorized mutation |
+| No-cookie / customer cookie / B Admin cookie POST | 401 / 401 / 401 | No | Auth/role/tenant denial |
+| Foreign Origin direct JSON with A Admin cookie | **200** | **Yes; then restored** | Server Origin trust gap (direct client) |
+| Chromium attacker iframe, default cookie omitted | 401 | No | Cookie not sent, not protection proof |
+| **Chromium attacker top-level form, default recent cookie sent** | **200** | **Yes; then restored** | **Browser-real Admin region CSRF** |
+| **Chromium attacker iframe, browser None;Secure cookie sent** | **200** | **Yes; then restored** | **Browser-real CI fixture CSRF** |
+| **Chromium attacker top-level, browser None;Secure cookie sent** | **200** | **Yes; then restored** | **Browser-real CI fixture CSRF** |
+| Chromium cross-site JSON fetch both cookie policies | CORS preflight; no POST | No | Cannot substitute for form protection |
+| Existing Stage12AE Admin product cross-site forms | 403 when Cookie sent | No | Narrow CI-only product guard still works |
+| Production / other Admin and Store mutations | UNKNOWN | UNKNOWN | CSRF release gate OPEN |
+
+[Stage12AF code d5cbea7](https://github.com/titanfit102-bit/ShqipShop/commit/d5cbea7d4a0bebf163d225927efec44f99265f6e); [Medusa 2.22.6 disposable Chromium/AOF/PostgreSQL CI #42931945599](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42931945599) **SUCCESS as an evidence-gathering test, NOT protection**. The installed compiled export inventory explicitly showed `POST /admin/regions/:id` (separate from three Stage12X/12AE protected profile/product matchers). We selected ONLY the synthetic Albania region's **name**; no currency, tax, shipping provider, price, payment or order configuration was changed.
+
+Authenticated A Admin JSON POST from trusted Origin returned **200 and persisted** a reversible region-name change. No cookie, A customer cookie and B Admin cookie returned **401** and changed no PostgreSQL row. An external-Origin JSON POST **manually carrying A Admin cookie** returned **200 and persisted** the region-name change; B region remained unchanged. These values were checked via direct PostgreSQL SELECT, and the original Albania name was restored in `finally` both for HTTP and browser test stages.
+
+**Real Chromium, attacker-origin HTML forms:** with the recent server-default cookie, iframe omitted cookie and got **401/no mutation**, but **top-level form automatically transmitted valid Admin Cookie, returned 200 and persisted** the synthetic region name. With real signed session cookie deliberately reconfigured in Chromium's cookie jar to `SameSite=None; Secure`, iframe and top-level browser forms both transmitted Cookie, returned **200 and persisted** changes. Every change was independently restored and SQL-verified. Cross-site credentialed JSON fetch had a real CORS preflight and **no POST** under both cookie policies; no mutation. Browser CORS preflight does not protect native HTML forms. The previous scoped Stage12AE Admin product guard still denied its own tested attacks 403.
+
+**Risk classification:** browser-real CSRF **CONFIRMED in the single isolated Medusa 2.22.6 AOF CI/Admin region configuration**. Not a proven Production compromise, Medusa 2.22.0 result, other browsers or entire route inventory. Tested localhost-mapped synthetic HTTPS hosts with self-signed cert (browser verification bypassed), recent session-cookie window and experimental alternative cookie fixture; no live accounts. A region **name** mutation demonstrates state change, not a payment/financial exploit. No CSRF mitigation was added for regions in Stage12AF. The two separate Admin mutation findings indicate a **systemic coverage concern**, while all other unsafe routes remain individually UNKNOWN; do not extrapolate to all 325 without runtime proof.
+
+**Release remains forbidden:** exact Stage12AF code SHA GitHub Actions **8 SUCCESS / 1 FAILURE**. [Pinned Medusa 2.22.0 native finance CI #42931945576](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42931945576) again accepted/persisted **uncaptured Admin refund (11P)** and **+1 ALL over-refunds (11J/11O/11I)**. T02 (global session CSRF) OPEN, T05/S13 P0 and release gates RG-01/02/03, G3/G5 BLOCKED. Draft PR #12 stacked on PR #11; main, Production, real PSP/payments and baseline dependencies unchanged. Earlier unmitigated product browser proof remains at [Stage12AD CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42923862169), while Stage12AE scoped mitigation stays green.
+
+
 ## 2026-11-11 — Stage12AE pre/post browser CSRF regression, 2.22.6 CI only
 
 | Selected case | Stage12AD before | Stage12AE exact-code CI | PostgreSQL |
