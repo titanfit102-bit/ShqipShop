@@ -1,5 +1,12 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-13 — Independent audit source review: native privacy and lifecycle risks remain OPEN
+
+Independent report on earlier `17f47ba3` identified N01–N05. Compare to current code verified **no native or Next code changes** through the post-Stage12AG docs HEAD. N01 (private cart resurrection after logout/reset) is **SOURCE CONFIRMED, synthetic harness REPRODUCED; real-device E2E UNKNOWN**; classify P0 **for any authenticated native pilot**, not for a PWA-only target. N04 stale auth response can reauthorize after logout, N02 registration bootstrap after signed-out marker, N03 completed cart 200 reuse, N05 Next guest receipt proof mismatch are SOURCE CONFIRMED with synthetic/function contract evidence, not live exploits. All remain OPEN for their relevant clients. See [ROADMAP](../ROADMAP.md) for ordered, test-specific remediation. No live PII leak, money loss or production incident proven by this report.
+
+R01 **CONFIRMED P0** (native Medusa 2.22.0 refund sentinels), R02 only **PARTIAL exact-CI scoped region/product/profile guarded**, global session CSRF OPEN, R03 installed 2.22.0 query-security exposure OPEN. [Stage12AG verified CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401851) and [pinned finance failure](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401868) remain distinct evidence. Maintain T02/T05/S13 and RG-01/02/03/G3/G5 BLOCKED; do not change gate status by documentation. No money, session policy or dependency mutation.
+
+
 ## 2026-11-12 — T02 Stage12AG isolated region guard VERIFIED; global CSRF OPEN
 
 [Stage12AG code 8af9bd3](https://github.com/titanfit102-bit/ShqipShop/commit/8af9bd36f7152dd3ab0d76404ae6a13df48972ae); [isolated Medusa 2.22.6 Chromium/AOF/PostgreSQL CI #43325401851](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401851) **SUCCESS**; exact code SHA: **8 workflows SUCCESS, 1 mandatory financial FAILURE** ([pinned 2.22.0 #43325401868](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401868)).

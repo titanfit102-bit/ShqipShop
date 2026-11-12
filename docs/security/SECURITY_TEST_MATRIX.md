@@ -1,5 +1,19 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-13 — Independent audit native/customer/receipt regression gaps (proposed, NOT run)
+
+| Test family | Positive required | Negative/failure required | Current classification |
+| --- | --- | --- | --- |
+| N01 CartProvider + CustomerProvider | guest cart and account switch preserve appropriate cart | A's delayed update/transfer/create/retrieve after logout cannot set React state or saved cart ID; failed remove, restart cannot expose A PII | Missing integrated regression; audit harness reproduced problem |
+| N04 SDK token lifecycle | new legitimate login B after A/logout | stale A login completes after logout/B; no stale JWT persisted/unblocked on restart | Missing race regression |
+| N02 registration | initial and post-logout bootstrap registration | no old JWT resurrection; storage failure/401/retry without duplicate customer | Missing live auth-contract integration |
+| N03 completed cart | active 200 reuse and valid receipt recovery | completed 200 does not become live cart; lost ACK/restart, 404/410, 5xx/offline no double completion | Missing specific branch/e2e |
+| N05 Next guest receipt | guest order proof accepted then refresh/restart; owner signed in allowed | ID-only/foreign cart/tenant denied, proof absent from URL and shared caches | Missing Next server+browser E2E; conditional client |
+| R01 / R02 / R03 | captured-refund, legit Admin session, patched query semantics | overrefund/zero capture/concurrency, real form CSRF without auth bypass, malicious dotted query paths | R01 FAIL, Stage12AG scoped CI PASS/global OPEN, R03 baseline OPEN |
+
+These are **planned acceptance criteria**, not new test executions. Keep existing green positives and known-red financial sentinels; do not turn acceptance failures into skipped tests. Device/emulator, dependency changes and Production security require separate approvals. Refer to [ROADMAP](../ROADMAP.md) and [SECURITY_REGISTER](SECURITY_REGISTER.md).
+
+
 ## 2026-11-12 — Stage12AG exact isolated Medusa 2.22.6 region regression
 
 | Admin region-name mutation (synthetic CI only) | Actual HTTP/browser | PostgreSQL | Status |
