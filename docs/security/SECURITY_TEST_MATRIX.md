@@ -1,5 +1,19 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-13 — N01 native cart generation regression (scope-only)
+
+| Exact evidence | Before | After | Remaining gate |
+| --- | --- | --- | --- |
+| Delayed A update cannot restore A into guest B/cart | [CI #43329067146](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43329067146) FAIL | [CI #43329750761](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43329750761) PASS | Real CustomerProvider logout/SDK race |
+| AsyncStorage cart ID remove throws: private React cart immediately hidden | FAIL | PASS | Persisted tombstone + restart/retry if deletion fails |
+| Delayed cart transfer cannot overwrite new guest cart | FAIL | PASS | Native E2E / cross-account B isolation |
+| Matching current guest cart update succeeds | Not a pre-fix regression | PASS | Full checkout integration |
+| ESLint/TypeScript/15 Jest suites | 3 new tests FAIL; 71 prior PASS | **75/75 PASS** | Neither proof certifies real device/Production |
+
+Source [f3a1641](https://github.com/titanfit102-bit/ShqipShop/commit/f3a1641b143504e31180d64607850a735024ed30) and tests [00400c1](https://github.com/titanfit102-bit/ShqipShop/commit/00400c1c386273862891770ac11a58f754996282); rollback/fail-closed no skip. N01 overall PARTIAL/OPEN. **Next:** integrated providers logout/startup, external checkout setter, fail-storage restart and ghost storage writes; red-before/green-after then review. All other audit findings and RG remain unchanged.
+
+
+
 ## 2026-11-13 — Independent audit native/customer/receipt regression gaps (proposed, NOT run)
 
 | Test family | Positive required | Negative/failure required | Current classification |

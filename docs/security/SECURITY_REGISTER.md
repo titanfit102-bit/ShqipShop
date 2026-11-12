@@ -1,5 +1,13 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-13 — N01 native PII cart lifecycle PARTIAL, red-before/green-after verified
+
+[Red native CI #43329067146](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43329067146) **3 previously unguarded N01 tests failed/71 original passed**: stale update and stale transfer overwrote new guest cart; disk deletion failure left private A cart in React memory. [Guard code f3a1641](https://github.com/titanfit102-bit/ShqipShop/commit/f3a1641b143504e31180d64607850a735024ed30) + [positive guest test 00400c1](https://github.com/titanfit102-bit/ShqipShop/commit/00400c1c386273862891770ac11a58f754996282), [native CI #43329750761](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43329750761) **ESLint, TS and 75/75 PASS**. The native CartProvider now performs immediate memory clearing on reset, checks generation and source cart on delayed API responses, and queues scoped restore storage writes against reset. A reset failure blocks same-mount automatic restore. This is **unit/provider mock CI**, not device/Production.
+
+**N01 P0 for authenticated native pilot remains PARTIAL/OPEN:** logout entry may defer reset behind async token/cache; raw Checkout setCart after await is not guarded; disk failure after restart has no durable tombstone proof. Integration and device E2E unknown. N02/N04 login token lifecycle remains OPEN; R01/T05/S13 financial P0, R02/T02 global CSRF and R03 query-security baseline remain OPEN; RG-01/02/03 and G3/G5 BLOCKED. No release, main merge, PSP or Production change.
+
+
+
 ## 2026-11-13 — Independent audit source review: native privacy and lifecycle risks remain OPEN
 
 Independent report on earlier `17f47ba3` identified N01–N05. Compare to current code verified **no native or Next code changes** through the post-Stage12AG docs HEAD. N01 (private cart resurrection after logout/reset) is **SOURCE CONFIRMED, synthetic harness REPRODUCED; real-device E2E UNKNOWN**; classify P0 **for any authenticated native pilot**, not for a PWA-only target. N04 stale auth response can reauthorize after logout, N02 registration bootstrap after signed-out marker, N03 completed cart 200 reuse, N05 Next guest receipt proof mismatch are SOURCE CONFIRMED with synthetic/function contract evidence, not live exploits. All remain OPEN for their relevant clients. See [ROADMAP](../ROADMAP.md) for ordered, test-specific remediation. No live PII leak, money loss or production incident proven by this report.

@@ -1,5 +1,13 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-13 — Native N01 continuation checkpoint, PARTIAL not closed
+
+[Current canonical N01 evidence and residuals](CURRENT_STATE.md#2026-11-13--n01-native-cart-resetstale-write-mitigation-exact-ci-verified-overall-n01-partialopen): red-before [CI #43329067146](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43329067146) had **3 new N01 failures** with 71 existing PASS. Source [f3a1641](https://github.com/titanfit102-bit/ShqipShop/commit/f3a1641b143504e31180d64607850a735024ed30) and fourth success-path test [00400c1](https://github.com/titanfit102-bit/ShqipShop/commit/00400c1c386273862891770ac11a58f754996282) reached [native CI #43329750761](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43329750761) **15 suites / 75 tests PASS**, including lint and TypeScript. CartProvider now clears memory before awaited disk work, ignores stale generation/cart-ID API responses and serializes restore writes against deletion; no changes to financial/backend/Production scope.
+
+**N01 still OPEN for native pilot:** logout starts cart reset too late in CustomerProvider, external Checkout `setCart` bypasses guarded mutations, no persistent tombstone/restart proof after failed AsyncStorage removal, integrated provider/SDK/E2E unknown. Next is test these exact flows with safe guest positives, not a blanket auth rewrite. N02/N04/N03/N05 and R01/R02/R03 remain open; [security tests](security/SECURITY_TEST_MATRIX.md), PR #12 Draft, NO RELEASE.
+
+
+
 ## 2026-11-13 — Independent audit recovery index; NO RELEASE
 
 The independent 2026-11-12 audit covered old SHA `17f47ba3`; the current source is past [Stage12AG](https://github.com/titanfit102-bit/ShqipShop/commit/8af9bd36f7152dd3ab0d76404ae6a13df48972ae). **The single detailed and current audit findings/priorities/acceptance matrix is in [CURRENT_STATE](CURRENT_STATE.md#2026-11-13--independent-audit-triage-against-current-github-no-release)**. Avoid copying its table into this handoff or treating historical sections below as the active status.

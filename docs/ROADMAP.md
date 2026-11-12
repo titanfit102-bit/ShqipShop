@@ -1,5 +1,11 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-13 — N01 first verified native privacy milestone (PARTIAL)
+
+[Current evidence in CURRENT_STATE](CURRENT_STATE.md#2026-11-13--n01-native-cart-resetstale-write-mitigation-exact-ci-verified-overall-n01-partialopen). Red-before regression CI [#43329067146](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43329067146) recorded three failures. Scoped CartProvider fix [f3a1641](https://github.com/titanfit102-bit/ShqipShop/commit/f3a1641b143504e31180d64607850a735024ed30) plus positive guest test [00400c1](https://github.com/titanfit102-bit/ShqipShop/commit/00400c1c386273862891770ac11a58f754996282) passed [native source #43329750761](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43329750761) (75/75). **Remaining N01 P0 for authenticated native pilot:** immediate logout-trigger cart invalidation, direct Checkout stale setter, cross-restart failed deletion/marker and coupled customer/cart provider tests. Finish these before N04/N02 SDK token lifecycle and N03 checkout recovery. R01/R02 global/R03 remain release blockers, and selected PWA scope still governs relevance. No release or architecture/money upgrade authorization implied.
+
+
+
 ## 2026-11-13 — Audit remediation sequence (active pointer)
 
 **Canonical finding matrix and classifications:** [CURRENT_STATE](CURRENT_STATE.md#2026-11-13--independent-audit-triage-against-current-github-no-release) is the sole current list for R01–R03, N01–N05 and Q01–Q04; older dated sections below remain historical evidence. Detailed proposed positive/negative cases live in [SECURITY_TEST_MATRIX](security/SECURITY_TEST_MATRIX.md). Do not duplicate the active matrix in the roadmap.
