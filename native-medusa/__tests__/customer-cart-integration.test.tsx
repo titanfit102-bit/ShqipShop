@@ -66,6 +66,20 @@ beforeEach(() => {
   mockDisk.clear();
   mockRegion = undefined;
   mockCartRemovalBroken = false;
+  // jest.clearAllMocks clears call counts, not mockImplementation; restore
+  // baseline storage behavior after the prior test's delayed-token override.
+  (AsyncStorage.getItem as jest.Mock).mockImplementation(
+    async (key: string) => mockDisk.get(key) ?? null,
+  );
+  (AsyncStorage.setItem as jest.Mock).mockImplementation(
+    async (key: string, value: string) => { mockDisk.set(key, value); },
+  );
+  (AsyncStorage.removeItem as jest.Mock).mockImplementation(async (key: string) => {
+    if (key === 'cart_id' && mockCartRemovalBroken) {
+      throw new Error('synthetic cart disk removal failure');
+    }
+    mockDisk.delete(key);
+  });
   cartActions = undefined;
   customerActions = undefined;
   blockAuthForLogin();
