@@ -91,21 +91,27 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
 
   const logout = async () => {
     ++identityEpoch.current;
-    // Remove private data immediately, even if the SDK's logout fails.
+    // Block the old bearer and invalidate cart PII at logout INTENT, before
+    // any cache cancellation, SDK token I/O or AsyncStorage operation awaits.
+    blockAuthForLogin();
     setCustomer(undefined);
     currentPrincipalId.current = undefined;
-    await clearPrivateCustomerQueries(queryClient);
+    // Observe rejection immediately; keep both logout and reset failures
+    // visible without allowing an unhandled promise during token removal.
+    const cartReset = resetCart().then(
+      () => ({ error: undefined as unknown }),
+      (error: unknown) => ({ error }),
+    );
     try {
-      // This JWT-specific SDK client operation is awaited; auth.logout()
-      // does not await its custom-storage remove in SDK v2.21.2.
+      await clearPrivateCustomerQueries(queryClient);
+      // JWT-specific SDK client operation is awaited; auth.logout() does not
+      // await its custom-storage removal in SDK v2.21.2.
       await clearNativeCustomerToken(apiClient.client);
     } finally {
-      try {
-        await resetCart();
-      } finally {
-        await clearPrivateCustomerQueries(queryClient);
-        setCustomer(undefined);
-      }
+      const cartResult = await cartReset;
+      await clearPrivateCustomerQueries(queryClient);
+      setCustomer(undefined);
+      if (cartResult.error) throw cartResult.error;
     }
   };
 

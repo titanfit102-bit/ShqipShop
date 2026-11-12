@@ -181,3 +181,37 @@ test('N01 reset persists a tombstone before attempting to delete saved cart ID',
   );
   expect(cartActions?.cart).toBeUndefined();
 });
+
+test('N01 checkout task rejects stale A session after reset/guest replacement', async () => {
+  await renderWithCart();
+  const cartA = { id: 'cart_1', email: 'private-A@example.invalid', region_id: 'reg_al' };
+  let complete!: (cart: never) => void;
+  let pending!: Promise<unknown>;
+  await ReactTestRenderer.act(async () => {
+    pending = cartActions!.runCurrentCartTask(
+      () => new Promise(resolve => { complete = resolve; }),
+    );
+    await Promise.resolve();
+  });
+  await ReactTestRenderer.act(async () => {
+    await cartActions!.resetCart();
+    cartActions!.setCart({ id: 'cart_guest_after_logout', region_id: 'reg_al' } as never);
+  });
+  await ReactTestRenderer.act(async () => {
+    complete(cartA as never);
+    await expect(pending).rejects.toThrow('Cart changed during checkout');
+  });
+  expect(cartActions?.cart?.id).toBe('cart_guest_after_logout');
+  expect(cartActions?.cart?.email).toBeUndefined();
+});
+
+test('N01 checkout task accepts a validated current-cart response for guest', async () => {
+  await renderWithCart();
+  await ReactTestRenderer.act(async () => {
+    const committed = await cartActions!.runCurrentCartTask(async initial => ({
+      ...initial, email: 'guest-checkout@example.invalid',
+    }));
+    expect(committed.id).toBe('cart_1');
+  });
+  expect(cartActions?.cart?.email).toBe('guest-checkout@example.invalid');
+});

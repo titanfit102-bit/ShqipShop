@@ -35,7 +35,7 @@ import { CART_FIELDS } from '@data/cart-recovery';
 
 const Checkout = () => {
   const { l10n } = useLocalization();
-  const { cart, setCart, updateCart, resetCart } = useCart();
+  const { cart, runCurrentCartTask, updateCart, resetCart } = useCart();
   const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdatingShipping, setIsUpdatingShipping] = useState(false);
@@ -181,19 +181,23 @@ const Checkout = () => {
       throw new Error(l10n.getString('no-cart-found'));
     }
 
-    await apiClient.store.payment.initiatePaymentSession(cart, {
-      provider_id: selectedPaymentProviderId,
+    // Scope both async SDK requests to the original cart generation; a late
+    // response after logout/reset cannot restore private cart data or review.
+    await runCurrentCartTask(async activeCart => {
+      await apiClient.store.payment.initiatePaymentSession(activeCart, {
+        provider_id: selectedPaymentProviderId,
+      });
+      // Local payment selection is not evidence of a confirmed session.
+      const { cart: refreshed } = await apiClient.store.cart.retrieve(activeCart.id, {
+        fields: CART_FIELDS,
+      });
+      const session = activeCheckoutPaymentSession(refreshed);
+      if (!session || session.provider_id !== selectedPaymentProviderId) {
+        setActiveStep('payment');
+        throw new Error('The payment session was not confirmed; retry payment');
+      }
+      return refreshed;
     });
-    // Refresh from Medusa; local selection is not evidence of a valid session.
-    const { cart: refreshed } = await apiClient.store.cart.retrieve(cart.id, {
-      fields: CART_FIELDS,
-    });
-    const session = activeCheckoutPaymentSession(refreshed);
-    if (!session || session.provider_id !== selectedPaymentProviderId) {
-      setActiveStep('payment');
-      throw new Error('The payment session was not confirmed; retry payment');
-    }
-    setCart(refreshed);
     setActiveStep('review');
   };
 

@@ -10,7 +10,7 @@ import { HttpTypes } from '@medusajs/types';
 import { useRegion } from './region-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '@api/client';
-import { CART_FIELDS, isMissingCartError, restoreOrCreateCart } from './cart-recovery';
+import { CART_FIELDS, CART_RESET_PENDING_KEY, isMissingCartError, restoreOrCreateCart } from './cart-recovery';
 
 const CART_KEY = 'cart_id';
 
@@ -45,6 +45,9 @@ type CartContextType = {
   addToCart: (variantId: string, quantity: number) => Promise<void>;
   updateLineItem: (lineItemId: string, quantity: number) => Promise<void>;
   updateCart: (data: CartUpdateData) => Promise<HttpTypes.StoreCart>;
+  runCurrentCartTask: (
+    task: (activeCart: HttpTypes.StoreCart) => Promise<HttpTypes.StoreCart>,
+  ) => Promise<HttpTypes.StoreCart>;
   linkCartToCustomer: () => Promise<void>;
   setShippingMethod: (shippingMethodId: string) => Promise<HttpTypes.StoreCart>;
   applyPromoCode: (code: string) => Promise<boolean>;
@@ -59,6 +62,8 @@ type CartProviderProps = {
 
 export const CartProvider = ({ children }: CartProviderProps) => {
   const [cart, setCart] = useState<HttpTypes.StoreCart>();
+  const currentCartRef = useRef(cart);
+  currentCartRef.current = cart;
   // A reset/logout invalidates responses issued for the previous cart identity.
   const cartGeneration = useRef(0);
   // Queue restore writes and reset removal: no stale restore may resurrect disk ID.
@@ -101,7 +106,20 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     setResetting(true);
     setResetFailed(true);
     try {
-      await queueCartStorageWrite(() => AsyncStorage.removeItem(CART_KEY));
+      await queueCartStorageWrite(async () => {
+        // Make a restart-visible fail-closed marker before deleting the cart ID.
+        // Even if the marker cannot be written, attempt the physical delete.
+        let markerWritten = false;
+        try {
+          await AsyncStorage.setItem(CART_RESET_PENDING_KEY, '1');
+          markerWritten = true;
+        } catch {
+          // On a fully failed storage device cross-restart durability is unknown.
+          // Same-mount memory remains cleared, and removal is still attempted.
+        }
+        await AsyncStorage.removeItem(CART_KEY);
+        if (markerWritten) await AsyncStorage.removeItem(CART_RESET_PENDING_KEY);
+      });
       if (generation === cartGeneration.current) setResetFailed(false);
     } finally {
       if (generation === cartGeneration.current) setResetting(false);
@@ -121,6 +139,24 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     },
     [cart?.id, additionalFields, commitIfCurrent],
   );
+
+  // Checkout awaits multiple SDK calls. Only accept their result if the
+  // request still belongs to this cart and this pre-logout generation.
+  const runCurrentCartTask = async (
+    task: (activeCart: HttpTypes.StoreCart) => Promise<HttpTypes.StoreCart>,
+  ): Promise<HttpTypes.StoreCart> => {
+    const activeCart = cart;
+    if (!activeCart?.id) throw new Error('No active cart for checkout');
+    const generation = cartGeneration.current;
+    const updatedCart = await task(activeCart);
+    if (generation !== cartGeneration.current ||
+        currentCartRef.current?.id !== activeCart.id ||
+        updatedCart.id !== activeCart.id) {
+      throw new Error('Cart changed during checkout; refresh the cart');
+    }
+    commitIfCurrent(updatedCart, activeCart.id, generation);
+    return updatedCart;
+  };
 
   // Restore can outlive a region switch or logout. Both React state and
   // persisted writes must belong to the same cart generation.
@@ -283,6 +319,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
         addToCart,
         updateLineItem,
         updateCart,
+        runCurrentCartTask,
         linkCartToCustomer,
         setShippingMethod,
         applyPromoCode,

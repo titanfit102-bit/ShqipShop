@@ -12,6 +12,7 @@ type CartService = {
 };
 
 export const CART_STORAGE_KEY = 'cart_id';
+export const CART_RESET_PENDING_KEY = 'shqipshop:cart-reset-pending';
 export const CART_FIELDS = '+shipping_methods.name,+payment_collection.payment_sessions';
 
 export const isMissingCartError = (error: unknown): boolean => {
@@ -35,6 +36,13 @@ export async function restoreOrCreateCart(
   storage: CartStorage,
   service: CartService,
 ): Promise<HttpTypes.StoreCart> {
+  // A prior logout/reset may have failed after persisting the tombstone.
+  // Never read an old private cart until its persisted ID has been deleted.
+  const resetPending = await storage.getItem(CART_RESET_PENDING_KEY);
+  if (resetPending !== null) {
+    await storage.removeItem(CART_STORAGE_KEY);
+    await storage.removeItem(CART_RESET_PENDING_KEY);
+  }
   const savedId = await storage.getItem(CART_STORAGE_KEY);
   if (savedId) {
     try {
