@@ -1,5 +1,22 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-12 — Stage12AG exact isolated Medusa 2.22.6 region regression
+
+| Admin region-name mutation (synthetic CI only) | Actual HTTP/browser | PostgreSQL | Status |
+| --- | --- | --- | --- |
+| A Admin trusted JSON POST | **200** | Changed, then restored | VERIFIED |
+| Missing Admin cookie / A customer cookie / B Admin cookie | **401 / 401 / 401** | NO_CHANGE | VERIFIED |
+| External-Origin direct JSON with valid A Admin cookie | **403** | NO_CHANGE | VERIFIED |
+| Recent server-cookie Chromium attacker top-level form (Cookie sent) | **403** | NO_CHANGE | VERIFIED |
+| Chromium default cookie iframe (Cookie omitted) | **401** | NO_CHANGE | Cookie denial, NOT server CSRF proof |
+| Chromium controlled None;Secure iframe/top-level (Cookie sent) | **403 / 403** | NO_CHANGE | VERIFIED |
+| Chromium external-origin JSON credentialed fetch, both cookie policies | CORS preflight; no POST | NO_CHANGE | VERIFIED |
+| Existing protected profile/product paths | CI regression GREEN | No unauthorized mutation | VERIFIED scope only |
+| Other unsafe Admin/Store/Auth routes and Production | UNKNOWN | UNKNOWN | OPEN |
+
+[Stage12AG code 8af9bd3](https://github.com/titanfit102-bit/ShqipShop/commit/8af9bd36f7152dd3ab0d76404ae6a13df48972ae); [isolated Medusa 2.22.6 Chromium/AOF/PostgreSQL CI #43325401851](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401851) **SUCCESS**; exact code SHA: **8 workflows SUCCESS, 1 mandatory financial FAILURE** ([pinned 2.22.0 #43325401868](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401868)). Six isolated policy-unit checks **PASS/0 FAIL**. See [SECURITY_ARCHITECTURE](SECURITY_ARCHITECTURE.md) for a non-deploying proposal covering session CSRF tokens, bearer/mixed auth, guest cart capabilities, proxy trust and actual route coverage. Finance P0 remains FAILED; no release.
+
+
 ## 2026-11-11 — Stage12AF Admin region real HTTP / Chromium / PostgreSQL matrix
 
 | Scoped Medusa 2.22.6 CI case | Browser/HTTP | Persisted? | Interpretation |

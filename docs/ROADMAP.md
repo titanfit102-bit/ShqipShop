@@ -1,5 +1,14 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-12 — Stage12AG CI security regression complete; framework-level CSRF design next
+
+[Stage12AG code 8af9bd3](https://github.com/titanfit102-bit/ShqipShop/commit/8af9bd36f7152dd3ab0d76404ae6a13df48972ae); [isolated Medusa 2.22.6 Chromium/AOF/PostgreSQL CI #43325401851](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401851) **SUCCESS**; exact code SHA: **8 workflows SUCCESS, 1 mandatory financial FAILURE** ([pinned 2.22.0 #43325401868](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401868)).
+
+**VERIFIED:** exact CI-only Medusa 2.22.6 AOF matcher `POST /admin/regions/:id`: 6 unit tests PASS; trusted Admin 200/write/SQL restore; no-cookie/customer/B-admin 401/no mutation; foreign-origin HTTP 403/no mutation; real Chromium attacker top-level default recent cookie 403, controlled None;Secure iframe and top-level 403, all no mutation; no-cookie iframe 401; JSON attacker preflight with no POST. Product/profile controls preserved. This does **not** make the other potentially changing Medusa methods safe; route export count is not effective runtime authorization coverage.
+
+**NEXT DESIGN, NOT IMPLEMENTATION AUTHORIZATION:** classify actual unsafe API routes/auth/session behavior, design per-session token plus exact Origin/Fetch Metadata/content-type validation with trustworthy proxy/host rules, treat bearer API and guest cart capability separately, add negative browser/SQL/idempotence/tenant tests. See [security architecture](security/SECURITY_ARCHITECTURE.md). Finance T05/S13 P0 remains an independent prerequisite. RG-01/02/03 G3/G5 BLOCKED; PR #12/#11 Draft, no merge or Production.
+
+
 ## 2026-11-11 — Stage12AF second Admin browser-CSRF proof VERIFIED; Stage12AG next
 
 [Stage12AF code d5cbea7](https://github.com/titanfit102-bit/ShqipShop/commit/d5cbea7d4a0bebf163d225927efec44f99265f6e); [Medusa 2.22.6 disposable Chromium/AOF/PostgreSQL CI #42931945599](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42931945599) **SUCCESS as an evidence-gathering test, NOT protection**. The installed compiled export inventory explicitly showed `POST /admin/regions/:id` (separate from three Stage12X/12AE protected profile/product matchers). We selected ONLY the synthetic Albania region's **name**; no currency, tax, shipping provider, price, payment or order configuration was changed.

@@ -1,5 +1,16 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-12 — Stage12AG continuation: scoped Admin region CSRF regression VERIFIED
+
+[Stage12AG code 8af9bd3](https://github.com/titanfit102-bit/ShqipShop/commit/8af9bd36f7152dd3ab0d76404ae6a13df48972ae); [isolated Medusa 2.22.6 Chromium/AOF/PostgreSQL CI #43325401851](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401851) **SUCCESS**; exact code SHA: **8 workflows SUCCESS, 1 mandatory financial FAILURE** ([pinned 2.22.0 #43325401868](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401868)).
+
+**Changed existing source only:** `medusa-backend-poc/apps/backend/src/api/middlewares/stage12x-cookie-csrf-ci.ts`, `.../src/api/middlewares.ts`, `scripts/security/medusa_226_csrf_policy.test.mjs`, `medusa_226_browser_cookie_probe.cjs`, and `medusa_226_mutation_gap_probe.cjs`. One additional exact `POST /admin/regions/:id` route matcher was added with the Stage12X disposable CI conditions; no global middleware, baseline dependency or Production change. Unit tests **6 PASS/0 FAIL**. Real signed-session Chromium recent-cookie top-level and controlled None;Secure top-level/iframe cross-site forms now **403/no PostgreSQL mutation** when Cookie was sent. Default iframe without Cookie **401/no mutation**; CORS-preflighted attacker JSON **no POST**. Trusted Admin region-name mutation **200/persisted**, restored through SQL; no-cookie/cross-role/tenant-B **401/no mutation**; manually forged external-Origin Admin Cookie request **403/no mutation**. Admin product scoped tests still pass.
+
+**Critical financial veto:** pinned 2.22.0 [CI #43325401868](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401868) FAILED due to genuinely persisted uncaptured refund and +1 ALL excessive refund; the Stage11E restart/retry itself passed despite the workflow step name. T02 overall OPEN; T05/S13 P0 and RG-01/02/03, G3/G5 BLOCKED — NO RELEASE.
+
+**Next approved work boundary:** review [existing security architecture](security/SECURITY_ARCHITECTURE.md) proposed global CSRF route inventory/session-vs-bearer/guest/proxy design (not implemented or approved). Do not merge PR #12/#11, promote runtime policy, change payments, or deploy without separate authorization. HEAD at code proof `8af9bd3`; documentation commit is a distinct SHA and needs post-commit verification.
+
+
 ## 2026-11-11 — Stage12AF durable handoff: browser-real region-name CSRF in CI
 
 [Stage12AF code d5cbea7](https://github.com/titanfit102-bit/ShqipShop/commit/d5cbea7d4a0bebf163d225927efec44f99265f6e); [Medusa 2.22.6 disposable Chromium/AOF/PostgreSQL CI #42931945599](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42931945599) **SUCCESS as an evidence-gathering test, NOT protection**. The installed compiled export inventory explicitly showed `POST /admin/regions/:id` (separate from three Stage12X/12AE protected profile/product matchers). We selected ONLY the synthetic Albania region's **name**; no currency, tax, shipping provider, price, payment or order configuration was changed.

@@ -1,5 +1,16 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-12 — Stage12AG CI-only Admin region CSRF 403/SQL non-mutation VERIFIED; NO RELEASE
+
+[Stage12AG code 8af9bd3](https://github.com/titanfit102-bit/ShqipShop/commit/8af9bd36f7152dd3ab0d76404ae6a13df48972ae); [isolated Medusa 2.22.6 Chromium/AOF/PostgreSQL CI #43325401851](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401851) **SUCCESS**; exact code SHA: **8 workflows SUCCESS, 1 mandatory financial FAILURE** ([pinned 2.22.0 #43325401868](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401868)).
+
+The previously browser-exploitable synthetic `POST /admin/regions/:id` now has the same **exact-CI-only**, development + candidate + numeric run ID + Redis AOF :6382 cookie-Origin/Fetch-Metadata/JSON guard as Stage12X/12AE. Only this one Admin region POST matcher was added; no default Medusa 2.22.0/Production policy changed. Six Stage12X unit tests PASS; trusted Admin JSON region-name update HTTP **200 and persisted**, followed by confirmed PostgreSQL restore. No-cookie, customer-role and tenant-B Admin cookies each **401/no mutation**. Manually sent foreign-Origin Admin cookie JSON **403/no SQL change**. Real Chromium recent-default-cookie top-level attack **cookie sent / 403 / no change**; default iframe without cookie **401 / no change**; controlled SameSite=None;Secure iframe and top-level **cookie sent / 403 / no change**. Both foreign-site JSON attempts preflighted with **no POST/no change**. Stage12AE Admin product tests and other isolated A/B probes remained green. These are scope-specific CI results, not global CSRF remediation.
+
+The financial workflow's step label includes Stage11E, but logs explicitly show the Stage11E lost-ack/restart owner retry succeeded; the job failed on **uncaptured Admin refund (11P)** and persisted **+1 ALL over-refund (11J/11O/11I)**. T05/S13 P0, T02 global CSRF, RG-01/02/03 and G3/G5 remain BLOCKED; NO RELEASE. PR #12 Draft on PR #11 Draft. No main merge, Production deployment, real PSP, payments, baseline lockfile, or session-policy rollout.
+
+**NEXT:** review the framework-wide, **non-deploying** CSRF/session architecture and actual unsafe-route/auth-mode coverage plan in [SECURITY_ARCHITECTURE](security/SECURITY_ARCHITECTURE.md). Prioritize separately authorized financial P0 correction before any release. Do not extend isolated CI matchers into Production without an explicit decision and separate validation. This code-verified SHA predates this documentation-only checkpoint; verify its HEAD and workflow results independently.
+
+
 ## 2026-11-11 — Stage12AF second real-browser Admin CSRF, region setting VERIFIED; NO RELEASE
 
 [Stage12AF code d5cbea7](https://github.com/titanfit102-bit/ShqipShop/commit/d5cbea7d4a0bebf163d225927efec44f99265f6e); [Medusa 2.22.6 disposable Chromium/AOF/PostgreSQL CI #42931945599](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42931945599) **SUCCESS as an evidence-gathering test, NOT protection**. The installed compiled export inventory explicitly showed `POST /admin/regions/:id` (separate from three Stage12X/12AE protected profile/product matchers). We selected ONLY the synthetic Albania region's **name**; no currency, tax, shipping provider, price, payment or order configuration was changed.

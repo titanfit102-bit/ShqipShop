@@ -1,5 +1,14 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-12 — T02 Stage12AG isolated region guard VERIFIED; global CSRF OPEN
+
+[Stage12AG code 8af9bd3](https://github.com/titanfit102-bit/ShqipShop/commit/8af9bd36f7152dd3ab0d76404ae6a13df48972ae); [isolated Medusa 2.22.6 Chromium/AOF/PostgreSQL CI #43325401851](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401851) **SUCCESS**; exact code SHA: **8 workflows SUCCESS, 1 mandatory financial FAILURE** ([pinned 2.22.0 #43325401868](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401868)).
+
+**Scoped evidence:** `POST /admin/regions/:id` is now protected only on disposable Medusa 2.22.6 AOF CI under existing Stage12X cookie/Origin/Fetch Metadata/JSON checks. Real Chromium delivered signed cookie on recent-default top-level and controlled None;Secure iframe/top-level attacker forms: **HTTP 403 and PostgreSQL NO_CHANGE** in all three. Default iframe without cookie: **401/NO_CHANGE**. Trusted Admin POST **200/persisted/restored**, manually cookie-bearing foreign Origin **403/NO_CHANGE**, no-cookie/wrong-role/tenant-B **401/NO_CHANGE**, foreign-site JSON preflight **no POST**. Existing product/profile regressions stayed green; six unit checks passed. **Do not generalize** this to other routes, Medusa 2.22.0, live browser/domain policy or Production.
+
+**Disposition:** T02 **PARTIAL/SCOPED CI VERIFIED; GLOBAL OPEN**. No production CSRF token, complete auth-mode route inventory or global middleware; broad framework CSRF architecture remains PROPOSED (see [SECURITY_ARCHITECTURE](SECURITY_ARCHITECTURE.md)). Mandatory finance #43325401868 proves uncaptured refund and +1 ALL excessive persisted refund (T05/S13 P0): **FAILED / NO RELEASE**. RG-01/02/03 and G3/G5 unchanged BLOCKED. No merge/deploy/payment changes.
+
+
 ## 2026-11-11 — T02 Stage12AF Admin region native-form CSRF confirmed, global OPEN
 
 [Stage12AF code d5cbea7](https://github.com/titanfit102-bit/ShqipShop/commit/d5cbea7d4a0bebf163d225927efec44f99265f6e); [Medusa 2.22.6 disposable Chromium/AOF/PostgreSQL CI #42931945599](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42931945599) **SUCCESS as an evidence-gathering test, NOT protection**. The installed compiled export inventory explicitly showed `POST /admin/regions/:id` (separate from three Stage12X/12AE protected profile/product matchers). We selected ONLY the synthetic Albania region's **name**; no currency, tax, shipping provider, price, payment or order configuration was changed.
