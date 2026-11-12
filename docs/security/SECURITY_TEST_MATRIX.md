@@ -1,5 +1,18 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-13 — N01 phase 2 exact pre/post native CI evidence
+
+| Case | Before | After | Scope |
+| --- | --- | --- | --- |
+| Logout starts reset before async token deletion | [#43330845234](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43330845234) FAIL | [#43331293749](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43331293749) PASS | CustomerProvider with mocked cart dependency |
+| Interrupted reset persists tombstone before `cart_id` delete | FAIL | PASS | CartProvider mock AsyncStorage |
+| Boot with pending tombstone never retrieves old private ID if deletion still fails | FAIL | PASS | `restoreOrCreateCart` actual function, mock disk |
+| Checkout delayed A response cannot commit after reset/guest, while valid guest response can | New tests | Both PASS | Actual CartProvider scoped task; mock operation |
+| Native verify | 3 new failures, 75 existing PASS | **80/80 PASS**, lint+TypeScript | Jest; NOT Android device or live HTTP |
+
+[Code eb46444](https://github.com/titanfit102-bit/ShqipShop/commit/eb464441593407b352bf95455ba8ba592fa66b00). **Still required:** actual combined providers A→logout→guest/B, marker write+remove failures on process restart, lost in-flight authentication/checkout responses and native E2E. Do not call N01 COMPLETE; R01/R02/R03 gates unaffected.
+
+
 ## 2026-11-13 — N01 native cart generation regression (scope-only)
 
 | Exact evidence | Before | After | Remaining gate |

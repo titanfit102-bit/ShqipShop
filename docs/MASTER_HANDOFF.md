@@ -1,5 +1,12 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-13 — N01 phase 2 VERIFIED in source CI; provider integration outstanding
+
+[Full canonical checkpoint and residuals](CURRENT_STATE.md). [Pre-fix CI #43330845234](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43330845234) proved 3 new privacy regressions failing while 75 old passed. [Code eb46444](https://github.com/titanfit102-bit/ShqipShop/commit/eb464441593407b352bf95455ba8ba592fa66b00) [native CI #43331293749](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43331293749) is **lint/TypeScript/80 of 80 Jest PASS**. Logout blocks token access and begins cart wipe before awaiting; a durable `shqipshop:cart-reset-pending` marker prevents restart retrieval of old cart ID after a partially failed removal; Checkout now uses cart-generation-scoped commit. **No real-device and combined-provider A→B evidence**; N01 remains PARTIAL/OPEN for authenticated native rollout. Both disk marker and deletion failing simultaneously is UNKNOWN across restart. N04/N02 and R01/R02/R03 remain blocked. PR #12 Draft, no release.
+
+**Next:** Integrated CustomerProvider+CartProvider tests and restart failure matrix; examine stale-login/token N04 before considering real accounts. Exact source CI only, doc SHA must be checked separately. See [security matrix](security/SECURITY_TEST_MATRIX.md).
+
+
 ## 2026-11-13 — Native N01 continuation checkpoint, PARTIAL not closed
 
 [Current canonical N01 evidence and residuals](CURRENT_STATE.md#2026-11-13--n01-native-cart-resetstale-write-mitigation-exact-ci-verified-overall-n01-partialopen): red-before [CI #43329067146](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43329067146) had **3 new N01 failures** with 71 existing PASS. Source [f3a1641](https://github.com/titanfit102-bit/ShqipShop/commit/f3a1641b143504e31180d64607850a735024ed30) and fourth success-path test [00400c1](https://github.com/titanfit102-bit/ShqipShop/commit/00400c1c386273862891770ac11a58f754996282) reached [native CI #43329750761](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43329750761) **15 suites / 75 tests PASS**, including lint and TypeScript. CartProvider now clears memory before awaited disk work, ignores stale generation/cart-ID API responses and serializes restore writes against deletion; no changes to financial/backend/Production scope.

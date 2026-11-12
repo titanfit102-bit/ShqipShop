@@ -1,5 +1,12 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-13 — N01 native logout/checkout/persisted cart privacy narrowed, NOT closed
+
+[Pre-fix red CI #43330845234](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43330845234) exposed 3 negative cases (late logout invalidation, absence of reset marker, old cart readable on restart). [Scoped fix eb46444](https://github.com/titanfit102-bit/ShqipShop/commit/eb464441593407b352bf95455ba8ba592fa66b00) [native source CI #43331293749](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43331293749) **ESLint/TypeScript/80 of 80 Jest PASS** including old 75. Logout blocks access to old bearer before awaits and immediately invalidates cart generation; persisted `shqipshop:cart-reset-pending` forces ID deletion before recovery; checkout validated cart task refuses stale A after guest/reset. No new Production/session/finance policy changed.
+
+**Status N01: PARTIAL/OPEN** for native real-account deployment. Missing combined real providers A→B, full restart with storage failure, simultaneous marker write+ID delete failure resilience, device/backend E2E. N04 stale login and N02 registration remain OPEN. R01/T05/S13 financial P0, R02/T02 global CSRF and R03 baseline 2.22.0 patch all OPEN; RG-01/02/03/G3/G5 BLOCKED, NO RELEASE. Source green is not Production proof.
+
+
 ## 2026-11-13 — N01 native PII cart lifecycle PARTIAL, red-before/green-after verified
 
 [Red native CI #43329067146](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43329067146) **3 previously unguarded N01 tests failed/71 original passed**: stale update and stale transfer overwrote new guest cart; disk deletion failure left private A cart in React memory. [Guard code f3a1641](https://github.com/titanfit102-bit/ShqipShop/commit/f3a1641b143504e31180d64607850a735024ed30) + [positive guest test 00400c1](https://github.com/titanfit102-bit/ShqipShop/commit/00400c1c386273862891770ac11a58f754996282), [native CI #43329750761](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43329750761) **ESLint, TS and 75/75 PASS**. The native CartProvider now performs immediate memory clearing on reset, checks generation and source cart on delayed API responses, and queues scoped restore storage writes against reset. A reset failure blocks same-mount automatic restore. This is **unit/provider mock CI**, not device/Production.
