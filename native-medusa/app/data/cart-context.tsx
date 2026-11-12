@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from 'react';
 import { HttpTypes } from '@medusajs/types';
 import { useRegion } from './region-context';
@@ -58,6 +59,31 @@ type CartProviderProps = {
 
 export const CartProvider = ({ children }: CartProviderProps) => {
   const [cart, setCart] = useState<HttpTypes.StoreCart>();
+  // A reset/logout invalidates responses issued for the previous cart identity.
+  const cartGeneration = useRef(0);
+  // Queue restore writes and reset removal: no stale restore may resurrect disk ID.
+  const storageWriteTail = useRef<Promise<void>>(Promise.resolve());
+  const queueCartStorageWrite = useCallback((operation: () => Promise<void>) => {
+    const next = storageWriteTail.current.catch(() => undefined).then(operation);
+    storageWriteTail.current = next.catch(() => undefined);
+    return next;
+  }, []);
+  const commitIfCurrent = useCallback((
+    updated: HttpTypes.StoreCart,
+    sourceCartId: string,
+    generation: number,
+  ) => {
+    if (generation !== cartGeneration.current) return;
+    setCart(previous => (
+      generation === cartGeneration.current && previous?.id === sourceCartId
+        ? updated
+        : previous
+    ));
+  }, []);
+  const [resetting, setResetting] = useState(false);
+  // A failed disk removal cannot automatically restore the old private cart.
+  const [resetFailed, setResetFailed] = useState(false);
+
   const { region } = useRegion();
   const [cartLoading, setCartLoading] = useState(false);
   const [cartError, setCartError] = useState<string>();
@@ -67,73 +93,96 @@ export const CartProvider = ({ children }: CartProviderProps) => {
   const additionalFields = CART_FIELDS;
 
   const resetCart = async () => {
-    await AsyncStorage.removeItem(CART_KEY);
+    const generation = ++cartGeneration.current;
+    // Wipe private in-memory state BEFORE the first asynchronous disk operation.
     setCart(undefined);
+    setCartLoading(false);
+    setCartError(undefined);
+    setResetting(true);
+    setResetFailed(true);
+    try {
+      await queueCartStorageWrite(() => AsyncStorage.removeItem(CART_KEY));
+      if (generation === cartGeneration.current) setResetFailed(false);
+    } finally {
+      if (generation === cartGeneration.current) setResetting(false);
+    }
   };
 
   const updateCart = useCallback(
     async (data: CartUpdateData) => {
-      if (!cart?.id) {
-        throw new Error('No cart found');
-      }
-
+      if (!cart?.id) throw new Error('No cart found');
+      const sourceCartId = cart.id;
+      const generation = cartGeneration.current;
       const { cart: updatedCart } = await apiClient.store.cart.update(
-        cart.id,
-        data,
-        {
-          fields: additionalFields,
-        },
+        sourceCartId, data, { fields: additionalFields },
       );
-      setCart(updatedCart);
+      commitIfCurrent(updatedCart, sourceCartId, generation);
       return updatedCart;
     },
-    [cart?.id, additionalFields],
+    [cart?.id, additionalFields, commitIfCurrent],
   );
 
-  // Recover from a deleted/completed cart without treating an offline network as
-  // a missing cart. Cancelling the effect ignores late responses from a prior region.
+  // Restore can outlive a region switch or logout. Both React state and
+  // persisted writes must belong to the same cart generation.
   useEffect(() => {
-    if (!region?.id || (cart?.id && cart.region_id === region.id)) return;
+    if (!region?.id || resetting || resetFailed ||
+      (cart?.id && cart.region_id === region.id)) return;
     let active = true;
+    const generation = cartGeneration.current;
+    const scopedStorage = {
+      getItem: (key: string) => AsyncStorage.getItem(key),
+      setItem: (key: string, value: string) => queueCartStorageWrite(async () => {
+        if (generation === cartGeneration.current) {
+          await AsyncStorage.setItem(key, value);
+        }
+      }),
+      removeItem: (key: string) => queueCartStorageWrite(async () => {
+        if (generation === cartGeneration.current) {
+          await AsyncStorage.removeItem(key);
+        }
+      }),
+    };
     setCartLoading(true);
     setCartError(undefined);
     (async () => {
       try {
-        const nextCart = await restoreOrCreateCart(region.id, AsyncStorage, apiClient.store.cart);
-        if (active) setCart(nextCart);
+        const nextCart = await restoreOrCreateCart(
+          region.id, scopedStorage, apiClient.store.cart,
+        );
+        if (active && generation === cartGeneration.current) setCart(nextCart);
       } catch (error) {
-        if (active) {
+        if (active && generation === cartGeneration.current) {
           console.error('Cart restore unavailable:', error);
           setCartError(error instanceof Error ? error.message : 'Cart unavailable');
         }
       } finally {
-        if (active) setCartLoading(false);
+        if (active && generation === cartGeneration.current) setCartLoading(false);
       }
     })();
     return () => { active = false; };
-  }, [region?.id, cart?.id, cart?.region_id, retryKey]);
+  }, [
+    region?.id, cart?.id, cart?.region_id, retryKey,
+    resetting, resetFailed, queueCartStorageWrite,
+  ]);
 
-  const fetchCart = async (cartId: string) => {
+  const fetchCart = async (cartId: string, generation: number) => {
     const { cart: restored } = await apiClient.store.cart.retrieve(cartId, {
       fields: additionalFields,
     });
-    setCart(restored);
+    commitIfCurrent(restored, cartId, generation);
   };
 
   const addToCart = async (variantId: string, quantity: number) => {
     if (!cart?.id) {
       throw new Error('Cart is not available; retry recovery before adding products');
     }
-
+    const sourceCartId = cart.id;
+    const generation = cartGeneration.current;
     try {
-      const { cart: dataCart } = await apiClient.store.cart.createLineItem(
-        cart.id,
-        {
-          variant_id: variantId,
-          quantity,
-        },
+      const { cart: updatedCart } = await apiClient.store.cart.createLineItem(
+        sourceCartId, { variant_id: variantId, quantity },
       );
-      setCart(dataCart);
+      commitIfCurrent(updatedCart, sourceCartId, generation);
     } catch (err) {
       console.error('Add to cart failed:', err);
       throw err;
@@ -144,25 +193,24 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     if (!cart?.id) {
       throw new Error('Cart is not available; retry recovery before editing items');
     }
-
+    const sourceCartId = cart.id;
+    const generation = cartGeneration.current;
     try {
       if (quantity === 0) {
-        await apiClient.store.cart.deleteLineItem(cart.id, lineItemId);
-        await fetchCart(cart.id);
+        await apiClient.store.cart.deleteLineItem(sourceCartId, lineItemId);
+        if (generation === cartGeneration.current) {
+          await fetchCart(sourceCartId, generation);
+        }
       } else {
-        const { cart: dataCart } = await apiClient.store.cart.updateLineItem(
-          cart.id,
-          lineItemId,
-          {
-            quantity,
-          },
+        const { cart: updatedCart } = await apiClient.store.cart.updateLineItem(
+          sourceCartId, lineItemId, { quantity },
         );
-        setCart(dataCart);
+        commitIfCurrent(updatedCart, sourceCartId, generation);
       }
     } catch (err) {
       console.error('Update cart item failed:', err);
-      if (isMissingCartError(err)) {
-        // Do not reuse a deleted cart. The next effect creates a fresh one.
+      if (generation === cartGeneration.current && isMissingCartError(err)) {
+        // Do not allow a stale A failure to clear B's replacement cart.
         await resetCart();
       }
       throw err;
@@ -170,72 +218,57 @@ export const CartProvider = ({ children }: CartProviderProps) => {
   };
 
   const linkCartToCustomer = async () => {
-    const { cart: dataCart } = await apiClient.store.cart.transferCart(
-      cart?.id || '',
-    );
-    setCart(dataCart);
+    const generation = cartGeneration.current;
+    const sourceCartId = cart?.id;
+    if (!sourceCartId) throw new Error('Cart is not available for customer transfer');
+    const { cart: updatedCart } = await apiClient.store.cart.transferCart(sourceCartId);
+    commitIfCurrent(updatedCart, sourceCartId, generation);
   };
 
   const setShippingMethod = async (shippingMethodId: string) => {
+    const generation = cartGeneration.current;
+    const sourceCartId = cart?.id;
+    if (!sourceCartId) throw new Error('Cart is not available for shipping');
     const { cart: updatedCart } = await apiClient.store.cart.addShippingMethod(
-      cart?.id || '',
-      {
-        option_id: shippingMethodId,
-      },
-      {
-        fields: additionalFields,
-      },
+      sourceCartId, { option_id: shippingMethodId },
+      { fields: additionalFields },
     );
-    setCart(updatedCart);
+    commitIfCurrent(updatedCart, sourceCartId, generation);
     return updatedCart;
   };
 
   const applyPromoCode = async (code: string): Promise<boolean> => {
-    if (!cart?.id) {
-      throw new Error('No cart found');
-    }
-
+    if (!cart?.id) throw new Error('No cart found');
+    const sourceCartId = cart.id;
+    const generation = cartGeneration.current;
     try {
       const existingCodes =
-        cart.promotions
-          ?.filter(p => !p.is_automatic && p.code)
+        cart.promotions?.filter(p => !p.is_automatic && p.code)
           .map(p => p.code!) || [];
-
-      const { cart: updatedCart } = await apiClient.store.cart.update(cart.id, {
+      const { cart: updatedCart } = await apiClient.store.cart.update(sourceCartId, {
         promo_codes: [...existingCodes, code],
       });
-      setCart(updatedCart);
-      // check if updatedCart has the promo code
-      const updatedCartPromoCodes = updatedCart.promotions
-        ?.filter(p => p.code)
-        .map(p => p.code);
-      if (updatedCartPromoCodes?.includes(code)) {
-        return true;
-      }
-      return false;
+      if (generation !== cartGeneration.current) return false;
+      commitIfCurrent(updatedCart, sourceCartId, generation);
+      const updatedPromoCodes = updatedCart.promotions
+        ?.filter(p => p.code).map(p => p.code);
+      return updatedPromoCodes?.includes(code) ?? false;
     } catch {
       return false;
     }
   };
 
   const removePromoCode = async (code: string) => {
-    if (!cart?.id) {
-      throw new Error('No cart found');
-    }
-
-    try {
-      const existingCodes =
-        cart.promotions
-          ?.filter(p => !p.is_automatic && p.code !== code)
-          .map(p => p.code!) || [];
-
-      const { cart: updatedCart } = await apiClient.store.cart.update(cart.id, {
-        promo_codes: existingCodes,
-      });
-      setCart(updatedCart);
-    } catch (err) {
-      throw err;
-    }
+    if (!cart?.id) throw new Error('No cart found');
+    const sourceCartId = cart.id;
+    const generation = cartGeneration.current;
+    const existingCodes =
+      cart.promotions?.filter(p => !p.is_automatic && p.code !== code)
+        .map(p => p.code!) || [];
+    const { cart: updatedCart } = await apiClient.store.cart.update(sourceCartId, {
+      promo_codes: existingCodes,
+    });
+    commitIfCurrent(updatedCart, sourceCartId, generation);
   };
 
   return (
