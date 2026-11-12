@@ -7,7 +7,7 @@ const cart = (id: string, region_id = 'reg_al') =>
 function fixture(saved: string | null) {
   let persisted = saved;
   const storage = {
-    getItem: jest.fn(async (_key: string) => persisted),
+    getItem: jest.fn(async (key: string) => key === CART_STORAGE_KEY ? persisted : null),
     setItem: jest.fn(async (_key: string, value: string) => { persisted = value; }),
     removeItem: jest.fn(async (_key: string) => { persisted = null; }),
   };
@@ -63,4 +63,28 @@ test('region mismatch safely updates recovered cart without replacing it', async
   expect(updated.region_id).toBe('reg_new');
   expect(f.service.update).toHaveBeenCalledWith('cart_existing', {region_id:'reg_new'}, expect.any(Object));
   expect(f.saved).toBe('cart_existing');
+});
+
+test('N01 reboot with reset tombstone must not retrieve previously private cart', async () => {
+  const disk = new Map<string, string>([
+    [CART_STORAGE_KEY, 'cart_private_A'],
+    ['shqipshop:cart-reset-pending', '1'],
+  ]);
+  const storage = {
+    getItem: jest.fn(async (key: string) => disk.get(key) ?? null),
+    setItem: jest.fn(async (key: string, value: string) => { disk.set(key, value); }),
+    removeItem: jest.fn(async (key: string) => {
+      if (key === CART_STORAGE_KEY) throw new Error('simulated persistent remove failure');
+      disk.delete(key);
+    }),
+  };
+  const service = {
+    retrieve: jest.fn(async () => ({ cart: cart('cart_private_A') })),
+    update: jest.fn(),
+    create: jest.fn(async () => ({ cart: cart('cart_new') })),
+  };
+  await expect(restoreOrCreateCart('reg_al', storage, service as never))
+    .rejects.toThrow('simulated persistent remove failure');
+  expect(service.retrieve).not.toHaveBeenCalled();
+  expect(disk.get('shqipshop:cart-reset-pending')).toBe('1');
 });

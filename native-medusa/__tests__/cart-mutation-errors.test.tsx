@@ -167,3 +167,17 @@ test('N01 legitimate matching cart mutation still updates active cart', async ()
   expect(cartActions?.cart?.id).toBe('cart_1');
   expect(cartActions?.cart?.email).toBe('guest-checkout@example.invalid');
 });
+
+test('N01 reset persists a tombstone before attempting to delete saved cart ID', async () => {
+  await renderWithCart();
+  (AsyncStorage.removeItem as jest.Mock).mockRejectedValueOnce(
+    new Error('synthetic cart ID write failure'),
+  );
+  await ReactTestRenderer.act(async () => {
+    await expect(cartActions!.resetCart()).rejects.toThrow('synthetic cart ID write failure');
+  });
+  expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+    'shqipshop:cart-reset-pending', '1',
+  );
+  expect(cartActions?.cart).toBeUndefined();
+});

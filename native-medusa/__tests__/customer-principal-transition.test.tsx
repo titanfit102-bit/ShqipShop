@@ -134,3 +134,26 @@ test('old account refresh response cannot replace a newer identity', async () =>
   });
   expect(actions?.customer?.id).toBe('cust_B');
 });
+
+test('N01 logout starts cart reset before asynchronous token removal', async () => {
+  const client = new QueryClient();
+  retrieve.mockResolvedValue({ customer: { id: 'cust_A' } });
+  let releaseTokenRemoval: (() => void) | undefined;
+  clearToken.mockImplementationOnce(
+    () => new Promise<void>(resolve => { releaseTokenRemoval = resolve; }),
+  );
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(mount(client));
+  });
+  let logoutPending!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    logoutPending = actions!.logout();
+    await Promise.resolve();
+  });
+  // The cart must be invalidated as soon as logout is requested, not after
+  // cancelQueries/token removal, which may remain pending.
+  expect(mockResetCart).toHaveBeenCalledTimes(1);
+  // Let the underlying promise finish even if the assertion above regresses.
+  releaseTokenRemoval?.();
+  await ReactTestRenderer.act(async () => { await logoutPending; });
+});
