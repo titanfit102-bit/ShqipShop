@@ -167,11 +167,14 @@ async function adminRegion(adminA,adminB,customerA){
    denied(rejected.status,label+" Admin region write");
    assert.equal(pg("A","region","name",ar.id),trusted,"Denied region write persisted");
   }
-  phase="12AF_REGION_UNTRUSTED_ORIGIN";
+  phase="12AG_REGION_UNTRUSTED_ORIGIN";
   const foreign=await update(other,adminA,evil);
   const state=classify(foreign.status,pg("A","region","name",ar.id),trusted,other);
+  assert.equal(foreign.status,403,"Stage12AG region Origin gate absent");
+  assert.equal(state,"NO_CHANGE","Stage12AG foreign Origin mutated region name");
+  console.log("SHQIPSHOP_226_STAGE12AG_REGION_FOREIGN_ORIGIN_403_NO_SQL_CHANGE");
   assert.equal(pg("B","region","name",br.id),originalB,"Tenant B region changed");
-  console.log("SHQIPSHOP_226_STAGE12AF_REGION_DIRECT_HTTP_POSTGRES_CLASS",JSON.stringify({
+  console.log("SHQIPSHOP_226_STAGE12AG_REGION_DIRECT_HTTP_POSTGRES_CLASS",JSON.stringify({
    trusted:positive.status,missing:statuses.missing,wrongRole:statuses.customer,
    foreignMerchant:statuses.merchantB,foreignOriginHttp:foreign.status,
    foreignOriginPersistence:state,browserAttackNotYetMeasured:true,

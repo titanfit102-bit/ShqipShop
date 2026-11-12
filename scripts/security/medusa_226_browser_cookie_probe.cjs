@@ -569,16 +569,17 @@ async function adForm(page,s,mode,marker,policy){
   assert([200,400,401,403,404,415,422].includes(response.status()),
     "Unexpected real browser form HTTP status");
   const persistence=adClassify(s,s.expected,marker);
-  // Stage12AE: the same previously successful real-browser CSRF attempt
-  // MUST now fail explicitly, not merely be recorded as a characterization.
-  if(s.kind==="admin-product"){
+  // Stage12AE product and Stage12AG region: browser-real CSRF must be
+  // denied at the server when a genuine cookie was delivered, and SQL
+  // must remain unchanged even when SameSite omitted the session cookie.
+  if(s.kind==="admin-product"||s.kind==="admin-region"){
     assert.equal(response.status(),event.cookieSent?403:401,
-      "Stage12AE Admin product native-form attack not explicitly denied");
+      "Scoped Admin native-form attack not explicitly denied");
     assert.equal(persistence,"NO_CHANGE",
-      "Stage12AE Admin product browser attack persisted a mutation");
+      "Scoped Admin browser attack persisted a mutation");
   }
   console.log(s.kind==="admin-region"?
-    "SHQIPSHOP_226_STAGE12AF_ADMIN_REGION_BROWSER_FORM_CLASS":
+    "SHQIPSHOP_226_STAGE12AG_ADMIN_REGION_BROWSER_FORM_CLASS":
     "SHQIPSHOP_226_STAGE12AD_FORM_CLASS",JSON.stringify({
     route:s.kind,mode,cookiePolicy:policy,cookieSent:event.cookieSent,
     publicKeySent:event.publicKeySent,httpStatus:response.status(),persistence,
@@ -609,8 +610,10 @@ async function adCrossFetch(page,s,marker,policy){
   if(posts.length===0)assert.equal(result.kind,"BROWSER_REJECTED",
     "Cross-site JSON without POST did not produce browser CORS denial");
   const persistence=adClassify(s,s.expected,marker);
+  if(s.kind==="admin-region")assert.equal(persistence,"NO_CHANGE",
+    "Stage12AG region cross-site JSON fetch persisted a mutation");
   console.log(s.kind==="admin-region"?
-    "SHQIPSHOP_226_STAGE12AF_ADMIN_REGION_JSON_FETCH_CLASS":
+    "SHQIPSHOP_226_STAGE12AG_ADMIN_REGION_JSON_FETCH_CLASS":
     "SHQIPSHOP_226_STAGE12AD_JSON_FETCH_CLASS",JSON.stringify({
     route:s.kind,cookiePolicy:policy,
     preflightObserved:options.length>=1,postSent:posts.length===1,
@@ -719,8 +722,8 @@ async function runStage12AF(browser){
   await adCases(browser,{kind:"admin-region",id:region.id,
     route:"/admin/regions/"+encodeURIComponent(region.id),
     field:"name",original,expected:original});
-  console.log("SHQIPSHOP_226_STAGE12AF_REAL_CHROMIUM_REGION_CSRF_CLASSIFICATION_AND_RESTORE_PASSED");
-  console.log("SHQIPSHOP_226_STAGE12AF_CI_ONLY_NOT_PRODUCTION_CSRF_CERTIFICATION");
+  console.log("SHQIPSHOP_226_STAGE12AG_REAL_CHROMIUM_REGION_403_NO_SQL_CHANGE_AND_RESTORE_PASSED");
+  console.log("SHQIPSHOP_226_STAGE12AG_CI_ONLY_NOT_PRODUCTION_CSRF_CERTIFICATION");
 }
 
 async function main(){

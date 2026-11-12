@@ -29,6 +29,13 @@ export default defineMiddlewares({
       middlewares: [enforceStage12xCookieCsrfCi],
     },
     {
+      // Stage12AG: isolated Admin region-name POST CSRF regression only.
+      // Same exact CI/AOF opt-in; never a Production-wide policy.
+      matcher: '/admin/regions/:id',
+      method: ['POST'],
+      middlewares: [enforceStage12xCookieCsrfCi],
+    },
+    {
       // Exact fixture CI only. Outside CI this is a no-op, not a deployed fix.
       matcher: '/admin/payments/:id/refund',
       method: ['POST'],
