@@ -146,3 +146,24 @@ test('N01 stale customer transfer cannot overwrite a new guest cart', async () =
   expect(cartActions?.cart?.id).toBe('cart_guest_2');
   expect(cartActions?.cart?.email).toBeUndefined();
 });
+
+test('N01 legitimate matching cart mutation still updates active cart', async () => {
+  await renderWithCart();
+  const activeCart = {
+    id: 'cart_1',
+    region_id: 'reg_al',
+    email: 'guest-checkout@example.invalid',
+    items: [{ id: 'li_1', quantity: 1 }],
+  };
+  jest.mocked(apiClient.store.cart.update).mockResolvedValueOnce({
+    cart: activeCart as never,
+  });
+  await ReactTestRenderer.act(async () => {
+    const response = await cartActions!.updateCart({
+      email: 'guest-checkout@example.invalid',
+    });
+    expect(response.id).toBe('cart_1');
+  });
+  expect(cartActions?.cart?.id).toBe('cart_1');
+  expect(cartActions?.cart?.email).toBe('guest-checkout@example.invalid');
+});
