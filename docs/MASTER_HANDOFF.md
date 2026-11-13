@@ -1,5 +1,12 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-13 — N01 integrated native providers + reboot checks VERIFIED (82/82); still PARTIAL
+
+[Canonical evidence](CURRENT_STATE.md). [Customer+Cart providers integration tests](https://github.com/titanfit102-bit/ShqipShop/commit/db6f42d36c78b38caa9158987cac5cba35276f6f) used real React providers with mocked Medusa/AsyncStorage to cover A→logout→guest/B and delayed A mutation, plus remount after persisted reset marker and deletion failure. A test-only mock leak was corrected in [7bea52d](https://github.com/titanfit102-bit/ShqipShop/commit/7bea52d775e73aba6d786c780bd3bb5a9c10a34b); [native CI #43333136692](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43333136692) **16 suites / 82 tests PASS with ESLint and TypeScript**. No runtime/Production code change in this iteration.
+
+N01 authenticated native real-device/real-backend readiness is **NOT VERIFIED**, especially simultaneous marker+ID deletion failure, true process restart and tenant server policies. N04 late login and N02 register JWT bootstrap remain OPEN. **Next:** red-before stale A SDK login after logout/B, owned-token fix with focused tests; keep PR #12 Draft, preserve R01/R02/R03 release gates, no real PSP or deploy.
+
+
 ## 2026-11-13 — N01 phase 2 VERIFIED in source CI; provider integration outstanding
 
 [Full canonical checkpoint and residuals](CURRENT_STATE.md). [Pre-fix CI #43330845234](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43330845234) proved 3 new privacy regressions failing while 75 old passed. [Code eb46444](https://github.com/titanfit102-bit/ShqipShop/commit/eb464441593407b352bf95455ba8ba592fa66b00) [native CI #43331293749](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43331293749) is **lint/TypeScript/80 of 80 Jest PASS**. Logout blocks token access and begins cart wipe before awaiting; a durable `shqipshop:cart-reset-pending` marker prevents restart retrieval of old cart ID after a partially failed removal; Checkout now uses cart-generation-scoped commit. **No real-device and combined-provider A→B evidence**; N01 remains PARTIAL/OPEN for authenticated native rollout. Both disk marker and deletion failing simultaneously is UNKNOWN across restart. N04/N02 and R01/R02/R03 remain blocked. PR #12 Draft, no release.

@@ -1,5 +1,16 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-13 — N01 actual nested native React providers (mock SDK + storage)
+
+| Real React providers + mocked I/O | Verified result | Missing acceptance |
+| --- | --- | --- |
+| A login/cart → delayed A update → logout (token deletion delayed) → new guest cart → B login/cart transfer | PASS: customer B, B JWT and B cart intact, no A PII in context | Real Medusa HTTP, server owner/tenant gate, Android E2E |
+| Provider unmount/restart after `cart_id` deletion failure and persisted pending tombstone | PASS: no A retrieve, error fail-closed while disk broken; repaired storage allows new guest cart | True OS process-kill and both marker write + ID deletion failing |
+| Existing regressions + lint + TypeScript | [CI #43333136692](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43333136692) **82/82**, 16/16 suites | N04/N02 and Production gates separate |
+
+[Test commits db6f42d](https://github.com/titanfit102-bit/ShqipShop/commit/db6f42d36c78b38caa9158987cac5cba35276f6f) and [7bea52d](https://github.com/titanfit102-bit/ShqipShop/commit/7bea52d775e73aba6d786c780bd3bb5a9c10a34b). Earlier [#43332871763](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43332871763) 81 PASS/1 FAIL due cross-test mock leakage, **not app defect**. No runtime code changed. N01 PARTIAL and release BLOCKED; next N04 red-before stale login and B session ownership.
+
+
 ## 2026-11-13 — N01 phase 2 exact pre/post native CI evidence
 
 | Case | Before | After | Scope |

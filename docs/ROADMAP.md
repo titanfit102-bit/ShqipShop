@@ -1,5 +1,10 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-13 — N01 integrated providers/reboot milestone; proceed to N04 test
+
+[Detailed N01 checkpoint](CURRENT_STATE.md). New real CartProvider+CustomerProvider Jest harness and mocked reboot path verified at [CI #43333136692](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43333136692) **82/82 + lint + TypeScript PASS** after a test-fixture isolation correction [7bea52d](https://github.com/titanfit102-bit/ShqipShop/commit/7bea52d775e73aba6d786c780bd3bb5a9c10a34b). No new native runtime code in this milestone. Remaining N01: Android/device/process-kill, simultaneous failed storage writes and failed delete, backend tenant/owner integration. Do **not** call N01 complete. The next narrow source task is N04 stale SDK login after logout and B re-login, red-before/green-after; then N02 register bootstrap and N03 receipt, conditional N05 only if Next selected. R01 finance, R02 global CSRF, R03 Medusa release train independently veto Production.
+
+
 ## 2026-11-13 — Native N01 second milestone: scoped CI 80/80, still partial
 
 [Detailed verified state](CURRENT_STATE.md). [Three failing pre-fix N01 tests](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43330845234) converted to PASS by [eb46444](https://github.com/titanfit102-bit/ShqipShop/commit/eb464441593407b352bf95455ba8ba592fa66b00) and [native CI #43331293749](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43331293749) **80/80**; additional Checkout current/foreign generation negative and legitimate guest positive pass. Logout starts private cart deletion and JWT block at intent; persisted tombstone prevents old cart read on restart when it can be written; Checkout no longer accepts stale raw `setCart` response. **Next** integrated real providers with delayed SDK and disk-failure restart; then N04/N02 auth lifecycle and N03 completed cart. N01 is **not closed** for native real-account pilot; production release not allowed. Money P0 / global CSRF / Medusa query patch remain independent release blockers.

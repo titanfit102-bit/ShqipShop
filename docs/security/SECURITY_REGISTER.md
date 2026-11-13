@@ -1,5 +1,12 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-13 — N01 identity+cart integration regression evidence, still OPEN
+
+[Actual nested native CartProvider+CustomerProvider tests](https://github.com/titanfit102-bit/ShqipShop/commit/db6f42d36c78b38caa9158987cac5cba35276f6f) and [storage mock isolation patch](https://github.com/titanfit102-bit/ShqipShop/commit/7bea52d775e73aba6d786c780bd3bb5a9c10a34b) verified in [native CI #43333136692](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43333136692): **16 Jest suites / 82 PASS, TS/lint PASS**. Mocked A→logout→guest/B, delayed A cart update, token removal, real React context and reboot/remount after pending reset marker are covered; no real Medusa API, device, tenant owner or Production token was used. One earlier test failure on #43332871763 was fixture mock leakage, repaired without runtime modifications.
+
+**N01 status stays PARTIAL/OPEN for authenticated native release.** Residuals: marker write + cart-id deletion both failing across process restart, full device/backend integration, SDK stale login N04, register N02. Do not promote client-mock behavior to server authorization. R01/T05/S13 captured-refund P0, R02 global session CSRF, R03 2.22.0 query-security gap, RG-01/02/03 and G3/G5 remain BLOCKED; PR #12 Draft; NO RELEASE.
+
+
 ## 2026-11-13 — N01 native logout/checkout/persisted cart privacy narrowed, NOT closed
 
 [Pre-fix red CI #43330845234](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43330845234) exposed 3 negative cases (late logout invalidation, absence of reset marker, old cart readable on restart). [Scoped fix eb46444](https://github.com/titanfit102-bit/ShqipShop/commit/eb464441593407b352bf95455ba8ba592fa66b00) [native source CI #43331293749](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43331293749) **ESLint/TypeScript/80 of 80 Jest PASS** including old 75. Logout blocks access to old bearer before awaits and immediately invalidates cart generation; persisted `shqipshop:cart-reset-pending` forces ID deletion before recovery; checkout validated cart task refuses stale A after guest/reset. No new Production/session/finance policy changed.
