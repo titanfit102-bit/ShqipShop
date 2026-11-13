@@ -52,8 +52,7 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
     if (epoch === identityEpoch.current) setCustomer(nextCustomer);
   }, [queryClient]);
 
-  const refreshCustomer = useCallback(async () => {
-    const epoch = identityEpoch.current;
+  const refreshCustomerForEpoch = useCallback(async (epoch: number) => {
     try {
       const { customer: existingCustomer } =
         await apiClient.store.customer.retrieve();
@@ -64,44 +63,58 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
     }
   }, [applyCustomer]);
 
+  const refreshCustomer = useCallback(
+    () => refreshCustomerForEpoch(identityEpoch.current),
+    [refreshCustomerForEpoch],
+  );
+
   useEffect(() => {
     // The identity generation rejects late responses from previous logins.
     refreshCustomer();
   }, [refreshCustomer]);
 
+  const ensureOwnedAuth = (epoch: number, authVersion: number) => {
+    if (epoch !== identityEpoch.current || !isCurrentAuthAttempt(authVersion)) {
+      throw new Error('Customer auth superseded by a newer session transition');
+    }
+  };
+
+  // Reused by login and the final sign-in following a successful customer
+  // creation. It runs INSIDE one serialized SDK operation; no nested queue.
+  const finishOwnedLogin = async (
+    email: string, password: string, epoch: number, authVersion: number,
+  ) => {
+    ensureOwnedAuth(epoch, authVersion);
+    const response = await apiClient.auth.login('customer', 'emailpass', {
+      email, password,
+    });
+    // Medusa SDK may persist a JWT before returning its login response.
+    ensureOwnedAuth(epoch, authVersion);
+    if (typeof response === 'string') {
+      await confirmNewLoginToken(response, authVersion);
+      ensureOwnedAuth(epoch, authVersion);
+      await Promise.all([
+        refreshCustomerForEpoch(epoch),
+        linkCartToCustomer(),
+      ]);
+      ensureOwnedAuth(epoch, authVersion);
+    } else {
+      // Third-party authentication requires a separate completion flow.
+      console.log('Third party auth', response);
+    }
+  };
+
   const login = async (email: string, password: string) => {
     const epoch = ++identityEpoch.current;
     const authVersion = blockAuthForLogin();
-    // Hide the previous account immediately. SDK login requests and their
-    // custom-storage JWT writes must not overlap any logout or newer login.
     setCustomer(undefined);
     currentPrincipalId.current = undefined;
-    const ensureCurrent = () => {
-      if (epoch !== identityEpoch.current || !isCurrentAuthAttempt(authVersion)) {
-        throw new Error('Customer login superseded by a newer session transition');
-      }
-    };
 
     return serializeNativeAuthOperation(async () => {
-      ensureCurrent();
+      ensureOwnedAuth(epoch, authVersion);
       await clearPrivateCustomerQueries(queryClient);
-      ensureCurrent();
-      const response = await apiClient.auth.login('customer', 'emailpass', {
-        email,
-        password,
-      });
-      // SDK may already have persisted a JWT when it resolves. Never
-      // confirm/unblock or fetch private data for an invalidated attempt.
-      ensureCurrent();
-      if (typeof response === 'string') {
-        await confirmNewLoginToken(response, authVersion);
-        ensureCurrent();
-        await Promise.all([refreshCustomer(), linkCartToCustomer()]);
-        ensureCurrent();
-      } else {
-        // Third-party authentication is not completed here.
-        console.log('Third party auth', response);
-      }
+      ensureOwnedAuth(epoch, authVersion);
+      await finishOwnedLogin(email, password, epoch, authVersion);
     });
   };
 
@@ -142,25 +155,69 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
     firstName: string,
     lastName: string,
   ) => {
-    try {
-      const token = await apiClient.auth.register('customer', 'emailpass', {
-        email,
-        password,
-      });
+    const epoch = ++identityEpoch.current;
+    let authVersion = blockAuthForLogin();
+    // A previous signed-in account must disappear at registration intent.
+    setCustomer(undefined);
+    currentPrincipalId.current = undefined;
 
-      await apiClient.client.setToken(token);
+    // auth.register and client.setToken can both write to SDK custom storage.
+    // Reserve the same operation queue as login/logout before the first await.
+    return serializeNativeAuthOperation(async () => {
+      ensureOwnedAuth(epoch, authVersion);
+      try {
+        await clearPrivateCustomerQueries(queryClient);
+        ensureOwnedAuth(epoch, authVersion);
 
-      await apiClient.store.customer.create({
-        first_name: firstName,
-        last_name: lastName,
-        email,
-      });
-      // There's some bug with the token received from the register endpoint
-      // so we need to login again
-      await login(email, password);
-    } catch (error) {
-      throw error;
-    }
+        const token = await apiClient.auth.register('customer', 'emailpass', {
+          email, password,
+        });
+        ensureOwnedAuth(epoch, authVersion);
+        await apiClient.client.setToken(token);
+        ensureOwnedAuth(epoch, authVersion);
+
+        // The registration JWT is NOT an existing signed-in customer session.
+        // Verify its exact persisted value before allowing create() to use it.
+        // This also clears a signed-out marker left by an earlier logout.
+        await confirmNewLoginToken(token, authVersion);
+        ensureOwnedAuth(epoch, authVersion);
+
+        await apiClient.store.customer.create({
+          first_name: firstName,
+          last_name: lastName,
+          email,
+        });
+        ensureOwnedAuth(epoch, authVersion);
+
+        // After customer creation replace the registration JWT with a fresh
+        // login JWT, without nesting a second serialized auth operation.
+        authVersion = blockAuthForLogin();
+        await finishOwnedLogin(email, password, epoch, authVersion);
+      } catch (error) {
+        // Cleanup runs before the next queued B login/logout: an SDK-written
+        // registration JWT must never be re-used after failed/stale creation.
+        if (epoch === identityEpoch.current && isCurrentAuthAttempt(authVersion)) {
+          blockAuthForLogin();
+        }
+        let cleanupError: unknown;
+        try {
+          await clearNativeCustomerToken(apiClient.client);
+        } catch (failedCleanup) {
+          cleanupError = failedCleanup;
+        }
+        if (epoch === identityEpoch.current) {
+          setCustomer(undefined);
+          currentPrincipalId.current = undefined;
+          await clearPrivateCustomerQueries(queryClient);
+        }
+        if (cleanupError) {
+          throw new Error('Customer registration could not clear its JWT', {
+            cause: cleanupError,
+          });
+        }
+        throw error;
+      }
+    });
   };
 
   const updateCustomer = async (data: HttpTypes.StoreUpdateCustomer) => {
