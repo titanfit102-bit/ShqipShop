@@ -1,5 +1,13 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-14 — N02 native registration JWT owner boundary verified in mocked CI, PARTIAL for release
+
+[Test-only ee93034](https://github.com/titanfit102-bit/ShqipShop/commit/ee93034c215fe75657a3e07dc19f0229365e6f12) [CI #43528338763](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43528338763) proved 3 N02 violations, prior 86 passing. [Source fix b92f13a](https://github.com/titanfit102-bit/ShqipShop/commit/b92f13ab366671294db4210f9757945e90d05595) and [two cleanup/mismatch cases 2fc6d4b](https://github.com/titanfit102-bit/ShqipShop/commit/2fc6d4b003fec9cfbcfd03c80f7e33ea90ebd7e1) verified [native CI #43528981412](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43528981412): **91/91 PASS, ESLint and TypeScript PASS**. `CustomerProvider.register` now enters the same identity-epoch/serialized SDK-operation queue as login/logout, verifies persisted registration token before `customer.create`, switches to final login token, and fails closed/clears interim JWT before next queued identity on stale/error paths. Mock positive guest after logout, stale A→B negative, storage error negative, create-503 recovery and persisted-token-mismatch rejection covered.
+
+**N02 status PARTIAL/OPEN:** real SDK bearer header behavior and backend-authenticated creation, email verification, process restart after SDK token write, server-side create completed despite client timeout, true device session integration UNKNOWN. N01/N04 SDK/device gaps remain; T05/S13/R01 financial P0, T02/R02 global Admin CSRF, R03 pinned Medusa release train, RG-01/02/03/G3/G5 all BLOCKED. Scoped PR #12 Draft only, NO RELEASE.
+
+
+
 ## 2026-11-13 — N04 serialized native SDK auth + owned JWT confirmation, mock CI VERIFIED
 
 **Pre-fix tests cb04478** [CI #43512841854](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43512841854) proved 2 N04 violations after logout and A→logout→B (82 existing PASS). [Fix f0faac8](https://github.com/titanfit102-bit/ShqipShop/commit/f0faac8a90f0c494c777f34334b6346fd865bfc3) and [extra A/B overlap + rejected-A queue tests b78ba5b](https://github.com/titanfit102-bit/ShqipShop/commit/b78ba5ba91ca3fa9d670129d6f28f121f31b96ed) passed [native CI #43513780394](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43513780394) **86/86, 16 suites, lint and TypeScript PASS**. Native JWT custom storage now checks auth-attempt versions before/after asynchronous token/marker operations; CustomerProvider reserves serialized SDK-auth operations at login/logout intent, rejects stale responses and avoids old logout wiping B. No vendor SDK installation change or server policy modification.

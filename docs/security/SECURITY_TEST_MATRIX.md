@@ -1,5 +1,20 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-14 — N02 registration JWT scoped security matrix
+
+| Scenario in real `CustomerProvider`, mocked SDK/storage | Pre-fix | Corrected CI |
+| --- | --- | --- |
+| A signed-in → logout → B registration JWT is used for `customer.create` → final B login JWT | [#43528338763](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43528338763) FAIL | [#43528981412](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43528981412) PASS |
+| A's late registration after logout/B cannot issue `customer.create` or replace B | FAIL | PASS |
+| Registration SDK token-storage failure must clear old A principal and block bearer | FAIL | PASS |
+| `customer.create` 503 must clear interim registration JWT; later B login succeeds | Added after fix | PASS |
+| Persisted wrong JWT must prevent `customer.create` | Added after fix | PASS |
+| Existing native suites + TS/lint | 86 old PASS | **91/91 PASS**, 16 suites |
+
+[Red test commit ee93034](https://github.com/titanfit102-bit/ShqipShop/commit/ee93034c215fe75657a3e07dc19f0229365e6f12), [source fix b92f13a](https://github.com/titanfit102-bit/ShqipShop/commit/b92f13ab366671294db4210f9757945e90d05595), [additional tests 2fc6d4b](https://github.com/titanfit102-bit/ShqipShop/commit/2fc6d4b003fec9cfbcfd03c80f7e33ea90ebd7e1). **Coverage is mock-backed and cannot certify actual SDK Authorization header, Medusa server identity ownership, email-verification variations, network crash/partial-create recovery, device process restart or Production policies.** N02 PARTIAL; N01/N04 release device gaps and R01/R02/R03 all OPEN. Next exact installed SDK controlled transport test (not real accounts).
+
+
+
 ## 2026-11-13 — N04 native SDK JWT transition acceptance (mocked provider)
 
 | Scenario | Before | After scoped fix | Remaining limitation |
