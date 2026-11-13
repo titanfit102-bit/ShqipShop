@@ -157,3 +157,80 @@ test('N01 logout starts cart reset before asynchronous token removal', async () 
   releaseTokenRemoval?.();
   await ReactTestRenderer.act(async () => { await logoutPending; });
 });
+
+test('N04 late A SDK login cannot reactivate JWT after logout', async () => {
+  const client = new QueryClient();
+  retrieve.mockImplementation(async () => {
+    const token = await authTokenStorage.getItem(AUTH_TOKEN_KEY);
+    return { customer: token === 'jwt_A' ? { id: 'cust_A' } : undefined };
+  });
+  let releaseA!: () => void;
+  login.mockImplementation(async () => {
+    await new Promise<void>(resolve => { releaseA = resolve; });
+    // Mimic the SDK's custom storage write before returning its JWT.
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'jwt_A');
+    return 'jwt_A';
+  });
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(mount(client));
+  });
+  let pendingA!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pendingA = actions!.login('a@example.invalid', 'synthetic');
+    for (let i = 0; i < 10 && !releaseA; i++) await Promise.resolve();
+  });
+  expect(releaseA).toBeDefined();
+  await ReactTestRenderer.act(async () => { await actions!.logout(); });
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
+  await ReactTestRenderer.act(async () => {
+    releaseA();
+    await expect(pendingA).rejects.toThrow(/superseded/i);
+  });
+  expect(actions?.customer).toBeUndefined();
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
+  expect(mockLinkCartToCustomer).not.toHaveBeenCalled();
+});
+
+test('N04 late A SDK token cannot replace B after logout and newer login', async () => {
+  const client = new QueryClient();
+  retrieve.mockImplementation(async () => {
+    const token = await authTokenStorage.getItem(AUTH_TOKEN_KEY);
+    return { customer: token === 'jwt_B' ? { id: 'cust_B' } :
+      token === 'jwt_A' ? { id: 'cust_A' } : undefined };
+  });
+  let releaseA!: () => void;
+  login.mockImplementation(async (_role: string, _method: string, data: { email: string }) => {
+    if (data.email.startsWith('a@')) {
+      await new Promise<void>(resolve => { releaseA = resolve; });
+      await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'jwt_A');
+      return 'jwt_A';
+    }
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'jwt_B');
+    return 'jwt_B';
+  });
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(mount(client));
+  });
+  let pendingA!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pendingA = actions!.login('a@example.invalid', 'synthetic');
+    for (let i = 0; i < 10 && !releaseA; i++) await Promise.resolve();
+  });
+  expect(releaseA).toBeDefined();
+  await ReactTestRenderer.act(async () => { await actions!.logout(); });
+
+  let pendingB!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pendingB = actions!.login('b@example.invalid', 'synthetic');
+    await Promise.resolve();
+  });
+  await ReactTestRenderer.act(async () => {
+    releaseA();
+    await expect(pendingA).rejects.toThrow(/superseded/i);
+    await pendingB;
+  });
+  expect(actions?.customer?.id).toBe('cust_B');
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBe('jwt_B');
+  expect(mockJwtStorage.get(AUTH_TOKEN_KEY)).toBe('jwt_B');
+  expect(mockLinkCartToCustomer).toHaveBeenCalledTimes(1);
+});
