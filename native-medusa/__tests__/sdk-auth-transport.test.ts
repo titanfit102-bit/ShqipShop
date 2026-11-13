@@ -103,6 +103,9 @@ test('N02 real SDK sends ONLY new registration bearer on customer.create and log
     email: 'b@example.invalid', password: 'synthetic',
   });
   expect(loginJwt).toBe('JWT_B_LOGIN');
+  if (typeof loginJwt !== 'string') {
+    throw new Error('Unexpected verification or redirect response in synthetic login');
+  }
   await confirmNewLoginToken(loginJwt, version);
   const profile = await sdk.store.customer.retrieve();
   expect(profile.customer.id).toBe('cust_B');
