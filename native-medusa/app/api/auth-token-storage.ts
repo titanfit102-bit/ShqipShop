@@ -7,6 +7,21 @@ const SIGNED_OUT_MARKER_KEY = 'shqipshop:jwt-signed-out';
 // reused while AsyncStorage removal is delayed or has failed.
 let tokenAccessBlocked = false;
 let pendingWrites: Promise<void> = Promise.resolve();
+// The login API performs SDK-owned JWT writes. Serialize session transitions
+// so an old login cannot physically overwrite the next user's stored token.
+let authTransitionVersion = 0;
+let authOperationTail: Promise<void> = Promise.resolve();
+
+export const isCurrentAuthAttempt = (version: number) =>
+  version === authTransitionVersion;
+
+export const serializeNativeAuthOperation = <T>(
+  operation: () => Promise<T>,
+): Promise<T> => {
+  const result = authOperationTail.catch(() => undefined).then(operation);
+  authOperationTail = result.then(() => undefined, () => undefined);
+  return result;
+};
 
 const queueWrite = (work: () => Promise<void>): Promise<void> => {
   const operation = pendingWrites.catch(() => undefined).then(work);
@@ -42,18 +57,33 @@ export const authTokenStorage = {
   },
 };
 
-export const blockAuthForLogin = () => {
+export const blockAuthForLogin = (): number => {
   tokenAccessBlocked = true;
+  return ++authTransitionVersion;
 };
 
 /** A new login only becomes usable after its own JWT was persisted. */
-export const confirmNewLoginToken = async (expectedToken: string) => {
+export const confirmNewLoginToken = async (
+  expectedToken: string,
+  attemptVersion: number = authTransitionVersion,
+) => {
+  const assertOwned = () => {
+    if (!isCurrentAuthAttempt(attemptVersion)) {
+      throw new Error('Customer login superseded by a newer session transition');
+    }
+  };
+  assertOwned();
   await pendingWrites;
+  assertOwned();
   const storedToken = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+  assertOwned();
   if (!expectedToken || storedToken !== expectedToken) {
     throw new Error('New customer session could not be verified in storage');
   }
   await AsyncStorage.removeItem(SIGNED_OUT_MARKER_KEY);
+  // A logout can begin while marker deletion is awaiting storage: do not
+  // unblock an older login after the newer identity transition.
+  assertOwned();
   tokenAccessBlocked = false;
 };
 

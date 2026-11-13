@@ -6,6 +6,8 @@ import {
   blockAuthForLogin,
   clearNativeCustomerToken,
   confirmNewLoginToken,
+  isCurrentAuthAttempt,
+  serializeNativeAuthOperation,
 } from '@api/auth-token-storage';
 import { useCart } from './cart-context';
 import { clearPrivateCustomerQueries } from './private-customer-queries';
@@ -68,49 +70,68 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
   }, [refreshCustomer]);
 
   const login = async (email: string, password: string) => {
-    ++identityEpoch.current;
-    // Hide the previous account before making any request with new credentials.
+    const epoch = ++identityEpoch.current;
+    const authVersion = blockAuthForLogin();
+    // Hide the previous account immediately. SDK login requests and their
+    // custom-storage JWT writes must not overlap any logout or newer login.
     setCustomer(undefined);
     currentPrincipalId.current = undefined;
-    await clearPrivateCustomerQueries(queryClient);
+    const ensureCurrent = () => {
+      if (epoch !== identityEpoch.current || !isCurrentAuthAttempt(authVersion)) {
+        throw new Error('Customer login superseded by a newer session transition');
+      }
+    };
 
-    blockAuthForLogin();
-    const response = await apiClient.auth.login('customer', 'emailpass', {
-      email,
-      password,
+    return serializeNativeAuthOperation(async () => {
+      ensureCurrent();
+      await clearPrivateCustomerQueries(queryClient);
+      ensureCurrent();
+      const response = await apiClient.auth.login('customer', 'emailpass', {
+        email,
+        password,
+      });
+      // SDK may already have persisted a JWT when it resolves. Never
+      // confirm/unblock or fetch private data for an invalidated attempt.
+      ensureCurrent();
+      if (typeof response === 'string') {
+        await confirmNewLoginToken(response, authVersion);
+        ensureCurrent();
+        await Promise.all([refreshCustomer(), linkCartToCustomer()]);
+        ensureCurrent();
+      } else {
+        // Third-party authentication is not completed here.
+        console.log('Third party auth', response);
+      }
     });
-
-    if (typeof response === 'string') {
-      await confirmNewLoginToken(response);
-      await Promise.all([refreshCustomer(), linkCartToCustomer()]);
-    } else {
-      // Third-party authentication is not completed here.
-      console.log('Third party auth', response);
-    }
   };
 
   const logout = async () => {
-    ++identityEpoch.current;
-    // Block the old bearer and invalidate cart PII at logout INTENT, before
-    // any cache cancellation, SDK token I/O or AsyncStorage operation awaits.
+    const epoch = ++identityEpoch.current;
+    // Block JWT access and wipe cart memory at logout INTENT, independently
+    // of an older SDK login that may still be awaiting a remote response.
     blockAuthForLogin();
     setCustomer(undefined);
     currentPrincipalId.current = undefined;
-    // Observe rejection immediately; keep both logout and reset failures
-    // visible without allowing an unhandled promise during token removal.
     const cartReset = resetCart().then(
       () => ({ error: undefined as unknown }),
       (error: unknown) => ({ error }),
     );
+    // Reserve this slot immediately, BEFORE the first await. A newer B login
+    // queues behind both old A and its required physical token removal.
+    const clearToken = serializeNativeAuthOperation(
+      () => clearNativeCustomerToken(apiClient.client),
+    );
     try {
       await clearPrivateCustomerQueries(queryClient);
-      // JWT-specific SDK client operation is awaited; auth.logout() does not
-      // await its custom-storage removal in SDK v2.21.2.
-      await clearNativeCustomerToken(apiClient.client);
+      await clearToken;
     } finally {
       const cartResult = await cartReset;
-      await clearPrivateCustomerQueries(queryClient);
-      setCustomer(undefined);
+      // A newer B may have started while cleanup was in flight: old logout
+      // must not clear B's identity or private query cache afterward.
+      if (epoch === identityEpoch.current) {
+        await clearPrivateCustomerQueries(queryClient);
+        setCustomer(undefined);
+      }
       if (cartResult.error) throw cartResult.error;
     }
   };

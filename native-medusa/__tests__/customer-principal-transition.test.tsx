@@ -180,11 +180,18 @@ test('N04 late A SDK login cannot reactivate JWT after logout', async () => {
     for (let i = 0; i < 10 && !releaseA; i++) await Promise.resolve();
   });
   expect(releaseA).toBeDefined();
-  await ReactTestRenderer.act(async () => { await actions!.logout(); });
+  let pendingLogout!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pendingLogout = actions!.logout();
+    await Promise.resolve();
+  });
+  expect(actions?.customer).toBeUndefined();
   expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
+  // Logout reserves an exclusive token clear after A's in-flight SDK write.
   await ReactTestRenderer.act(async () => {
     releaseA();
     await expect(pendingA).rejects.toThrow(/superseded/i);
+    await pendingLogout;
   });
   expect(actions?.customer).toBeUndefined();
   expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
@@ -217,7 +224,12 @@ test('N04 late A SDK token cannot replace B after logout and newer login', async
     for (let i = 0; i < 10 && !releaseA; i++) await Promise.resolve();
   });
   expect(releaseA).toBeDefined();
-  await ReactTestRenderer.act(async () => { await actions!.logout(); });
+  let pendingLogout!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pendingLogout = actions!.logout();
+    await Promise.resolve();
+  });
+  expect(actions?.customer).toBeUndefined();
 
   let pendingB!: Promise<void>;
   await ReactTestRenderer.act(async () => {
@@ -227,6 +239,7 @@ test('N04 late A SDK token cannot replace B after logout and newer login', async
   await ReactTestRenderer.act(async () => {
     releaseA();
     await expect(pendingA).rejects.toThrow(/superseded/i);
+    await pendingLogout;
     await pendingB;
   });
   expect(actions?.customer?.id).toBe('cust_B');
