@@ -20,9 +20,9 @@ jest.mock('../app/api/client', () => ({
   __esModule: true,
   apiUrl: 'https://merchant-a.example.invalid',
   default: {
-    auth: { login: jest.fn(), logout: jest.fn() },
-    client: { clearToken: jest.fn() },
-    store: { customer: { retrieve: jest.fn() } },
+    auth: { login: jest.fn(), logout: jest.fn(), register: jest.fn() },
+    client: { clearToken: jest.fn(), setToken: jest.fn() },
+    store: { customer: { retrieve: jest.fn(), create: jest.fn() } },
   },
 }));
 const mockLinkCartToCustomer = jest.fn(async () => undefined);
@@ -38,6 +38,9 @@ const retrieve = apiClient.store.customer.retrieve as jest.Mock;
 const login = apiClient.auth.login as jest.Mock;
 const logout = apiClient.auth.logout as jest.Mock;
 const clearToken = apiClient.client.clearToken as jest.Mock;
+const registerToken = apiClient.auth.register as jest.Mock;
+const setToken = apiClient.client.setToken as jest.Mock;
+const createCustomer = apiClient.store.customer.create as jest.Mock;
 
 let actions: ReturnType<typeof useCustomer> | undefined;
 let renderer: ReactTestRenderer.ReactTestRenderer | undefined;
@@ -59,6 +62,9 @@ beforeEach(() => {
   login.mockReset();
   logout.mockReset();
   clearToken.mockReset();
+  registerToken.mockReset();
+  setToken.mockReset();
+  createCustomer.mockReset();
   mockJwtStorage.clear();
   clearToken.mockImplementation(() => authTokenStorage.removeItem(AUTH_TOKEN_KEY));
   mockLinkCartToCustomer.mockClear();
@@ -325,4 +331,118 @@ test('N04 failed first SDK login does not prevent next B login', async () => {
   });
   expect(actions?.customer?.id).toBe('cust_B');
   expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBe('jwt_B');
+});
+
+test('N02 after logout creates B using registration JWT and then activates login JWT', async () => {
+  const client = new QueryClient();
+  retrieve.mockImplementation(async () => {
+    const token = await authTokenStorage.getItem(AUTH_TOKEN_KEY);
+    return { customer: token === 'jwt_B_login' ? { id: 'cust_B' } :
+      token === 'jwt_A_login' ? { id: 'cust_A' } : undefined };
+  });
+  login.mockImplementation(async (_role: string, _provider: string, data: { email: string }) => {
+    const token = data.email.startsWith('a@') ? 'jwt_A_login' : 'jwt_B_login';
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, token);
+    return token;
+  });
+  registerToken.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'jwt_B_registration');
+    return 'jwt_B_registration';
+  });
+  setToken.mockImplementation((token: string) => authTokenStorage.setItem(AUTH_TOKEN_KEY, token));
+  let createBearer: string | null = null;
+  createCustomer.mockImplementation(async () => {
+    createBearer = await authTokenStorage.getItem(AUTH_TOKEN_KEY);
+    if (createBearer !== 'jwt_B_registration') throw new Error('Missing registration bearer');
+    return { customer: { id: 'cust_B' } };
+  });
+
+  await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(mount(client)); });
+  await ReactTestRenderer.act(async () => { await actions!.login('a@example.invalid', 'synthetic'); });
+  expect(actions?.customer?.id).toBe('cust_A');
+  await ReactTestRenderer.act(async () => { await actions!.logout(); });
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
+  await ReactTestRenderer.act(async () => {
+    await actions!.register('b@example.invalid', 'synthetic', 'B', 'Guest');
+  });
+  expect(createBearer).toBe('jwt_B_registration');
+  expect(createCustomer).toHaveBeenCalledTimes(1);
+  expect(actions?.customer?.id).toBe('cust_B');
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBe('jwt_B_login');
+});
+
+test('N02 late A register after logout cannot create A or replace B session', async () => {
+  const client = new QueryClient();
+  retrieve.mockImplementation(async () => {
+    const token = await authTokenStorage.getItem(AUTH_TOKEN_KEY);
+    return { customer: token === 'jwt_B_login' ? { id: 'cust_B' } :
+      token === 'jwt_A_login' ? { id: 'cust_A' } : undefined };
+  });
+  let releaseA!: () => void;
+  registerToken.mockImplementation(async () => {
+    await new Promise<void>(resolve => { releaseA = resolve; });
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'jwt_A_registration');
+    return 'jwt_A_registration';
+  });
+  setToken.mockImplementation((token: string) => authTokenStorage.setItem(AUTH_TOKEN_KEY, token));
+  createCustomer.mockResolvedValue({ customer: { id: 'cust_A' } });
+  login.mockImplementation(async (_r: string, _p: string, data: { email: string }) => {
+    const token = data.email.startsWith('a@') ? 'jwt_A_login' : 'jwt_B_login';
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, token);
+    return token;
+  });
+  await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(mount(client)); });
+  let pendingA!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pendingA = actions!.register('a@example.invalid', 'synthetic', 'A', 'Old');
+    for (let i=0; i<12 && !releaseA; i++) await Promise.resolve();
+  });
+  expect(releaseA).toBeDefined();
+  let pendingLogout!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pendingLogout = actions!.logout();
+    await Promise.resolve();
+  });
+  let pendingB!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pendingB = actions!.login('b@example.invalid', 'synthetic');
+    await Promise.resolve();
+  });
+  await ReactTestRenderer.act(async () => {
+    releaseA();
+    await expect(pendingA).rejects.toThrow(/superseded/i);
+    await pendingLogout;
+    await pendingB;
+  });
+  expect(createCustomer).not.toHaveBeenCalled();
+  expect(actions?.customer?.id).toBe('cust_B');
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBe('jwt_B_login');
+});
+
+test('N02 registration storage failure blocks A and does not send customer.create', async () => {
+  const client = new QueryClient();
+  retrieve.mockImplementation(async () => {
+    const token = await authTokenStorage.getItem(AUTH_TOKEN_KEY);
+    return { customer: token === 'jwt_A_login' ? { id: 'cust_A' } : undefined };
+  });
+  login.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'jwt_A_login');
+    return 'jwt_A_login';
+  });
+  registerToken.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'jwt_B_registration');
+    return 'jwt_B_registration';
+  });
+  setToken.mockRejectedValue(new Error('synthetic storage failure'));
+  await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(mount(client)); });
+  await ReactTestRenderer.act(async () => { await actions!.login('a@example.invalid', 'synthetic'); });
+  expect(actions?.customer?.id).toBe('cust_A');
+
+  await ReactTestRenderer.act(async () => {
+    await expect(actions!.register('b@example.invalid', 'synthetic', 'B', 'Guest'))
+      .rejects.toThrow('synthetic storage failure');
+  });
+  expect(createCustomer).not.toHaveBeenCalled();
+  expect(actions?.customer).toBeUndefined();
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
 });
