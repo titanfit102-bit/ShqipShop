@@ -1,5 +1,11 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-13 — N04 native stale SDK login red→green; 86/86 source CI, not device
+
+[Canonical finding and remaining risks](CURRENT_STATE.md). [Red tests cb04478](https://github.com/titanfit102-bit/ShqipShop/commit/cb04478a6ad0f356a0fc3b8a511d2aeb47288a51) [CI #43512841854](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43512841854): **2 N04 failures, 82 prior PASS**. [Code f0faac8](https://github.com/titanfit102-bit/ShqipShop/commit/f0faac8a90f0c494c777f34334b6346fd865bfc3) [CI #43513364102](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43513364102) fixed those in mock integration (84/84); [concurrent A/B login and A-error/B-retry tests b78ba5b](https://github.com/titanfit102-bit/ShqipShop/commit/b78ba5ba91ca3fa9d670129d6f28f121f31b96ed) [CI #43513780394](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43513780394) **86/86 + lint/TypeScript PASS**. Scoped native auth token generation and SDK login/logout serialization protect against already-started A JWT writes being accepted after logout/B; actual device/SDK delayed-write cases and never-settling SDK operations remain UNKNOWN. N04 remains PARTIAL for native Production; N02 register bootstrap is the next source task. N01 native E2E, R01 finance, R02 global CSRF, R03 pinned Medusa release train all BLOCK release. PR #12 Draft, no merge/deploy.
+
+
+
 ## 2026-11-13 — N01 integrated native providers + reboot checks VERIFIED (82/82); still PARTIAL
 
 [Canonical evidence](CURRENT_STATE.md). [Customer+Cart providers integration tests](https://github.com/titanfit102-bit/ShqipShop/commit/db6f42d36c78b38caa9158987cac5cba35276f6f) used real React providers with mocked Medusa/AsyncStorage to cover A→logout→guest/B and delayed A mutation, plus remount after persisted reset marker and deletion failure. A test-only mock leak was corrected in [7bea52d](https://github.com/titanfit102-bit/ShqipShop/commit/7bea52d775e73aba6d786c780bd3bb5a9c10a34b); [native CI #43333136692](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43333136692) **16 suites / 82 tests PASS with ESLint and TypeScript**. No runtime/Production code change in this iteration.

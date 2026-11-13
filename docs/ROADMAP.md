@@ -1,5 +1,11 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-13 — N04 source-level stale auth fix verified; next N02 registration bootstrap
+
+[Detailed N04 evidence](CURRENT_STATE.md): [pre-fix native CI #43512841854](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43512841854) 2 red N04 / 82 old green; [f0faac8](https://github.com/titanfit102-bit/ShqipShop/commit/f0faac8a90f0c494c777f34334b6346fd865bfc3) + [b78ba5b](https://github.com/titanfit102-bit/ShqipShop/commit/b78ba5ba91ca3fa9d670129d6f28f121f31b96ed) [native CI #43513780394](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43513780394) **86/86 tests PASS plus lint/TypeScript**. Login/logout SDK writes now serialized with epoch/fence checks; stale A cannot be activated after logout, after B, or when B starts directly. Failed A auth does not deadlock following B. **N04 still PARTIAL** pending real SDK/device/process restart + stuck request handling. **Next test-first N02** registration after logout signed-out marker: require correct scoped registration JWT for customer.create, no old A token revival, retry/storage-fail negatives. Then N03 completed cart and conditional N05. R01/R02/R03 and all release gates BLOCKED, no owner authorization for Production/PSP/main changes.
+
+
+
 ## 2026-11-13 — N01 integrated providers/reboot milestone; proceed to N04 test
 
 [Detailed N01 checkpoint](CURRENT_STATE.md). New real CartProvider+CustomerProvider Jest harness and mocked reboot path verified at [CI #43333136692](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43333136692) **82/82 + lint + TypeScript PASS** after a test-fixture isolation correction [7bea52d](https://github.com/titanfit102-bit/ShqipShop/commit/7bea52d775e73aba6d786c780bd3bb5a9c10a34b). No new native runtime code in this milestone. Remaining N01: Android/device/process-kill, simultaneous failed storage writes and failed delete, backend tenant/owner integration. Do **not** call N01 complete. The next narrow source task is N04 stale SDK login after logout and B re-login, red-before/green-after; then N02 register bootstrap and N03 receipt, conditional N05 only if Next selected. R01 finance, R02 global CSRF, R03 Medusa release train independently veto Production.

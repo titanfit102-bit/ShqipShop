@@ -1,5 +1,13 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-13 — N04 serialized native SDK auth + owned JWT confirmation, mock CI VERIFIED
+
+**Pre-fix tests cb04478** [CI #43512841854](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43512841854) proved 2 N04 violations after logout and A→logout→B (82 existing PASS). [Fix f0faac8](https://github.com/titanfit102-bit/ShqipShop/commit/f0faac8a90f0c494c777f34334b6346fd865bfc3) and [extra A/B overlap + rejected-A queue tests b78ba5b](https://github.com/titanfit102-bit/ShqipShop/commit/b78ba5ba91ca3fa9d670129d6f28f121f31b96ed) passed [native CI #43513780394](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43513780394) **86/86, 16 suites, lint and TypeScript PASS**. Native JWT custom storage now checks auth-attempt versions before/after asynchronous token/marker operations; CustomerProvider reserves serialized SDK-auth operations at login/logout intent, rejects stale responses and avoids old logout wiping B. No vendor SDK installation change or server policy modification.
+
+**N04 status: PARTIAL/OPEN for a real-account device release.** Proof is Jest mock storage/SDK, not SDK 2.21.2 transport timing, real process restart or multiple-device revocation. Queued later login may stall if an older SDK promise never settles (fail-closed availability tradeoff). N02 SDK registration bootstrap remains outside scoped serializer and OPEN, as does N01 Android/backend E2E. Finance T05/S13 R01 P0, T02 global CSRF R02, Medusa 2.22.0 R03 and RG-01/02/03/G3/G5 BLOCKED. Draft PR #12 only, NO RELEASE.
+
+
+
 ## 2026-11-13 — N01 identity+cart integration regression evidence, still OPEN
 
 [Actual nested native CartProvider+CustomerProvider tests](https://github.com/titanfit102-bit/ShqipShop/commit/db6f42d36c78b38caa9158987cac5cba35276f6f) and [storage mock isolation patch](https://github.com/titanfit102-bit/ShqipShop/commit/7bea52d775e73aba6d786c780bd3bb5a9c10a34b) verified in [native CI #43333136692](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43333136692): **16 Jest suites / 82 PASS, TS/lint PASS**. Mocked A→logout→guest/B, delayed A cart update, token removal, real React context and reboot/remount after pending reset marker are covered; no real Medusa API, device, tenant owner or Production token was used. One earlier test failure on #43332871763 was fixture mock leakage, repaired without runtime modifications.

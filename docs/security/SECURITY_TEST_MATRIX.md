@@ -1,5 +1,19 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-13 — N04 native SDK JWT transition acceptance (mocked provider)
+
+| Scenario | Before | After scoped fix | Remaining limitation |
+| --- | --- | --- | --- |
+| Delayed A SDK login completes after logout | [CI #43512841854](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43512841854) FAIL | [CI #43513780394](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43513780394) PASS; A superseded | No actual SDK request or device |
+| Delayed A token after logout while newer B login queued | FAIL | PASS; B only JWT/profile, A rejected | Backend A/B tenant/owner policy untested |
+| Direct A/B overlapping logins, no logout | Not measured pre-fix | PASS; B wins, A rejected | SDK delayed/unawaited writes after resolution UNKNOWN |
+| Prior A login fails; next B retry queued | Not measured pre-fix | PASS; B accepted | Never-settling request requires timeout policy |
+| Existing native source suite | 82 pre-existing PASS | **86/86 (16 suites) PASS**, lint and TypeScript | N02 register bootstrap, native real-device session and server revocation OPEN |
+
+[Pre-fix tests](https://github.com/titanfit102-bit/ShqipShop/commit/cb04478a6ad0f356a0fc3b8a511d2aeb47288a51), [N04 code](https://github.com/titanfit102-bit/ShqipShop/commit/f0faac8a90f0c494c777f34334b6346fd865bfc3), [additional cases](https://github.com/titanfit102-bit/ShqipShop/commit/b78ba5ba91ca3fa9d670129d6f28f121f31b96ed). N04 PARTIAL/OPEN; NO RELEASE, R01/R02/R03 unaffected.
+
+
+
 ## 2026-11-13 — N01 actual nested native React providers (mock SDK + storage)
 
 | Real React providers + mocked I/O | Verified result | Missing acceptance |
