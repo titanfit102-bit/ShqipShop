@@ -247,3 +247,82 @@ test('N04 late A SDK token cannot replace B after logout and newer login', async
   expect(mockJwtStorage.get(AUTH_TOKEN_KEY)).toBe('jwt_B');
   expect(mockLinkCartToCustomer).toHaveBeenCalledTimes(1);
 });
+
+test('N04 overlapping logins without logout only activate the newest B JWT', async () => {
+  const client = new QueryClient();
+  retrieve.mockImplementation(async () => {
+    const token = await authTokenStorage.getItem(AUTH_TOKEN_KEY);
+    return { customer: token === 'jwt_B' ? { id: 'cust_B' } :
+      token === 'jwt_A' ? { id: 'cust_A' } : undefined };
+  });
+  let releaseA!: () => void;
+  login.mockImplementation(async (_role: string, _method: string, data: { email: string }) => {
+    if (data.email.startsWith('a@')) {
+      await new Promise<void>(resolve => { releaseA = resolve; });
+      await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'jwt_A');
+      return 'jwt_A';
+    }
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'jwt_B');
+    return 'jwt_B';
+  });
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(mount(client));
+  });
+  let pendingA!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pendingA = actions!.login('a@example.invalid', 'synthetic');
+    for (let i = 0; i < 10 && !releaseA; i++) await Promise.resolve();
+  });
+  expect(releaseA).toBeDefined();
+  let pendingB!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pendingB = actions!.login('b@example.invalid', 'synthetic');
+    await Promise.resolve();
+  });
+  await ReactTestRenderer.act(async () => {
+    releaseA();
+    await expect(pendingA).rejects.toThrow(/superseded/i);
+    await pendingB;
+  });
+  expect(actions?.customer?.id).toBe('cust_B');
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBe('jwt_B');
+  expect(mockJwtStorage.get(AUTH_TOKEN_KEY)).toBe('jwt_B');
+  expect(mockLinkCartToCustomer).toHaveBeenCalledTimes(1);
+});
+
+test('N04 failed first SDK login does not prevent next B login', async () => {
+  const client = new QueryClient();
+  retrieve.mockImplementation(async () => {
+    const token = await authTokenStorage.getItem(AUTH_TOKEN_KEY);
+    return { customer: token === 'jwt_B' ? { id: 'cust_B' } : undefined };
+  });
+  let rejectA!: (error: Error) => void;
+  login.mockImplementation(async (_role: string, _method: string, data: { email: string }) => {
+    if (data.email.startsWith('a@')) {
+      return new Promise<string>((_resolve, reject) => { rejectA = reject; });
+    }
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'jwt_B');
+    return 'jwt_B';
+  });
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(mount(client));
+  });
+  let pendingA!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pendingA = actions!.login('a@example.invalid', 'synthetic');
+    for (let i = 0; i < 10 && !rejectA; i++) await Promise.resolve();
+  });
+  expect(rejectA).toBeDefined();
+  let pendingB!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pendingB = actions!.login('b@example.invalid', 'synthetic');
+    await Promise.resolve();
+  });
+  await ReactTestRenderer.act(async () => {
+    rejectA(new Error('synthetic offline login A'));
+    await expect(pendingA).rejects.toThrow('synthetic offline login A');
+    await pendingB;
+  });
+  expect(actions?.customer?.id).toBe('cust_B');
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBe('jwt_B');
+});
