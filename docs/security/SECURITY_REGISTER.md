@@ -1,5 +1,13 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-14 — N02 actual SDK Authorization-header contract VERIFIED in mocked transport
+
+[Installed SDK transport tests](https://github.com/titanfit102-bit/ShqipShop/commit/67b569aceef602075d8b200440e0ca210b98785b) [code c39cd6c](https://github.com/titanfit102-bit/ShqipShop/commit/c39cd6ce9c48e6f654e72408d2d52a8fae9bbe15), [native CI #43530667909](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43530667909) **93/93 PASS (17 suites), lint+TS PASS**. Actual locked JS SDK 2.21.2 plus real `authTokenStorage` sent B registration bearer on `store.customer.create`, B login bearer on subsequent customer profile, and no A bearer during registration or delayed logout (only `global.fetch` and AsyncStorage mocked). [SDK source](https://github.com/medusajs/medusa/blob/v2.21.2/packages/core/js-sdk/src/auth/index.ts) confirms `auth.register` invokes token persistence without awaiting it; app's explicit awaited setToken closes this defined race in the tested path. No real backend or production authorization changed.
+
+**N02 PARTIAL/OPEN:** email verification-required/MFA responses, token storage failure from SDK's own unawaited write, real Medusa customer ownership, process kill and ambiguous server-side create success still unverified. N01/N04 device E2E OPEN. R01 refund P0, R02 global Admin CSRF, R03 Medusa base release upgrade, RG-01/02/03/G3/G5 BLOCKED; PR #12 Draft and NO RELEASE.
+
+
+
 ## 2026-11-14 — N02 native registration JWT owner boundary verified in mocked CI, PARTIAL for release
 
 [Test-only ee93034](https://github.com/titanfit102-bit/ShqipShop/commit/ee93034c215fe75657a3e07dc19f0229365e6f12) [CI #43528338763](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43528338763) proved 3 N02 violations, prior 86 passing. [Source fix b92f13a](https://github.com/titanfit102-bit/ShqipShop/commit/b92f13ab366671294db4210f9757945e90d05595) and [two cleanup/mismatch cases 2fc6d4b](https://github.com/titanfit102-bit/ShqipShop/commit/2fc6d4b003fec9cfbcfd03c80f7e33ea90ebd7e1) verified [native CI #43528981412](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43528981412): **91/91 PASS, ESLint and TypeScript PASS**. `CustomerProvider.register` now enters the same identity-epoch/serialized SDK-operation queue as login/logout, verifies persisted registration token before `customer.create`, switches to final login token, and fails closed/clears interim JWT before next queued identity on stale/error paths. Mock positive guest after logout, stale A→B negative, storage error negative, create-503 recovery and persisted-token-mismatch rejection covered.

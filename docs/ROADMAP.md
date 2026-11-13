@@ -1,5 +1,11 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-14 — N02 actual pinned SDK header test passed (93/93), remaining verification branch
+
+[Transport evidence](CURRENT_STATE.md): actual `@medusajs/js-sdk@2.21.2` with real custom token accessor and stubbed transport validates no A bearer after logout, correct B register token on `customer.create`, B login token on profile; [native CI #43530667909](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43530667909) **93/93 + lint+TS PASS**. No live server/device; N02 remains PARTIAL. Next: verify `verification_required`/MFA object returned by actual SDK and ensure a registration interim JWT cannot rehydrate after restart; assess ambiguous create-response before N03 order recovery. N01/N04 native device, R01/R02/R03 independent release blockers. PR #12 Draft, no Production changes.
+
+
+
 ## 2026-11-14 — N02 native registration JWT milestone verified (91/91), SDK transport gate next
 
 [Detailed N02 checkpoint](CURRENT_STATE.md). [Pre-fix three failed N02 tests](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43528338763) against 86 prior passing; [correction b92f13a](https://github.com/titanfit102-bit/ShqipShop/commit/b92f13ab366671294db4210f9757945e90d05595) and [extra tests 2fc6d4b](https://github.com/titanfit102-bit/ShqipShop/commit/2fc6d4b003fec9cfbcfd03c80f7e33ea90ebd7e1) [CI #43528981412](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43528981412) now **91/91 native Jest plus lint+TypeScript PASS**. Registration after logout and delayed A supersession are covered with mocked Medusa/custom storage; 503 create cleanup, mismatch rejection and subsequent B login checked. **N02 not release-complete:** actual JS SDK bearer header, true backend HTTP/customer ownership, registration verification-required branch and partial-create retry unverified. NEXT: actual installed SDK with controlled transport authentication-header regression; then N03 completed cart/receipt recovery. N01/N04 real device, R01/R02/R03 and release gates remain OPEN; no Production/PSP/main authorization.

@@ -1,5 +1,19 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-14 — N02 actual locked SDK transport-header tests (NO live HTTP)
+
+| Test (SDK 2.21.2 REAL implementation, stubbed `global.fetch`) | Verified | Not verified |
+| --- | --- | --- |
+| Persisted A JWT + signed-out marker → B register request | No old A `Authorization` header | Real Medusa identity policy |
+| Await registration token confirmation → `store.customer.create` | `Bearer JWT_B_REGISTER` | Real backend customer creation |
+| B login JWT → profile retrieve | `Bearer JWT_B_LOGIN` | Device authentication or server ownership |
+| Delayed logout physical removal → SDK customer retrieve | No old A bearer; synthetic 401 | Backend token revocation |
+| Full native suite | [CI #43530667909](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43530667909) **17/17 suites, 93/93 PASS + ESLint + TypeScript** | E2E, email verification and partial create |
+
+[Test source 67b569a](https://github.com/titanfit102-bit/ShqipShop/commit/67b569aceef602075d8b200440e0ca210b98785b), [type-fix c39cd6c](https://github.com/titanfit102-bit/ShqipShop/commit/c39cd6ce9c48e6f654e72408d2d52a8fae9bbe15). Initial [CI #43530470365](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43530470365) failed only on test TS union type; not a behavioral failure. N02 PARTIAL; next real SDK verification-required/MFA negative and native/backend acceptance. R01/R02/R03 / release gates BLOCKED.
+
+
+
 ## 2026-11-14 — N02 registration JWT scoped security matrix
 
 | Scenario in real `CustomerProvider`, mocked SDK/storage | Pre-fix | Corrected CI |
