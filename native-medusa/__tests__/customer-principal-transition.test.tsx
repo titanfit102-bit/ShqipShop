@@ -446,3 +446,58 @@ test('N02 registration storage failure blocks A and does not send customer.creat
   expect(actions?.customer).toBeUndefined();
   expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
 });
+
+test('N02 customer creation failure removes interim JWT and permits clean B login', async () => {
+  const client = new QueryClient();
+  retrieve.mockImplementation(async () => {
+    const token = await authTokenStorage.getItem(AUTH_TOKEN_KEY);
+    return { customer: token === 'jwt_B_login' ? { id: 'cust_B' } : undefined };
+  });
+  registerToken.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'jwt_failed_registration');
+    return 'jwt_failed_registration';
+  });
+  setToken.mockImplementation((token: string) => authTokenStorage.setItem(AUTH_TOKEN_KEY, token));
+  createCustomer.mockRejectedValueOnce(new Error('synthetic create HTTP 503'));
+  login.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'jwt_B_login');
+    return 'jwt_B_login';
+  });
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(mount(client));
+  });
+  await ReactTestRenderer.act(async () => {
+    await expect(actions!.register('failed@example.invalid', 'synthetic', 'Failed', 'Guest'))
+      .rejects.toThrow('synthetic create HTTP 503');
+  });
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
+  expect(mockJwtStorage.has(AUTH_TOKEN_KEY)).toBe(false);
+  expect(actions?.customer).toBeUndefined();
+  await ReactTestRenderer.act(async () => {
+    await actions!.login('b@example.invalid', 'synthetic');
+  });
+  expect(actions?.customer?.id).toBe('cust_B');
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBe('jwt_B_login');
+});
+
+test('N02 mismatched persisted registration JWT never reaches customer.create', async () => {
+  const client = new QueryClient();
+  retrieve.mockResolvedValue({ customer: undefined });
+  registerToken.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'jwt_expected_registration');
+    return 'jwt_expected_registration';
+  });
+  setToken.mockImplementation(() =>
+    authTokenStorage.setItem(AUTH_TOKEN_KEY, 'jwt_wrong_registration'),
+  );
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(mount(client));
+  });
+  await ReactTestRenderer.act(async () => {
+    await expect(actions!.register('new@example.invalid', 'synthetic', 'New', 'Guest'))
+      .rejects.toThrow('could not be verified in storage');
+  });
+  expect(createCustomer).not.toHaveBeenCalled();
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
+  expect(mockJwtStorage.has(AUTH_TOKEN_KEY)).toBe(false);
+});
