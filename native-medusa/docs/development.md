@@ -156,7 +156,10 @@ you exercised, and which checks remain unverified.
   saved shipping method or while a shipping update is in flight; select manual
   payment, confirm the summary, and complete an order on a development backend.
 - Authentication and region changes: confirm the cart follows the customer and
-  selected region when touching those flows.
+  selected region when touching those flows. For native registration, test a process
+  restart during pending customer creation and the final login, and verify that
+  verification-required/MFA responses do not silently authenticate the customer;
+  test recovery only with a disposable backend and synthetic accounts.
 
 Stripe's external payment flow is still a TODO. A successful manual-payment
 checkout does not validate Stripe. Jest covers shipping guards and payment

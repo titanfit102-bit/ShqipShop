@@ -1,5 +1,11 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-14 — N02 verification/MFA and scoped registration JWT, 99/99 native CI
+
+[Verified N02 details](CURRENT_STATE.md). [Four red regressions #43535496301](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43535496301) → [97 green #43535838985](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43535838985); [two additional red scoped-JWT regressions #43536241516](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43536241516) → [99 green #43536698176](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43536698176), including ESLint+TS and actual locked SDK header test with simulated HTTP. Native auth transition writes signed-out marker before SDK writes; incomplete verification/MFA fails closed; actor-creation registration JWT is only sent via an explicit header for `customer.create`, never activated as generic session on reboot. N02 status still PARTIAL for real backend, verification/MFA completion UI, physical process kill/storage failure, lost customer-create acknowledgement. **Next: N03 receipt/order-complete recovery tests on native, test-only before code**, then native/backend acceptance; no PSP/Production scope. R01/R02/R03 release veto unchanged.
+
+
+
 ## 2026-11-14 — N02 actual pinned SDK header test passed (93/93), remaining verification branch
 
 [Transport evidence](CURRENT_STATE.md): actual `@medusajs/js-sdk@2.21.2` with real custom token accessor and stubbed transport validates no A bearer after logout, correct B register token on `customer.create`, B login token on profile; [native CI #43530667909](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43530667909) **93/93 + lint+TS PASS**. No live server/device; N02 remains PARTIAL. Next: verify `verification_required`/MFA object returned by actual SDK and ensure a registration interim JWT cannot rehydrate after restart; assess ambiguous create-response before N03 order recovery. N01/N04 native device, R01/R02/R03 independent release blockers. PR #12 Draft, no Production changes.

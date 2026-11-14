@@ -26,7 +26,12 @@ steps stale.
 `RegionProvider` restores the selected region from AsyncStorage. `CartProvider`
 then restores or creates the region's cart and updates it on region changes.
 `CustomerProvider` links the cart on login and resets it on logout. The SDK stores
-the JWT using AsyncStorage. Persisted IDs can outlive a backend database reset;
+the JWT using AsyncStorage. Native login/logout/registration serialize token operations.
+Before an SDK request can write a provisional JWT, the client persists a signed-out
+marker; incomplete verification/MFA does not activate a session. The actor-creation
+registration JWT is sent only as a request-scoped Authorization header on
+`store.customer.create`, while the generic SDK token accessor stays blocked.
+Only a fully verified subsequent customer-login JWT clears the persisted marker. Persisted IDs can outlive a backend database reset;
 check this before treating stale cart/region data as an API regression.
 
 Product detail requests `+variants.inventory_quantity`. This computed Medusa

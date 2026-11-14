@@ -1,5 +1,20 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-14 — N02 incomplete auth and crash-window matrix (mocked storage/HTTP)
+
+| Boundary tested | Before fix | Exact corrected evidence | Unproven |
+| --- | --- | --- | --- |
+| SDK verification-required login | Silent completion, provisional JWT on disk | Reject, no cart link, marker persisted and rebooted reader NULL | Actual verification-code UI/Medusa server |
+| MFA-required final signup login | Silent completion after customer create | Reject, cleanup and rebooted reader NULL | MFA enrollment/challenge completion |
+| Process kill before ordinary login JWT confirmed | No durable marker and token revived | Persist marker before SDK request; synthetic new-process reader NULL | Actual OS kill and dual storage failure |
+| Process kill after customer.create but before final login | Interim registration token could revive | Marker maintained across create and final login; new-process reader NULL | Real HTTP ambiguous success |
+| Registration token authorization | Temporary JWT in generic SDK token accessor | Explicit scoped header ONLY on `store.customer.create`, generic accessor remains blocked | Server owner/merchant authorization |
+| Native test suite | 93 old PASS; [4 red #43535496301](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43535496301) and [2 red #43536241516](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43536241516) | [CI #43536698176](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43536698176) **99/99 PASS, 17 suites, ESLint+TS** | Android/real backend/Production |
+
+[First code 0932677](https://github.com/titanfit102-bit/ShqipShop/commit/0932677203ea7730e04f727ae0fd31d90c4866e9); [second source and real SDK test 9212bf8](https://github.com/titanfit102-bit/ShqipShop/commit/9212bf801d50e2d17ad7db49f9092c0d93236ea4). N02 PARTIAL and **NO RELEASE**. R01/R02/R03 and release gates unaffected.
+
+
+
 ## 2026-11-14 — N02 actual locked SDK transport-header tests (NO live HTTP)
 
 | Test (SDK 2.21.2 REAL implementation, stubbed `global.fetch`) | Verified | Not verified |
