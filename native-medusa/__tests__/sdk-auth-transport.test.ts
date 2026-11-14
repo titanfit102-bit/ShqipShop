@@ -12,6 +12,8 @@ import {
   blockAuthForLogin,
   clearNativeCustomerToken,
   confirmNewLoginToken,
+  persistPendingAuthBarrier,
+  verifyPendingRegistrationToken,
 } from '../app/api/auth-token-storage';
 
 const mockDisk = new Map<string, string>();
@@ -90,15 +92,19 @@ test('N02 real SDK sends ONLY new registration bearer on customer.create and log
   // The locked SDK's auth.register calls setToken without awaiting it:
   // explicit awaited setToken and confirmNewLoginToken close that race.
   await sdk.client.setToken(registrationJwt);
-  await confirmNewLoginToken(registrationJwt, version);
+  await verifyPendingRegistrationToken(registrationJwt, version);
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
 
-  const created = await sdk.store.customer.create({
-    email: 'b@example.invalid', first_name: 'B', last_name: 'Buyer',
-  });
+  const created = await sdk.store.customer.create(
+    { email: 'b@example.invalid', first_name: 'B', last_name: 'Buyer' },
+    undefined,
+    { Authorization: `Bearer ${registrationJwt}` },
+  );
   expect(created.customer.id).toBe('cust_B');
   expect(mockDisk.get(AUTH_TOKEN_KEY)).toBe('JWT_B_REGISTER');
 
   version = blockAuthForLogin();
+  await persistPendingAuthBarrier(version);
   const loginJwt = await sdk.auth.login('customer', 'emailpass', {
     email: 'b@example.invalid', password: 'synthetic',
   });

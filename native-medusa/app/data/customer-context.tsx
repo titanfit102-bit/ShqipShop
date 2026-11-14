@@ -9,6 +9,7 @@ import {
   isCurrentAuthAttempt,
   persistPendingAuthBarrier,
   serializeNativeAuthOperation,
+  verifyPendingRegistrationToken,
 } from '@api/auth-token-storage';
 import { useCart } from './cart-context';
 import { clearPrivateCustomerQueries } from './private-customer-queries';
@@ -214,17 +215,19 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
         await apiClient.client.setToken(token);
         ensureOwnedAuth(epoch, authVersion);
 
-        // The registration JWT is NOT an existing signed-in customer session.
-        // Verify its exact persisted value before allowing create() to use it.
-        // This also clears a signed-out marker left by an earlier logout.
-        await confirmNewLoginToken(token, authVersion);
+        // Registration JWT is an actor-creation capability only: keep the
+        // signed-out marker persisted for the ENTIRE create request. A restart
+        // mid-create must not promote this temporary JWT to a customer session.
+        await verifyPendingRegistrationToken(token, authVersion);
         ensureOwnedAuth(epoch, authVersion);
 
-        await apiClient.store.customer.create({
-          first_name: firstName,
-          last_name: lastName,
-          email,
-        });
+        // Use Medusa's documented per-request registration bearer. The SDK
+        // generic token accessor stays blocked by the durable marker.
+        await apiClient.store.customer.create(
+          { first_name: firstName, last_name: lastName, email },
+          undefined,
+          { Authorization: `Bearer ${token}` },
+        );
         ensureOwnedAuth(epoch, authVersion);
 
         // After customer creation replace the registration JWT with a fresh

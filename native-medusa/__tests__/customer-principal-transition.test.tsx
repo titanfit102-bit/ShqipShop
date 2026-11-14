@@ -350,10 +350,14 @@ test('N02 after logout creates B using registration JWT and then activates login
     return 'jwt_B_registration';
   });
   setToken.mockImplementation((token: string) => authTokenStorage.setItem(AUTH_TOKEN_KEY, token));
-  let createBearer: string | null = null;
-  createCustomer.mockImplementation(async () => {
-    createBearer = await authTokenStorage.getItem(AUTH_TOKEN_KEY);
-    if (createBearer !== 'jwt_B_registration') throw new Error('Missing registration bearer');
+  let createBearer: unknown;
+  let genericBearer: string | null = 'not checked';
+  createCustomer.mockImplementation(async (_body: unknown, _query: unknown, headers: unknown) => {
+    createBearer = headers;
+    genericBearer = await authTokenStorage.getItem(AUTH_TOKEN_KEY);
+    if (JSON.stringify(headers) !== JSON.stringify({ Authorization: 'Bearer jwt_B_registration' })) {
+      throw new Error('Missing scoped registration bearer');
+    }
     return { customer: { id: 'cust_B' } };
   });
 
@@ -365,7 +369,8 @@ test('N02 after logout creates B using registration JWT and then activates login
   await ReactTestRenderer.act(async () => {
     await actions!.register('b@example.invalid', 'synthetic', 'B', 'Guest');
   });
-  expect(createBearer).toBe('jwt_B_registration');
+  expect(createBearer).toEqual({ Authorization: 'Bearer jwt_B_registration' });
+  expect(genericBearer).toBeNull();
   expect(createCustomer).toHaveBeenCalledTimes(1);
   expect(actions?.customer?.id).toBe('cust_B');
   expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBe('jwt_B_login');

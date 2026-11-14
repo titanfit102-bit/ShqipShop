@@ -77,6 +77,35 @@ export const persistPendingAuthBarrier = async (attemptVersion: number) => {
   }
 };
 
+/**
+ * A registration JWT is an actor-creation capability, NOT a customer session.
+ * Verify its physical storage without clearing the durable signed-out marker
+ * or allowing it through the SDK's generic Authorization header.
+ */
+export const verifyPendingRegistrationToken = async (
+  expectedToken: string,
+  attemptVersion: number,
+) => {
+  const assertOwned = () => {
+    if (!isCurrentAuthAttempt(attemptVersion)) {
+      throw new Error('Customer auth superseded by a newer session transition');
+    }
+  };
+  assertOwned();
+  await pendingWrites;
+  assertOwned();
+  const marker = await AsyncStorage.getItem(SIGNED_OUT_MARKER_KEY);
+  assertOwned();
+  if (marker !== '1') {
+    throw new Error('Registration token was not isolated from the customer session');
+  }
+  const persisted = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+  assertOwned();
+  if (!expectedToken || persisted !== expectedToken) {
+    throw new Error('New customer session could not be verified in storage');
+  }
+};
+
 /** A new login only becomes usable after its own JWT was persisted. */
 export const confirmNewLoginToken = async (
   expectedToken: string,
