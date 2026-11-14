@@ -243,6 +243,8 @@ test('N03 late A completion cannot reset a newer B cart after logout', async () 
 test('N03 logout during successful cart reset prevents old A completion receipt', async () => {
   await ReactTestRenderer.act(async () => {
     renderer = ReactTestRenderer.create(mount());
+  });
+  await ReactTestRenderer.act(async () => {
     cartActions!.setCart({ id: 'cart_A', region_id: 'reg_al' } as never);
   });
   let releaseFirstRemoval: (() => void) | undefined;
@@ -269,7 +271,7 @@ test('N03 logout during successful cart reset prevents old A completion receipt'
   });
 
   await ReactTestRenderer.act(async () => {
-    releaseFirstRemoval();
+    releaseFirstRemoval?.();
     await expect(completing).rejects.toThrow(/Cart changed while completing order/);
     await signingOut;
   });
