@@ -174,7 +174,13 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     }
     // Ownership check and resetCart's synchronous generation increment occur
     // without an intervening await: old A cannot clear newer B's cart.
+    const expectedResetGeneration = cartGeneration.current + 1;
     await resetCart();
+    // Logout/account switch can begin while the cart ID deletion is pending.
+    // The old success must not publish a receipt into that newer session.
+    if (cartGeneration.current !== expectedResetGeneration) {
+      throw new Error('Cart changed while completing order; do not submit again');
+    }
     return { cartId: activeCart.id, orderId };
   };
 

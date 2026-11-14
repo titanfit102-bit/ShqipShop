@@ -239,3 +239,39 @@ test('N03 late A completion cannot reset a newer B cart after logout', async () 
   expect(cartActions?.cart?.id).toBe('cart_B');
   expect(mockDisk.get('cart_id')).not.toBe('cart_A');
 });
+
+test('N03 logout during successful cart reset prevents old A completion receipt', async () => {
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(mount());
+    cartActions!.setCart({ id: 'cart_A', region_id: 'reg_al' } as never);
+  });
+  let releaseFirstRemoval: (() => void) | undefined;
+  let delayOnce = true;
+  (AsyncStorage.removeItem as jest.Mock).mockImplementation(async (key: string) => {
+    if (key === 'cart_id' && delayOnce) {
+      delayOnce = false;
+      await new Promise<void>(resolve => { releaseFirstRemoval = resolve; });
+    }
+    mockDisk.delete(key);
+  });
+
+  let completing!: Promise<unknown>;
+  await ReactTestRenderer.act(async () => {
+    completing = cartActions!.runCurrentCartCompletion(async () => 'order_A');
+    for (let n = 0; n < 25 && !releaseFirstRemoval; n++) await Promise.resolve();
+  });
+  expect(releaseFirstRemoval).toBeDefined();
+
+  let signingOut!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    signingOut = customerActions!.logout();
+    await Promise.resolve();
+  });
+
+  await ReactTestRenderer.act(async () => {
+    releaseFirstRemoval();
+    await expect(completing).rejects.toThrow(/Cart changed while completing order/);
+    await signingOut;
+  });
+  expect(cartActions?.cart).toBeUndefined();
+});
