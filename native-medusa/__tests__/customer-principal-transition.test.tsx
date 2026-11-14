@@ -501,3 +501,111 @@ test('N02 mismatched persisted registration JWT never reaches customer.create', 
   expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
   expect(mockJwtStorage.has(AUTH_TOKEN_KEY)).toBe(false);
 });
+
+const rebootTokenReader = async () => {
+  let fresh!: typeof import('../app/api/auth-token-storage');
+  // The module's in-memory token block disappears on app restart. The disk
+  // barrier MUST still refuse incomplete/old JWTs in a fresh JS process.
+  jest.isolateModules(() => {
+    fresh = require('../app/api/auth-token-storage') as typeof import('../app/api/auth-token-storage');
+  });
+  return fresh.authTokenStorage.getItem(AUTH_TOKEN_KEY);
+};
+
+test('N02 SDK verification-required login does not complete, link cart, or revive JWT on reboot', async () => {
+  const client = new QueryClient();
+  retrieve.mockResolvedValue({ customer: undefined });
+  login.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'JWT_PENDING_VERIFICATION');
+    return { token: 'JWT_PENDING_VERIFICATION', verification_required: true, verification: {} };
+  });
+  await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(mount(client)); });
+  await ReactTestRenderer.act(async () => {
+    await expect(actions!.login('new@example.invalid', 'synthetic'))
+      .rejects.toThrow(/verification required/i);
+  });
+  expect(actions?.customer).toBeUndefined();
+  expect(mockLinkCartToCustomer).not.toHaveBeenCalled();
+  expect(mockJwtStorage.get('shqipshop:jwt-signed-out')).toBe('1');
+  expect(await rebootTokenReader()).toBeNull();
+});
+
+test('N02 SDK MFA-required final registration login cannot leave bootstrap JWT after restart', async () => {
+  const client = new QueryClient();
+  retrieve.mockResolvedValue({ customer: undefined });
+  registerToken.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'JWT_B_REG');
+    return 'JWT_B_REG';
+  });
+  setToken.mockImplementation((token: string) => authTokenStorage.setItem(AUTH_TOKEN_KEY, token));
+  createCustomer.mockResolvedValue({ customer: { id: 'cust_B' } });
+  login.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'JWT_B_MFA');
+    return { token: 'JWT_B_MFA', mfa_required: true, mfa_challenge: {} };
+  });
+  await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(mount(client)); });
+  await ReactTestRenderer.act(async () => {
+    await expect(actions!.register('b@example.invalid', 'synthetic', 'B', 'Buyer'))
+      .rejects.toThrow(/multi-factor authentication required/i);
+  });
+  expect(createCustomer).toHaveBeenCalledTimes(1);
+  expect(mockLinkCartToCustomer).not.toHaveBeenCalled();
+  expect(actions?.customer).toBeUndefined();
+  expect(await rebootTokenReader()).toBeNull();
+});
+
+test('N02 process restart during SDK login cannot promote an unconfirmed on-disk JWT', async () => {
+  const client = new QueryClient();
+  retrieve.mockResolvedValue({ customer: undefined });
+  let release!: () => void;
+  login.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'JWT_NOT_YET_CONFIRMED');
+    await new Promise<void>(resolve => { release = resolve; });
+    return 'JWT_NOT_YET_CONFIRMED';
+  });
+  await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(mount(client)); });
+  let pending!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pending = actions!.login('new@example.invalid', 'synthetic');
+    for (let i=0; i<20 && !release; i++) await Promise.resolve();
+  });
+  expect(release).toBeDefined();
+  const diskJwt = mockJwtStorage.get(AUTH_TOKEN_KEY);
+  const markerBeforeConfirm = mockJwtStorage.get('shqipshop:jwt-signed-out');
+  const resumedBearer = await rebootTokenReader();
+  await ReactTestRenderer.act(async () => { release(); await pending; });
+  expect(diskJwt).toBe('JWT_NOT_YET_CONFIRMED');
+  expect(markerBeforeConfirm).toBe('1');
+  expect(resumedBearer).toBeNull();
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBe('JWT_NOT_YET_CONFIRMED');
+});
+
+test('N02 reboot between registered customer creation and final login never reuses registration JWT', async () => {
+  const client = new QueryClient();
+  retrieve.mockResolvedValue({ customer: undefined });
+  registerToken.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'JWT_REG_PENDING');
+    return 'JWT_REG_PENDING';
+  });
+  setToken.mockImplementation((token: string) => authTokenStorage.setItem(AUTH_TOKEN_KEY, token));
+  createCustomer.mockResolvedValue({ customer: { id: 'cust_B' } });
+  let finishFinalLogin!: () => void;
+  login.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'JWT_AFTER_REGISTER_PENDING');
+    await new Promise<void>(resolve => { finishFinalLogin = resolve; });
+    return 'JWT_AFTER_REGISTER_PENDING';
+  });
+  await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(mount(client)); });
+  let pending!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pending = actions!.register('new@example.invalid', 'synthetic', 'B', 'Buyer');
+    for (let i=0; i<25 && !finishFinalLogin; i++) await Promise.resolve();
+  });
+  expect(finishFinalLogin).toBeDefined();
+  const marker = mockJwtStorage.get('shqipshop:jwt-signed-out');
+  const restarted = await rebootTokenReader();
+  await ReactTestRenderer.act(async () => { finishFinalLogin(); await pending; });
+  expect(marker).toBe('1');
+  expect(restarted).toBeNull();
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBe('JWT_AFTER_REGISTER_PENDING');
+});
