@@ -152,11 +152,20 @@ you exercised, and which checks remain unverified.
 - Cart controls: tap the center and padding of View Cart after the reveal, repeat
   after adding/removing items, and check width, opacity, and badge animations.
 - Cart data: add, update, and remove items; confirm totals and persisted state.
+- Checkout complete (N03): on a disposable backend, test a delayed or lost
+  completion response, rapid repeated taps, termination/restart with persisted
+  completion marker, and a late A completion after logout/B cart replacement.
+  Do not retry or clear unknown status based only on cart 404/410. Confirm
+  order persistence and owner/guest proof on the server before resolving the
+  marker. Current client-only CI coverage cannot establish payment exactly-once.
 - Checkout: submit a valid address; confirm payment cannot be reached without a
   saved shipping method or while a shipping update is in flight; select manual
   payment, confirm the summary, and complete an order on a development backend.
 - Authentication and region changes: confirm the cart follows the customer and
-  selected region when touching those flows.
+  selected region when touching those flows. For native registration, test a process
+  restart during pending customer creation and the final login, and verify that
+  verification-required/MFA responses do not silently authenticate the customer;
+  test recovery only with a disposable backend and synthetic accounts.
 
 Stripe's external payment flow is still a TODO. A successful manual-payment
 checkout does not validate Stripe. Jest covers shipping guards and payment

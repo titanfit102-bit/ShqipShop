@@ -21,6 +21,7 @@ import { formatImageUrl } from '@utils/image-url';
 import { convertToLocale } from '@utils/product-price';
 import { useNavigation } from '@react-navigation/native';
 import { getFulfillmentStatus, type FulfillmentStatus } from '@utils/order';
+import { privateCustomerQueryKey } from '@data/private-customer-queries';
 
 import { useColors } from '@styles/hooks';
 dayjs.extend(relativeTime);
@@ -35,7 +36,7 @@ const OrdersScreen = () => {
   const navigation = useNavigation();
 
   const { isPending, error, data, refetch, isRefetching } = useQuery({
-    queryKey: ['orders'],
+    queryKey: privateCustomerQueryKey(customer?.id, 'orders'),
     queryFn: () =>
       apiClient.store.order.list({
         order: '-created_at',

@@ -109,6 +109,7 @@ jobs:
           SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/merchant-a-key.txt
           SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE: ${{ runner.temp }}/merchant-a-second-channel.txt
           SHQIPSHOP_CI_ORDER_ID_FILE: ${{ runner.temp }}/merchant-a-order.txt
+          SHQIPSHOP_CI_CART_ID_FILE: ${{ runner.temp }}/merchant-a-cart-id.txt
         run: |
           set -euo pipefail
           export JWT_SECRET="$(openssl rand -hex 32)" COOKIE_SECRET="$(openssl rand -hex 32)"
