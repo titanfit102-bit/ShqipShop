@@ -1,5 +1,13 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-14 — N03 Stage 1b: logout during post-order cart cleanup cannot publish stale receipt (110/110)
+
+After the 109/109 N03 proof below, reviewed a separate time-of-check/time-of-use window: an order response can be confirmed for A, but B logout/reset can begin while the first cart-ID removal is still awaited. The initial `runCurrentCartCompletion` verified generation only **before** `await resetCart()`, which left a path to navigate to A's receipt after a newer identity reset. [Source fix ef251e9](https://github.com/titanfit102-bit/ShqipShop/commit/ef251e92d6de796034e4047e19d063d23d98f773) adds an **after-reset** generation fence and a real `CartProvider + CustomerProvider` integration regression using delayed AsyncStorage cart-ID removal and an overlapping logout. Initial [CI #43602485832](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43602485832) failed test-only TypeScript narrowing (did NOT run the scenario). [Test fixture adjustment a7b1f18](https://github.com/titanfit102-bit/ShqipShop/commit/a7b1f1878a7f9943a617d582ad38e531a021aad7), [exact native CI #43602658250](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43602658250) **19/19 suites, 110/110 Jest PASS; ESLint and TypeScript PASS**. Old A completion rejects; it cannot return a navigable receipt after logout begins during cleanup. No SDK, backend, PSP, main or Production changes.
+
+**Status unchanged:** N03 native Stage 1 mock-backed VERIFIED at 110/110; N03 server-side order/guest-capability reconciliation PARTIAL/OPEN. A simultaneous new-account login without logout, real Android process kill, cross-device server idempotence/PSP and server-side owner auth remain unproven. R01 financial refund P0, R02 global CSRF and R03 version baseline still veto release. Draft PR #12, NO RELEASE.
+
+
+
 ## 2026-11-14 — N03 native lost order-ack safety (Stage 1): 109/109 CI VERIFIED; authoritative recovery OPEN
 
 **Red-before:** [two new cart-restore tests 16878d6](https://github.com/titanfit102-bit/ShqipShop/commit/16878d63dab30e1ea8248bfc58780dd44deef5f2) on [native CI #43600830937](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43600830937) **2 FAIL, previous 99 PASS**: a persisted unresolved cart-completion marker was ignored, so after HTTP 404/410 or missing saved cart ID an app restart could retrieve/discard old cart or automatically create a replacement without knowing whether the order succeeded.

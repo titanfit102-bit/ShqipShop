@@ -1,5 +1,16 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-14 — N03 completion after-reset ownership fence (additional)
+
+| Interleaving | Proof | Remaining risk |
+| --- | --- | --- |
+| A gets order response; local cart-ID deletion awaits; logout starts and bumps generation; first reset completes | [Native CI #43602658250](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43602658250) PASS: A completion rejected, old receipt not returned | True Android/process interruption and direct account switch |
+| All other N03 source tests | [Native CI #43602658250](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43602658250) **110/110 PASS, 19 suites, ESLint/TS** | Server order/POS authorization, PSP exactly-once unknown |
+
+[Fix ef251e9](https://github.com/titanfit102-bit/ShqipShop/commit/ef251e92d6de796034e4047e19d063d23d98f773); [test fixture a7b1f18](https://github.com/titanfit102-bit/ShqipShop/commit/a7b1f1878a7f9943a617d582ad38e531a021aad7). N03 Stage 1 verified only; R01/R02/R03 release veto unchanged.
+
+
+
 ## 2026-11-14 — N03 checkout completion replay / lost-ack (client mock-backed)
 
 | Case | Red-before result | Corrected exact CI | Limit |

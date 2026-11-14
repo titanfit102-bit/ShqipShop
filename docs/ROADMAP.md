@@ -1,8 +1,14 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-14 — N03 Stage 1b confirmed native 110/110; order reconciliation NEXT
+
+[Detailed proof](CURRENT_STATE.md): [source ef251e9](https://github.com/titanfit102-bit/ShqipShop/commit/ef251e92d6de796034e4047e19d063d23d98f773) + [test a7b1f18](https://github.com/titanfit102-bit/ShqipShop/commit/a7b1f1878a7f9943a617d582ad38e531a021aad7) [CI #43602658250](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43602658250) **110/110 PASS**. A new interleaving reproduces logout during awaited cart-reset storage removal after A order acknowledgement; after-reset generation fence blocks the old receipt. Prior 109 passing tests retained. Next implement authoritative server proof for completed/missing cart under tenant/customer or validated guest capability; do not replay payment/checkout on unknown ack. No RELEASE; R01/R02/R03 and device E2E remain OPEN.
+
+
+
 ## 2026-11-14 — N03 Stage 1 fail-closed native order confirmation, 109/109
 
-[N03 scoped evidence](CURRENT_STATE.md): two [red restore regressions](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43600830937) → [source 5a398e6](https://github.com/titanfit102-bit/ShqipShop/commit/5a398e688aa7e60d82cc5153d85d34bef57b6bbe), [86? no: 106 green](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43601454640) → [Checkout live-component mock test 109/109](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43601835971) (19 suites, ESLint+TS). A persistent marker before `cart.complete` prevents replay and restart-driven replacement after unknown ack; an explicit `type: cart` no-order response permits retry; a confirmed order resets only its active cart and navigates to receipt; stale A cannot reset B. **N03 Stage 1 VERIFIED, N03 complete PARTIAL**. NEXT Stage 2: server-backed cart/order reconciliation for registered and guest with tenant/identity boundaries, including PostgreSQL persistent one-order proof under lost ack; no client-only cart ID proof. R01/R02/R03/G3/G5 and device E2E remain NO RELEASE.
+[N03 scoped evidence](CURRENT_STATE.md): two [red restore regressions](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43600830937) → [source 5a398e6](https://github.com/titanfit102-bit/ShqipShop/commit/5a398e688aa7e60d82cc5153d85d34bef57b6bbe), [106 green](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43601454640) → [Checkout live-component mock test 109/109](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43601835971) (19 suites, ESLint+TS). A persistent marker before `cart.complete` prevents replay and restart-driven replacement after unknown ack; an explicit `type: cart` no-order response permits retry; a confirmed order resets only its active cart and navigates to receipt; stale A cannot reset B. **N03 Stage 1 VERIFIED, N03 complete PARTIAL**. NEXT Stage 2: server-backed cart/order reconciliation for registered and guest with tenant/identity boundaries, including PostgreSQL persistent one-order proof under lost ack; no client-only cart ID proof. R01/R02/R03/G3/G5 and device E2E remain NO RELEASE.
 
 
 

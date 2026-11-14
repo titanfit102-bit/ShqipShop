@@ -1,5 +1,13 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-14 — N03 late receipt during awaited cart reset mitigated (client scope)
+
+[Code ef251e9](https://github.com/titanfit102-bit/ShqipShop/commit/ef251e92d6de796034e4047e19d063d23d98f773) + [integrated test a7b1f18](https://github.com/titanfit102-bit/ShqipShop/commit/a7b1f1878a7f9943a617d582ad38e531a021aad7) [CI #43602658250](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43602658250) **110/110 Jest, 19 suites, ESLint+TS PASS**. After successfully receiving an order ID for A, a concurrent logout can increase cart generation before A's awaited AsyncStorage cart reset finishes. The newly added after-reset generation guard rejects that stale completion, preventing old receipt handoff after logout. Initial CI #43602485832 was test-only TS error, corrected without altering the assertion. No server auth, payment, tenant isolation or Production change.
+
+**N03 still PARTIAL:** only client/native mocked concurrency protected. Server order existence/guest ownership proof, multi-process PSP idempotency, account switch without explicit logout, and real device storage semantics require separate verification. R01 P0/R02 CSRF/R03 baseline and release gates BLOCKED. NO RELEASE.
+
+
+
 ## 2026-11-14 — N03 lost order-ack replay/replacement client guard, test VERIFIED; server proof OPEN
 
 [Red cart-restore tests 16878d6](https://github.com/titanfit102-bit/ShqipShop/commit/16878d63dab30e1ea8248bfc58780dd44deef5f2) [CI #43600830937](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43600830937) **2 FAIL / 99 prior PASS**. [Scoped N03 guard 5a398e6](https://github.com/titanfit102-bit/ShqipShop/commit/5a398e688aa7e60d82cc5153d85d34bef57b6bbe) [CI #43601454640](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43601454640) **106 PASS**. [Actual Checkout React test d902f0b](https://github.com/titanfit102-bit/ShqipShop/commit/d902f0ba5ffce9542f62b69d5dc0d068df8272db) [CI #43601835971](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43601835971) **109 PASS / 19 suites / ESLint+TypeScript PASS**. Client writes and confirms a persisted cart-ID pending marker before SDK complete, blocks same-process double tap and restart restore/create for unknown response, retains marker after network error, permits retry only on explicit `type: cart` no-order and clears after verified receipt plus local reset. Cart generation check prevents old A completion from resetting B. Warning is localized in 3 storefront languages. No backend, dependency, PSP, main or Production change.
