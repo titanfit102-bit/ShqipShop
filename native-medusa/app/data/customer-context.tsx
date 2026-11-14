@@ -7,6 +7,7 @@ import {
   clearNativeCustomerToken,
   confirmNewLoginToken,
   isCurrentAuthAttempt,
+  persistPendingAuthBarrier,
   serializeNativeAuthOperation,
 } from '@api/auth-token-storage';
 import { useCart } from './cart-context';
@@ -99,8 +100,16 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
       ]);
       ensureOwnedAuth(epoch, authVersion);
     } else {
-      // Third-party authentication requires a separate completion flow.
-      console.log('Third party auth', response);
+      // SDK can persist an authentication JWT for MFA or verification-required
+      // responses. None is a completed customer session in this app yet.
+      // Reject without logging potentially sensitive SDK challenge payloads.
+      if ('verification_required' in response && response.verification_required) {
+        throw new Error('Customer login verification required before session activation');
+      }
+      if ('mfa_required' in response && response.mfa_required) {
+        throw new Error('Customer login multi-factor authentication required');
+      }
+      throw new Error('Customer login requires additional authentication');
     }
   };
 
@@ -112,9 +121,36 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
 
     return serializeNativeAuthOperation(async () => {
       ensureOwnedAuth(epoch, authVersion);
-      await clearPrivateCustomerQueries(queryClient);
-      ensureOwnedAuth(epoch, authVersion);
-      await finishOwnedLogin(email, password, epoch, authVersion);
+      try {
+        await persistPendingAuthBarrier(authVersion);
+        ensureOwnedAuth(epoch, authVersion);
+        await clearPrivateCustomerQueries(queryClient);
+        ensureOwnedAuth(epoch, authVersion);
+        await finishOwnedLogin(email, password, epoch, authVersion);
+      } catch (error) {
+        // A failed/incomplete SDK login may already have written a JWT.
+        // Its physical removal must finish before the next queued identity.
+        if (epoch === identityEpoch.current && isCurrentAuthAttempt(authVersion)) {
+          blockAuthForLogin();
+        }
+        let cleanupError: unknown;
+        try {
+          await clearNativeCustomerToken(apiClient.client);
+        } catch (failure) {
+          cleanupError = failure;
+        }
+        if (epoch === identityEpoch.current) {
+          setCustomer(undefined);
+          currentPrincipalId.current = undefined;
+          await clearPrivateCustomerQueries(queryClient);
+        }
+        if (cleanupError) {
+          throw new Error('Customer login could not clear its JWT', {
+            cause: cleanupError,
+          });
+        }
+        throw error;
+      }
     });
   };
 
@@ -166,6 +202,8 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
     return serializeNativeAuthOperation(async () => {
       ensureOwnedAuth(epoch, authVersion);
       try {
+        await persistPendingAuthBarrier(authVersion);
+        ensureOwnedAuth(epoch, authVersion);
         await clearPrivateCustomerQueries(queryClient);
         ensureOwnedAuth(epoch, authVersion);
 
@@ -192,6 +230,8 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
         // After customer creation replace the registration JWT with a fresh
         // login JWT, without nesting a second serialized auth operation.
         authVersion = blockAuthForLogin();
+        await persistPendingAuthBarrier(authVersion);
+        ensureOwnedAuth(epoch, authVersion);
         await finishOwnedLogin(email, password, epoch, authVersion);
       } catch (error) {
         // Cleanup runs before the next queued B login/logout: an SDK-written

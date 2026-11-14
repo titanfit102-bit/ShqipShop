@@ -62,6 +62,21 @@ export const blockAuthForLogin = (): number => {
   return ++authTransitionVersion;
 };
 
+/**
+ * Persist a fail-closed barrier BEFORE the SDK starts writing a new JWT.
+ * A process restart while auth.login/auth.register is still in flight must
+ * never reinterpret a provisional or previous token as a signed-in session.
+ */
+export const persistPendingAuthBarrier = async (attemptVersion: number) => {
+  if (!isCurrentAuthAttempt(attemptVersion)) {
+    throw new Error('Customer auth superseded by a newer session transition');
+  }
+  await AsyncStorage.setItem(SIGNED_OUT_MARKER_KEY, '1');
+  if (!isCurrentAuthAttempt(attemptVersion)) {
+    throw new Error('Customer auth superseded by a newer session transition');
+  }
+};
+
 /** A new login only becomes usable after its own JWT was persisted. */
 export const confirmNewLoginToken = async (
   expectedToken: string,
