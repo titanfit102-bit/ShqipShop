@@ -88,3 +88,29 @@ test('N01 reboot with reset tombstone must not retrieve previously private cart'
   expect(service.retrieve).not.toHaveBeenCalled();
   expect(disk.get('shqipshop:cart-reset-pending')).toBe('1');
 });
+
+test('N03 ack-unknown cart completion blocks restore and never auto-creates replacement', async () => {
+  const f = fixture('cart_maybe_completed');
+  f.service.retrieve.mockRejectedValueOnce({ status: 404 });
+  f.storage.getItem.mockImplementation(async (key: string) =>
+    key === 'shqipshop:order-completion-pending' ? 'cart_maybe_completed' :
+      key === CART_STORAGE_KEY ? 'cart_maybe_completed' : null,
+  );
+  await expect(restoreOrCreateCart('reg_al', f.storage, f.service))
+    .rejects.toThrow(/order confirmation pending/i);
+  expect(f.service.retrieve).not.toHaveBeenCalled();
+  expect(f.service.create).not.toHaveBeenCalled();
+  expect(f.storage.removeItem).not.toHaveBeenCalled();
+  expect(f.saved).toBe('cart_maybe_completed');
+});
+
+test('N03 completion marker blocks new anonymous cart after ambiguous completion and restart', async () => {
+  const f = fixture(null);
+  f.storage.getItem.mockImplementation(async key =>
+    key === 'shqipshop:order-completion-pending' ? 'cart_completed_unknown' : null,
+  );
+  await expect(restoreOrCreateCart('reg_al', f.storage, f.service))
+    .rejects.toThrow(/order confirmation pending/i);
+  expect(f.service.create).not.toHaveBeenCalled();
+  expect(f.storage.setItem).not.toHaveBeenCalled();
+});
