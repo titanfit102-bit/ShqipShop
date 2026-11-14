@@ -32,10 +32,18 @@ import { StoreCartAddress } from '@medusajs/types';
 import utils from '@utils/common';
 import { activeCheckoutPaymentSession } from '@data/checkout-progress';
 import { CART_FIELDS } from '@data/cart-recovery';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  reserveOrderCompletion,
+  clearKnownOrderCompletion,
+  ORDER_COMPLETION_PENDING_MESSAGE,
+} from '@data/order-completion-recovery';
 
 const Checkout = () => {
   const { l10n } = useLocalization();
-  const { cart, runCurrentCartTask, updateCart, resetCart } = useCart();
+  const {
+    cart, runCurrentCartTask, runCurrentCartCompletion, updateCart, retryCart,
+  } = useCart();
   const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdatingShipping, setIsUpdatingShipping] = useState(false);
@@ -224,25 +232,38 @@ const Checkout = () => {
           throw new Error(l10n.getString('payment-provider-not-supported'));
       }
     } else {
-      const response = await apiClient.store.cart.complete(cart.id);
-
-      if (response.type === 'cart') {
-        throw new Error(
-          response.error?.message || l10n.getString('failed-to-complete-order'),
-        );
-      }
-      await resetCart();
+      const { cartId, orderId } = await runCurrentCartCompletion(async activeCart => {
+        const activePayment = activeCheckoutPaymentSession(activeCart);
+        if (!activePayment || activePayment.provider_id !== selectedPaymentProviderId) {
+          throw new Error('Payment session is missing or outdated');
+        }
+        // Persist BEFORE the irreversible server call; never replay an
+        // uncertain outcome (even if the cart later returns 404).
+        await reserveOrderCompletion(activeCart.id, AsyncStorage);
+        let response: Awaited<ReturnType<typeof apiClient.store.cart.complete>>;
+        try {
+          response = await apiClient.store.cart.complete(activeCart.id);
+        } catch {
+          throw new Error(ORDER_COMPLETION_PENDING_MESSAGE);
+        }
+        if (response.type === 'cart') {
+          await clearKnownOrderCompletion(activeCart.id, AsyncStorage);
+          throw new Error(
+            response.error?.message || l10n.getString('failed-to-complete-order'),
+          );
+        }
+        if (!response.order?.id) throw new Error(ORDER_COMPLETION_PENDING_MESSAGE);
+        return response.order.id;
+      });
+      // resetCart is complete; do not clear marker if disk cleanup failed.
+      await clearKnownOrderCompletion(cartId, AsyncStorage);
+      retryCart();
       navigation.dispatch(
         CommonActions.reset({
           index: 0,
           routes: [
-            {
-              name: 'Main',
-            },
-            {
-              name: 'OrderDetail',
-              params: { orderId: response.order.id, cartProof: cart.id },
-            },
+            { name: 'Main' },
+            { name: 'OrderDetail', params: { orderId, cartProof: cartId } },
           ],
         }),
       );
@@ -270,9 +291,11 @@ const Checkout = () => {
       console.error('Error:', error);
       Alert.alert(
         l10n.getString('error'),
-        error instanceof Error
-          ? error.message
-          : l10n.getString('an-error-occurred'),
+        error instanceof Error && error.message === ORDER_COMPLETION_PENDING_MESSAGE
+          ? l10n.getString('order-confirmation-pending')
+          : error instanceof Error
+            ? error.message
+            : l10n.getString('an-error-occurred'),
       );
     } finally {
       setIsLoading(false);
@@ -324,9 +347,9 @@ const Checkout = () => {
           onPress={handleContinue}
           loading={isLoading}
           disabled={
-            activeStep === 'delivery' &&
+            isLoading || (activeStep === 'delivery' &&
             (isUpdatingShipping ||
-              !cart.shipping_methods?.some(method => method.shipping_option_id))
+              !cart.shipping_methods?.some(method => method.shipping_option_id)))
           }
         />
       </View>

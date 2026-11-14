@@ -48,6 +48,9 @@ type CartContextType = {
   runCurrentCartTask: (
     task: (activeCart: HttpTypes.StoreCart) => Promise<HttpTypes.StoreCart>,
   ) => Promise<HttpTypes.StoreCart>;
+  runCurrentCartCompletion: (
+    task: (activeCart: HttpTypes.StoreCart) => Promise<string>,
+  ) => Promise<{ cartId: string; orderId: string }>;
   linkCartToCustomer: () => Promise<void>;
   setShippingMethod: (shippingMethodId: string) => Promise<HttpTypes.StoreCart>;
   applyPromoCode: (code: string) => Promise<boolean>;
@@ -156,6 +159,23 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     }
     commitIfCurrent(updatedCart, activeCart.id, generation);
     return updatedCart;
+  };
+
+  const runCurrentCartCompletion = async (
+    task: (activeCart: HttpTypes.StoreCart) => Promise<string>,
+  ): Promise<{ cartId: string; orderId: string }> => {
+    const activeCart = currentCartRef.current;
+    if (!activeCart?.id) throw new Error('No active cart for completion');
+    const generation = cartGeneration.current;
+    const orderId = await task(activeCart);
+    if (!orderId || generation !== cartGeneration.current ||
+        currentCartRef.current?.id !== activeCart.id) {
+      throw new Error('Cart changed while completing order; do not submit again');
+    }
+    // Ownership check and resetCart's synchronous generation increment occur
+    // without an intervening await: old A cannot clear newer B's cart.
+    await resetCart();
+    return { cartId: activeCart.id, orderId };
   };
 
   // Restore can outlive a region switch or logout. Both React state and
@@ -320,6 +340,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
         updateLineItem,
         updateCart,
         runCurrentCartTask,
+        runCurrentCartCompletion,
         linkCartToCustomer,
         setShippingMethod,
         applyPromoCode,

@@ -149,6 +149,7 @@ const sq_AL: FluentTemplate = {
   "please-enter-a-valid-email": "Shkruaj një email të vlefshëm",
   "invalid-email-address": "Adresa e email-it është e pavlefshme",
   "password-must-be-at-least-n-characters": "Fjalëkalimi duhet të ketë të paktën { $n } karaktere",
+  "order-confirmation-pending": "Statusi i porosisë ende nuk është konfirmuar. Mos e dërgo sërish porosinë; kontakto mbështetjen për verifikim.",
   "register": "Regjistrohu",
   "enter-your-first-name": "Shkruaj emrin",
   "enter-your-last-name": "Shkruaj mbiemrin",

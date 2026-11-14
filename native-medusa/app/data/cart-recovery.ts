@@ -1,4 +1,8 @@
 import type { HttpTypes } from '@medusajs/types';
+import {
+  ORDER_COMPLETION_PENDING_KEY,
+  ORDER_COMPLETION_PENDING_MESSAGE,
+} from './order-completion-recovery';
 
 type CartStorage = {
   getItem(key: string): Promise<string | null>;
@@ -36,6 +40,11 @@ export async function restoreOrCreateCart(
   storage: CartStorage,
   service: CartService,
 ): Promise<HttpTypes.StoreCart> {
+  // A missing cart or 404/410 after complete() does not prove no order was
+  // created. Fail closed across app restart until authoritative reconciliation.
+  if (await storage.getItem(ORDER_COMPLETION_PENDING_KEY) !== null) {
+    throw new Error(ORDER_COMPLETION_PENDING_MESSAGE);
+  }
   // A prior logout/reset may have failed after persisting the tombstone.
   // Never read an old private cart until its persisted ID has been deleted.
   const resetPending = await storage.getItem(CART_RESET_PENDING_KEY);

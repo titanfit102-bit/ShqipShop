@@ -7,11 +7,13 @@ import Button from '@components/common/button';
 import { useNavigation } from '@react-navigation/native';
 import { useLocalization } from '@fluent/react';
 import CartContent from '@components/cart/cart-content';
+import { ORDER_COMPLETION_PENDING_MESSAGE } from '@data/order-completion-recovery';
 
 const Cart = () => {
   const { l10n } = useLocalization();
   const { cart, cartLoading, cartError, retryCart } = useCart();
   const isEmptyCart = !cart?.items || cart.items.length === 0;
+  const unknownOrder = cartError === ORDER_COMPLETION_PENDING_MESSAGE;
 
   const navigation = useNavigation();
 
@@ -31,8 +33,14 @@ const Cart = () => {
             <ActivityIndicator accessibilityLabel="Loading cart" />
           ) : cartError && !cart ? (
             <View className="gap-4">
-              <Text className="text-center">{l10n.getString('an-error-occurred')}</Text>
-              <Button title={l10n.getString('continue')} onPress={retryCart} />
+              <Text className="text-center">
+                {l10n.getString(
+                  unknownOrder ? 'order-confirmation-pending' : 'an-error-occurred',
+                )}
+              </Text>
+              {!unknownOrder && (
+                <Button title={l10n.getString('continue')} onPress={retryCart} />
+              )}
             </View>
           ) : !isEmptyCart ? (
             <CartContent cart={cart} mode="cart" />

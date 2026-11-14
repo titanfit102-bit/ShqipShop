@@ -213,3 +213,29 @@ test('N01 combined provider reboot: marker blocks A restore, then repaired stora
   expect(mockDisk.has('shqipshop:cart-reset-pending')).toBe(false);
   expect(apiClient.store.cart.retrieve).not.toHaveBeenCalled();
 });
+
+test('N03 late A completion cannot reset a newer B cart after logout', async () => {
+  await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(mount()); });
+  await ReactTestRenderer.act(async () => {
+    cartActions!.setCart({ id: 'cart_A', region_id: 'reg_al' } as never);
+  });
+  let finishA!: (orderId: string) => void;
+  let pendingA!: Promise<unknown>;
+  await ReactTestRenderer.act(async () => {
+    pendingA = cartActions!.runCurrentCartCompletion(async () =>
+      new Promise<string>(resolve => { finishA = resolve; }),
+    );
+    await Promise.resolve();
+  });
+  expect(finishA).toBeDefined();
+  await ReactTestRenderer.act(async () => { await customerActions!.logout(); });
+  await ReactTestRenderer.act(async () => {
+    cartActions!.setCart({ id: 'cart_B', region_id: 'reg_al' } as never);
+  });
+  await ReactTestRenderer.act(async () => {
+    finishA('order_A');
+    await expect(pendingA).rejects.toThrow(/Cart changed/);
+  });
+  expect(cartActions?.cart?.id).toBe('cart_B');
+  expect(mockDisk.get('cart_id')).not.toBe('cart_A');
+});
