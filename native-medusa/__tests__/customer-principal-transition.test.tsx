@@ -609,3 +609,72 @@ test('N02 reboot between registered customer creation and final login never reus
   expect(restarted).toBeNull();
   expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBe('JWT_AFTER_REGISTER_PENDING');
 });
+
+test('N02 registration bearer is scoped solely to customer.create without revealing a full session', async () => {
+  const client = new QueryClient();
+  retrieve.mockImplementation(async () => {
+    const token = await authTokenStorage.getItem(AUTH_TOKEN_KEY);
+    return { customer: token === 'JWT_B_LOGIN' ? { id: 'cust_B' } : undefined };
+  });
+  registerToken.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'JWT_B_REGISTRATION');
+    return 'JWT_B_REGISTRATION';
+  });
+  setToken.mockImplementation((token: string) => authTokenStorage.setItem(AUTH_TOKEN_KEY, token));
+  let headerOnCreate: unknown;
+  let privateSessionDuringCreate: string | null = 'not checked';
+  createCustomer.mockImplementation(async (_body: unknown, _query: unknown, headers: unknown) => {
+    headerOnCreate = headers;
+    privateSessionDuringCreate = await authTokenStorage.getItem(AUTH_TOKEN_KEY);
+    return { customer: { id: 'cust_B' } };
+  });
+  login.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'JWT_B_LOGIN');
+    return 'JWT_B_LOGIN';
+  });
+  await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(mount(client)); });
+  await ReactTestRenderer.act(async () => {
+    await actions!.register('b@example.invalid', 'synthetic', 'B', 'Buyer');
+  });
+  expect(headerOnCreate).toEqual({ Authorization: 'Bearer JWT_B_REGISTRATION' });
+  expect(privateSessionDuringCreate).toBeNull();
+  expect(actions?.customer?.id).toBe('cust_B');
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBe('JWT_B_LOGIN');
+});
+
+test('N02 reboot while create request is in flight never exposes registration JWT', async () => {
+  const client = new QueryClient();
+  retrieve.mockResolvedValue({ customer: { id: 'cust_B' } });
+  registerToken.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'JWT_REG_IN_FLIGHT');
+    return 'JWT_REG_IN_FLIGHT';
+  });
+  setToken.mockImplementation((token: string) => authTokenStorage.setItem(AUTH_TOKEN_KEY, token));
+  let finishCreate!: () => void;
+  let scopedHeader: unknown;
+  createCustomer.mockImplementation(async (_body: unknown, _query: unknown, headers: unknown) => {
+    scopedHeader = headers;
+    await new Promise<void>(resolve => { finishCreate = resolve; });
+    return { customer: { id: 'cust_B' } };
+  });
+  login.mockImplementation(async () => {
+    await authTokenStorage.setItem(AUTH_TOKEN_KEY, 'JWT_B_LOGIN');
+    return 'JWT_B_LOGIN';
+  });
+  await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(mount(client)); });
+  let pending!: Promise<void>;
+  await ReactTestRenderer.act(async () => {
+    pending = actions!.register('b@example.invalid', 'synthetic', 'B', 'Buyer');
+    for (let i=0; i<35 && !finishCreate; i++) await Promise.resolve();
+  });
+  expect(finishCreate).toBeDefined();
+  const markerAtCreate = mockJwtStorage.get('shqipshop:jwt-signed-out');
+  const diskJwt = mockJwtStorage.get(AUTH_TOKEN_KEY);
+  const rebooted = await rebootTokenReader();
+  await ReactTestRenderer.act(async () => { finishCreate(); await pending; });
+  expect(scopedHeader).toEqual({ Authorization: 'Bearer JWT_REG_IN_FLIGHT' });
+  expect(markerAtCreate).toBe('1');
+  expect(diskJwt).toBe('JWT_REG_IN_FLIGHT');
+  expect(rebooted).toBeNull();
+  expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBe('JWT_B_LOGIN');
+});
