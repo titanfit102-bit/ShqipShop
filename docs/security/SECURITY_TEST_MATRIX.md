@@ -1,5 +1,22 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-14 — N03 checkout completion replay / lost-ack (client mock-backed)
+
+| Case | Red-before result | Corrected exact CI | Limit |
+| --- | --- | --- | --- |
+| Restart with unresolved completion marker and previously saved cart (including 404) | [#43600830937](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43600830937) FAIL | [#43601835971](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43601835971) PASS: do not retrieve/create/delete cart | No actual backend 404 |
+| Restart with marker and missing saved cart | FAIL | PASS: no new guest cart | Marker is not order proof |
+| Double tap same cart ID before storage await | Not tested pre-fix | PASS: only one reservation | Mocked SDK |
+| HTTP lost acknowledgement; user presses place order again | Not tested pre-fix | PASS: only one SDK complete call and pending warning | Real server may have committed |
+| Explicit `type: cart` error (not completed) | Not tested pre-fix | PASS: marker cleared, corrected retry allowed | Depends on server response integrity |
+| Confirmed `type: order` with order ID | Not tested pre-fix | PASS: cart reset, journal cleared, receipt route | Guest receipt backend authorization OPEN |
+| Old A completion returns after logout/B cart | Not tested pre-fix | PASS: reject stale result, preserve B | Device multi-account OPEN |
+| Full native source tests | Prior 99 passing | [#43601835971](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43601835971) **109/109, 19 suites, lint+TypeScript PASS** | No PSP, PostgreSQL order proof |
+
+[Scoped code 5a398e6](https://github.com/titanfit102-bit/ShqipShop/commit/5a398e688aa7e60d82cc5153d85d34bef57b6bbe); [Checkout screen 3 tests d902f0b](https://github.com/titanfit102-bit/ShqipShop/commit/d902f0ba5ffce9542f62b69d5dc0d068df8272db). N03 Stage 1 VERIFIED; server reconciliation, real payments/guest capability and device recovery PARTIAL/OPEN. R01/R02/R03 release veto unchanged.
+
+
+
 ## 2026-11-14 — N02 incomplete auth and crash-window matrix (mocked storage/HTTP)
 
 | Boundary tested | Before fix | Exact corrected evidence | Unproven |

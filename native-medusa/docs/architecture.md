@@ -38,6 +38,21 @@ Product detail requests `+variants.inventory_quantity`. This computed Medusa
 field must be explicitly included for stock checks. Check `manage_inventory`,
 `allow_backorder`, and available quantity when diagnosing Add to Cart behavior.
 
+## Order completion with uncertain server acknowledgement (N03 Stage 1)
+
+Before the native app issues `store.cart.complete`, it persists the cart ID under
+`shqipshop:order-completion-pending` and checks the write. A network error
+or missing confirmation is **unknown**, never a signal to retry or replace the
+cart. `restoreOrCreateCart` refuses automatic restore/replacement on restart
+while the marker exists. An explicit Medusa `type: cart` no-order response can
+clear it; a confirmed `type: order` with order ID clears only after local cart
+reset succeeds, then opens the receipt. A generation check prevents a late old
+account's response from clearing the new account's cart. This is NOT server
+idempotence, an order receipt or a payment guarantee. Until authoritative,
+tenant-safe order-by-cart reconciliation exists, unknown attempts must be
+resolved manually with server/operator proof (including guest proof policy).
+A global pending marker can temporarily block unrelated carts/accounts.
+
 ## Checkout invariants
 
 `app/screens/checkout.tsx` owns the active step, address form, selected payment
