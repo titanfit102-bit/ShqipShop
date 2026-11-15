@@ -112,6 +112,13 @@ export default defineMiddlewares({
       middlewares: [authenticate('customer', ['bearer'])],
     },
     {
+      // N03 registered cart -> persisted order proof, hard-disabled outside
+      // disposable A/B CI; no guest or production recovery route.
+      matcher: '/store/shqipshop/order-recovery-ci',
+      method: ['GET'],
+      middlewares: [authenticate('customer', ['bearer'])],
+    },
+    {
       matcher: '/store/orders/:id',
       method: ['GET'],
       middlewares: [
