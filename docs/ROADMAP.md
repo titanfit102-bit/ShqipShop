@@ -1,5 +1,11 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-15 — N03 Stage 2a REGISTERED HTTP recovery VERIFIED, guest and no-order authority NEXT
+
+[Code ab8cd503](https://github.com/titanfit102-bit/ShqipShop/commit/ab8cd503d1c845234c60d0ffb72a8b73557f5415) [pinned A/B #43753587901](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43753587901) SUCCESS, including cookie/mixed-mode denials; [candidate 2.22.6 #43753587711](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43753587711) SUCCESS with preexisting candidate suite intact. Registered Medusa customer bearer can read a verified owned cart-order link in disposable two-merchant PostgreSQL; absent link = **unknown**, not `no_order`. N03 Stage 2a CI VERIFIED but no native integration/guest credential, real PSP or Production. NEXT Stage 2b: durable independent scoped guest recovery proof issued before completion; distinguish confirmed/unknown from truly finalized no-order without replay, tests for stale/revoked/wrong-store proof and process restarts. Then Stage 2c native recovery UI/connectors. R01/R02/R03/G3/G5 still NO RELEASE. Details in CURRENT_STATE.
+
+
+
 ## 2026-11-15 — N03 Stage 1c native final receipt fence VERIFIED; server reconciliation NEXT
 
 [Current proof](CURRENT_STATE.md): [red 110 pass + 1 fail](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43725284411) → [code 2e5d498](https://github.com/titanfit102-bit/ShqipShop/commit/2e5d49814228c8cb83907393ba96b5b52f36718b) → [native CI #43725571750](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43725571750) **112/112 PASS, lint + TS**. After-await receipt handoff now rejects logout/identity reset during journal cleanup. N03 Stage 1c CLIENT VERIFIED, Stage 2 server cart→order authority and guest/customer proof remain OPEN. Require separate backend authorization and no automated retry for an unknown payment result. R01/R02/R03/G3/G5 NO RELEASE, PR #12 Draft.

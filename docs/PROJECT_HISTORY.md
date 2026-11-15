@@ -1,5 +1,11 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-15 — N03 Stage 2a scoped registered recovery proof, no production
+
+[Source ab8cd503](https://github.com/titanfit102-bit/ShqipShop/commit/ab8cd503d1c845234c60d0ffb72a8b73557f5415) implemented a disposable CI-only owner-authorized cart→order read and regression assertions in the existing parallel two-Medusa workflow. [Red-before #43752637046](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43752637046) proved the endpoint was absent; [final A/B #43753587901](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43753587901) verified registered owner unknown/confirmed outcomes, stranger/guest/cross-merchant denials, and cookie/mixed-auth denial. A shared auth test initially caused an unrelated candidate [#43753014315](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43753014315) to fail because the route was not enabled there; explicit CI opt-in was added for the new N03 assertions, retaining all legacy auth/CSRF candidate tests; [2.22.6 #43753587711](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43753587711) then passed. No release, owner policy, production PSP, default branch, Medusa baseline version or external account settings changed. The canonical next steps, risks and evidence reside in [CURRENT_STATE](CURRENT_STATE.md), not this historical summary.
+
+
+
 ## 2026-11-11 — Stage12AF scoped Medusa Admin region browser-CSRF diagnostic
 
 [Stage12AF code d5cbea7](https://github.com/titanfit102-bit/ShqipShop/commit/d5cbea7d4a0bebf163d225927efec44f99265f6e); [Medusa 2.22.6 disposable Chromium/AOF/PostgreSQL CI #42931945599](https://github.com/titanfit102-bit/ShqipShop/actions/runs/42931945599) **SUCCESS as an evidence-gathering test, NOT protection**. The installed compiled export inventory explicitly showed `POST /admin/regions/:id` (separate from three Stage12X/12AE protected profile/product matchers). We selected ONLY the synthetic Albania region's **name**; no currency, tax, shipping provider, price, payment or order configuration was changed.

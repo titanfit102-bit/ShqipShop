@@ -1,5 +1,11 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-15 — N03 Stage 2a owner-only Medusa cart→order proof (CI VERIFIED; NO RELEASE)
+
+[Detailed state and residuals](CURRENT_STATE.md). [Valid red #43752637046](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43752637046) (new read-only route absent, owner GET 404) → [source/test selection ab8cd503](https://github.com/titanfit102-bit/ShqipShop/commit/ab8cd503d1c845234c60d0ffb72a8b73557f5415) → [final pinned A/B HTTP #43753587901](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43753587901) SUCCESS, owner unknown-before/confirmed-after, denied anonymous/admin/stranger/guest-cart/cross-merchant, cookie-only/mixed-bearer rejected. Candidate Medusa 2.22.6 [#43753587711](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43753587711) SUCCESS after scoping new N03 probe to the dedicated A/B runner; all existing candidate tests retained. Endpoint enabled only on exact disposable CI A/B fixtures; **not native-connected, not a production policy**. `unknown` does not permit checkout replay; guest capability/no-order authority, PSP, device still OPEN. Native Stage 1c 112/112 earlier remains a separate proof. R01 financial P0/R02 global CSRF/R03 baseline keep RG-01/02/03/G3/G5 BLOCKED. PR #12 Draft on top of #11, `main`/Production unchanged. Next: scoped guest credential + durable server attempt reconciliation before mobile integration.
+
+
+
 ## 2026-11-15 — N03 Stage 1c final receipt fence, 112/112 native CI
 
 [Detailed code/risk/evidence checkpoint](CURRENT_STATE.md). [Valid red #43725284411](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43725284411) had 110 prior PASS / new receipt-navigation race FAIL; [fix 2e5d498](https://github.com/titanfit102-bit/ShqipShop/commit/2e5d49814228c8cb83907393ba96b5b52f36718b) [exact native #43725571750](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43725571750) passes **112/112 (19 suites), ESLint, TypeScript**. Checkout rechecks active cart generation after awaited pending-journal deletion and before navigation, preventing stale old-account receipt after logout. Native mock/provider CI only; no Medusa order reconciliation/Android device/PSP evidence. N03 Stage 2 server trust boundary still OPEN and requires separately authorized backend work; R01/R02/R03 release blockers unchanged. PR #12 Draft, no main/Production.

@@ -1,5 +1,23 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-15 — N03 Stage 2a registered HTTP recovery, exact disposable A/B
+
+[Red-before #43752637046](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43752637046) (new route absent, owner 404) → [code ab8cd503](https://github.com/titanfit102-bit/ShqipShop/commit/ab8cd503d1c845234c60d0ffb72a8b73557f5415), [parallel A/B #43753587901](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43753587901) **SUCCESS**. Two isolated real Medusa/PostgreSQL backends, synthetic payment only.
+
+| HTTP/identity invariant | Observed final CI evidence | Limit |
+| --- | --- | --- |
+| Registered owner GET before complete | 200 `unknown`, no order ID | Unknown NOT no-order proof |
+| Registered owner GET after complete | 200 `confirmed`, exact original order ID; repeat GET identical | No production PSP/charge proof |
+| Anonymous, Admin JWT, same-store stranger, guest-cart ID with owner JWT | Access denied; no receipt | Guest recovery NOT implemented |
+| Foreign cart/foreign bearer across distinct merchants | Access denied on both A/B | Production tenant infrastructure not certified |
+| Customer cookie-only, cookie+bearer together | Access denied on both A/B | Global Medusa cookie CSRF still OPEN |
+| Client-supplied merchant header | Rejected | Backend identity fixed by deployment |
+| Medusa 2.22.6 candidate shared original auth suite | [#43753587711](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43753587711) SUCCESS after separate N03-only opt-in | No claim N03 on candidate; no tests removed |
+
+N03 Stage 2a is a **CI-only, read-only owner/receipt linkage proof**, not final order settlement, native recovery, guest credential issuance, server final no-order decision, real-device or PSP exactly-once. Unresolved R01/R02/R03/G3/G5 block release.
+
+
+
 ## 2026-11-14 — N03 completion after-reset ownership fence (additional)
 
 | Interleaving | Proof | Remaining risk |

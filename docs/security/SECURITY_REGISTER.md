@@ -1,5 +1,11 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-15 — N03 read-only registered receipt recovery boundary, CI VERIFIED; launch remains blocked
+
+[Verified source ab8cd503](https://github.com/titanfit102-bit/ShqipShop/commit/ab8cd503d1c845234c60d0ffb72a8b73557f5415), [real A/B HTTP #43753587901](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43753587901) SUCCESS: Medusa-validated bearer customer, registered account/cart ownership, inverse persisted order/cart relation and independent backend/DB required before emitting an order ID. No guest fallback with cart ID, anonymous/admin/stranger/cross-tenant/foreign JWT/cookie/mixed modes denied; pre-complete owned cart returns only `unknown` and the route never invokes order completion or payment. Exact disposable A/B env/DB/Redis gating corrected to reject missing mapping. New test probes are mandatory on pinned parallel workflow, NOT on candidate 2.22.6 (whose existing auth/CSRF checks [#43753587711](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43753587711) pass). **OPEN:** no durable guest capability/authoritative negative order proof, native integration, device, production RBAC/revocation, PSP reconciliation. R01/T05/S13 financial P0, R02 global CSRF, R03 Medusa version and release gates RG-01/02/03 G3/G5 remain BLOCKED; no production policy change.
+
+
+
 ## 2026-11-15 — N03 post-journal receipt identity fence (scoped native CI VERIFIED)
 
 [Source correction 2e5d498](https://github.com/titanfit102-bit/ShqipShop/commit/2e5d49814228c8cb83907393ba96b5b52f36718b) after [valid red native CI #43725284411](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43725284411) (110 old PASS, 1 new failure): a logout racing with awaited post-ack journal deletion could still permit stale receipt navigation. Generation-bound `isCurrent` check after journal cleanup now blocks that handoff. [Native CI #43725571750](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43725571750) **19/19 suites, 112/112 PASS, ESLint/TS** with mocked Checkout and real React provider logout test. Only client mock/integration scope; no real backend order proof, PSP, TLS, physical Android or server ownership guarantee. **N03 remains PARTIAL for launch**; R01 finance P0, R02 global CSRF, R03 Medusa patched baseline, RG-01/02/03/G3/G5 BLOCKED. No Production/main changes.
