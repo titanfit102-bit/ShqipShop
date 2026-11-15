@@ -136,20 +136,6 @@ test('N03 explicit Medusa type=cart no-order result releases the marker for a sa
   expect(mockDisk.has(ORDER_COMPLETION_PENDING_KEY)).toBe(false);
 });
 
-test('N03 lost acknowledgement never triggers a second complete on user retry', async () => {
-  complete.mockRejectedValue(new Error('synthetic response lost after server commit'));
-  await mount();
-  await press();
-  expect(complete).toHaveBeenCalledTimes(1);
-  expect(mockDisk.get(ORDER_COMPLETION_PENDING_KEY)).toBe('cart_A');
-  expect(mockCartReset).not.toHaveBeenCalled();
-  expect(mockNav.dispatch).not.toHaveBeenCalled();
-  await press();
-  expect(complete).toHaveBeenCalledTimes(1);
-  expect(mockDisk.get(ORDER_COMPLETION_PENDING_KEY)).toBe('cart_A');
-  expect(alert).toHaveBeenCalledWith('error', 'order-confirmation-pending');
-});
-
 test('N03 logout after cart reset during awaited journal cleanup cannot navigate stale receipt', async () => {
   complete.mockResolvedValue({ type: 'order', order: { id: 'order_A' } });
   let journalRemovals = 0;
@@ -169,3 +155,18 @@ test('N03 logout after cart reset during awaited journal cleanup cannot navigate
   expect(mockNav.dispatch).not.toHaveBeenCalled();
   expect(mockRetryCart).not.toHaveBeenCalled();
 });
+
+test('N03 lost acknowledgement never triggers a second complete on user retry', async () => {
+  complete.mockRejectedValue(new Error('synthetic response lost after server commit'));
+  await mount();
+  await press();
+  expect(complete).toHaveBeenCalledTimes(1);
+  expect(mockDisk.get(ORDER_COMPLETION_PENDING_KEY)).toBe('cart_A');
+  expect(mockCartReset).not.toHaveBeenCalled();
+  expect(mockNav.dispatch).not.toHaveBeenCalled();
+  await press();
+  expect(complete).toHaveBeenCalledTimes(1);
+  expect(mockDisk.get(ORDER_COMPLETION_PENDING_KEY)).toBe('cart_A');
+  expect(alert).toHaveBeenCalledWith('error', 'order-confirmation-pending');
+});
+
