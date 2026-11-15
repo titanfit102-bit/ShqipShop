@@ -200,7 +200,7 @@ jobs:
           SHQIPSHOP_CI_MEDUSA_PORT=9000 SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE="$SHQIPSHOP_A_KEY_FILE" SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE="$SHQIPSHOP_CHANNEL_A_FILE" SHQIPSHOP_CI_ORDER_ID_FILE="$SHQIPSHOP_A_ORDER_FILE" SHQIPSHOP_CI_CART_ID_FILE="$SHQIPSHOP_A_CART_FILE" node scripts/store-api-checkout.mjs
           SHQIPSHOP_CI_MEDUSA_PORT=9001 SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE="$SHQIPSHOP_B_KEY_FILE" SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE="$SHQIPSHOP_CHANNEL_B_FILE" SHQIPSHOP_CI_ORDER_ID_FILE="$SHQIPSHOP_B_ORDER_FILE" SHQIPSHOP_CI_CART_ID_FILE="$SHQIPSHOP_B_CART_FILE" node scripts/store-api-checkout.mjs
           node scripts/parallel-merchant-boundary.mjs
-          node scripts/parallel-auth-boundary.mjs
+          SHQIPSHOP_N03_RECOVERY_PROBE=true node scripts/parallel-auth-boundary.mjs
           # Spin up a separate merchant-A Medusa process using the SAME
           # database, Redis, JWT secret and cookie secret. A's existing cookie
           # must resolve on this process without a bearer token.

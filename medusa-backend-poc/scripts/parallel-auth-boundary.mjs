@@ -9,6 +9,9 @@ import { verifyMutations } from "./parallel-mutation-boundary.mjs"
 
 assert.equal(process.env.CI, "true")
 assert.equal(process.env.NODE_ENV, "development")
+// New N03 proof runs only in its opt-in A/B workflow; other candidates retain
+// their entire original auth and order regression suite.
+const n03RecoveryProbe = process.env.SHQIPSHOP_N03_RECOVERY_PROBE === "true"
 const merchants = [
   { id: "A", port: 9000, admin: "admin-a@shqipshop.example.invalid",
     customer: "shopper-a@shqipshop.example.invalid" },
@@ -136,6 +139,7 @@ for (const m of merchants) {
   assert(cartId, "Account cart ID missing")
   m.registeredCartId = cartId
   const recoveryUrl = "/store/shqipshop/order-recovery-ci?cart_id=" + encodeURIComponent(cartId)
+  if (n03RecoveryProbe) {
   const beforeComplete = await request(m, "GET", recoveryUrl, {key:true,token:m.customerJwt})
   assert.equal(beforeComplete.status,200,m.id+": pending cart recovery should be readable by owner")
   assert.equal(beforeComplete.data?.state,"unknown","Uncommitted cart must NEVER be called no-order")
@@ -148,6 +152,7 @@ for (const m of merchants) {
     key:true,token:m.customerJwt,headers:{"x-shqipshop-tenant-id":"foreign-merchant"}
   })
   assert([400,401,403,404].includes(claimedTenant.status),"Client-supplied merchant cannot be trusted")
+  }
 
   const add = await request(m, "POST", "/store/carts/" + cartId + "/line-items", {
     key:true,token:m.customerJwt,body:{variant_id:product.variants[0].id,quantity:1}
@@ -187,6 +192,7 @@ for (const m of merchants) {
   assert.equal(completed.data.type,"order","Registered cart not completed")
   assert(orderId,"Registered order missing")
   m.registeredOrderId = orderId
+  if (n03RecoveryProbe) {
   // Simulate acknowledgement loss: don't call POST complete again. Read only
   // an authoritative cart/order link under the already validated owner JWT.
   const recovered = await request(m,"GET",recoveryUrl,{key:true,token:m.customerJwt})
@@ -196,6 +202,7 @@ for (const m of merchants) {
   const recoveredAgain = await request(m,"GET",recoveryUrl,{key:true,token:m.customerJwt})
   assert.equal(recoveredAgain.status,200,"Read-only recovery must remain repeatable")
   assert.deepEqual(recoveredAgain.data,recovered.data,"Receipt recovery may not change result")
+  }
   const ownOrder = await request(m,"GET","/store/orders/"+encodeURIComponent(orderId),{
     key:true,token:m.customerJwt
   })
@@ -223,6 +230,7 @@ for (const m of merchants) {
   })
   assert([401,403,404].includes(denied.status),
     m.id+": foreign account reads registered owner order")
+  if (n03RecoveryProbe) {
   const nonOwner = await request(m,"GET",recoveryUrl,{
     key:true,token:strangerLogin.data.token
   })
@@ -234,10 +242,12 @@ for (const m of merchants) {
     })
   assert([401,403,404].includes(guestFallback.status),"Guest cart ID cannot impersonate owner")
   console.log("SHQIPSHOP_N03_REGISTERED_ORDER_RECOVERY_OWNER_ONLY_"+m.id)
+  }
   console.log("SHQIPSHOP_F06_REGISTERED_OWNER_ONLY_PASSED_"+m.id)
 }
 
 // Even a valid customer bearer may not recover another merchant's cart.
+if (n03RecoveryProbe) {
 for (const own of merchants) {
   const foreign = merchants.find(candidate => candidate !== own)
   const foreignPath = "/store/shqipshop/order-recovery-ci?cart_id=" +
@@ -251,6 +261,7 @@ for (const own of merchants) {
   assert([401,403,404].includes(foreignJwt.status),"Cross-merchant JWT must fail")
 }
 console.log("SHQIPSHOP_N03_CROSS_MERCHANT_RECOVERY_DENIED")
+}
 
 // Establish real cookie sessions. Subsequent probes intentionally omit bearer headers.
 const actors = [
@@ -272,6 +283,19 @@ for (const m of merchants) {
   }
   isDenied(await request(m,"GET","/admin/users/me",{cookie:m.customerCookie}),m.id + " customer cookie as admin")
   isDenied(await request(m,"GET","/store/customers/me",{key:true,cookie:m.adminCookie}),m.id + " admin cookie as customer")
+  if (n03RecoveryProbe) {
+    const recoveryUrl = "/store/shqipshop/order-recovery-ci?cart_id=" +
+      encodeURIComponent(m.registeredCartId)
+    const cookieOnly = await request(m, "GET", recoveryUrl,
+      {key:true, cookie:m.customerCookie})
+    assert([401,403,404].includes(cookieOnly.status),
+      "N03 cookie session must not substitute registered bearer")
+    const mixed = await request(m, "GET", recoveryUrl,
+      {key:true, token:m.customerJwt, cookie:m.customerCookie})
+    assert([401,403,404].includes(mixed.status),
+      "N03 mixed cookie+bearer must not bypass explicit mode policy")
+    console.log("SHQIPSHOP_N03_COOKIE_MIXED_MODE_DENIED_"+m.id)
+  }
   console.log("SHQIPSHOP_MERCHANT_" + m.id + "_OWN_COOKIE_AUTH_PASSED")
 }
 for (const target of merchants) {
