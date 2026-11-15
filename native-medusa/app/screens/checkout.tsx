@@ -232,7 +232,7 @@ const Checkout = () => {
           throw new Error(l10n.getString('payment-provider-not-supported'));
       }
     } else {
-      const { cartId, orderId } = await runCurrentCartCompletion(async activeCart => {
+      const { cartId, orderId, isCurrent } = await runCurrentCartCompletion(async activeCart => {
         const activePayment = activeCheckoutPaymentSession(activeCart);
         if (!activePayment || activePayment.provider_id !== selectedPaymentProviderId) {
           throw new Error('Payment session is missing or outdated');
@@ -257,6 +257,11 @@ const Checkout = () => {
       });
       // resetCart is complete; do not clear marker if disk cleanup failed.
       await clearKnownOrderCompletion(cartId, AsyncStorage);
+      // Logout can begin while journal removal awaits; fence the final handoff.
+      // Navigation follows synchronously, with no additional await.
+      if (!isCurrent()) {
+        throw new Error('Cart changed while completing order; do not submit again');
+      }
       retryCart();
       navigation.dispatch(
         CommonActions.reset({

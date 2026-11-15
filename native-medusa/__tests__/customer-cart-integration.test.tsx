@@ -277,3 +277,21 @@ test('N03 logout during successful cart reset prevents old A completion receipt'
   });
   expect(cartActions?.cart).toBeUndefined();
 });
+
+test('N03 completed receipt handoff becomes invalid after a later logout', async () => {
+  await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(mount()); });
+  await ReactTestRenderer.act(async () => {
+    cartActions!.setCart({ id: 'cart_A', region_id: 'reg_al' } as never);
+  });
+  const receipt: { isCurrent?: () => boolean } = {};
+  await ReactTestRenderer.act(async () => {
+    const completed = await cartActions!.runCurrentCartCompletion(async () => 'order_A');
+    expect(completed.cartId).toBe('cart_A');
+    expect(completed.orderId).toBe('order_A');
+    receipt.isCurrent = completed.isCurrent;
+  });
+  expect(receipt.isCurrent?.()).toBe(true);
+  await ReactTestRenderer.act(async () => { await customerActions!.logout(); });
+  expect(receipt.isCurrent?.()).toBe(false);
+  expect(cartActions?.cart).toBeUndefined();
+});

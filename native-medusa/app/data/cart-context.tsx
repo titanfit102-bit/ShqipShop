@@ -50,7 +50,7 @@ type CartContextType = {
   ) => Promise<HttpTypes.StoreCart>;
   runCurrentCartCompletion: (
     task: (activeCart: HttpTypes.StoreCart) => Promise<string>,
-  ) => Promise<{ cartId: string; orderId: string }>;
+  ) => Promise<{ cartId: string; orderId: string; isCurrent: () => boolean }>;
   linkCartToCustomer: () => Promise<void>;
   setShippingMethod: (shippingMethodId: string) => Promise<HttpTypes.StoreCart>;
   applyPromoCode: (code: string) => Promise<boolean>;
@@ -163,7 +163,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
 
   const runCurrentCartCompletion = async (
     task: (activeCart: HttpTypes.StoreCart) => Promise<string>,
-  ): Promise<{ cartId: string; orderId: string }> => {
+  ): Promise<{ cartId: string; orderId: string; isCurrent: () => boolean }> => {
     const activeCart = currentCartRef.current;
     if (!activeCart?.id) throw new Error('No active cart for completion');
     const generation = cartGeneration.current;
@@ -181,7 +181,12 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     if (cartGeneration.current !== expectedResetGeneration) {
       throw new Error('Cart changed while completing order; do not submit again');
     }
-    return { cartId: activeCart.id, orderId };
+    return {
+      cartId: activeCart.id,
+      orderId,
+      // Checkout can recheck identity after asynchronous receipt-journal cleanup.
+      isCurrent: () => cartGeneration.current === expectedResetGeneration,
+    };
   };
 
   // Restore can outlive a region switch or logout. Both React state and
