@@ -21,10 +21,11 @@ let mockPress: (() => void) | undefined;
 const mockNav = { dispatch: jest.fn() };
 const mockCartReset = jest.fn(async () => undefined);
 const mockRetryCart = jest.fn();
+let mockReceiptHandoffCurrent = true;
 const mockRunCompletion = jest.fn(async (task: (cart: typeof mockCart) => Promise<string>) => {
   const orderId = await task(mockCart);
   await mockCartReset();
-  return { orderId, cartId: mockCart.id };
+  return { orderId, cartId: mockCart.id, isCurrent: () => mockReceiptHandoffCurrent };
 });
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -80,6 +81,7 @@ const press = async () => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockDisk.clear();
+  mockReceiptHandoffCurrent = true;
   (AsyncStorage.getItem as jest.Mock).mockImplementation(
     async (key: string) => mockDisk.get(key) ?? null,
   );
@@ -146,4 +148,24 @@ test('N03 lost acknowledgement never triggers a second complete on user retry', 
   expect(complete).toHaveBeenCalledTimes(1);
   expect(mockDisk.get(ORDER_COMPLETION_PENDING_KEY)).toBe('cart_A');
   expect(alert).toHaveBeenCalledWith('error', 'order-confirmation-pending');
+});
+
+test('N03 logout after cart reset during awaited journal cleanup cannot navigate stale receipt', async () => {
+  complete.mockResolvedValue({ type: 'order', order: { id: 'order_A' } });
+  let journalRemovals = 0;
+  (AsyncStorage.removeItem as jest.Mock).mockImplementation(async (key: string) => {
+    if (key === ORDER_COMPLETION_PENDING_KEY) {
+      journalRemovals += 1;
+      // The newer principal wins while the old receipt awaits AsyncStorage.
+      mockReceiptHandoffCurrent = false;
+    }
+    mockDisk.delete(key);
+  });
+  await mount();
+  await press();
+  expect(complete).toHaveBeenCalledTimes(1);
+  expect(mockCartReset).toHaveBeenCalledTimes(1);
+  expect(journalRemovals).toBe(1);
+  expect(mockNav.dispatch).not.toHaveBeenCalled();
+  expect(mockRetryCart).not.toHaveBeenCalled();
 });
