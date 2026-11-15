@@ -1,5 +1,10 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-15 — N03 post-journal receipt identity fence (scoped native CI VERIFIED)
+
+[Source correction 2e5d498](https://github.com/titanfit102-bit/ShqipShop/commit/2e5d49814228c8cb83907393ba96b5b52f36718b) after [valid red native CI #43725284411](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43725284411) (110 old PASS, 1 new failure): a logout racing with awaited post-ack journal deletion could still permit stale receipt navigation. Generation-bound `isCurrent` check after journal cleanup now blocks that handoff. [Native CI #43725571750](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43725571750) **19/19 suites, 112/112 PASS, ESLint/TS** with mocked Checkout and real React provider logout test. Only client mock/integration scope; no real backend order proof, PSP, TLS, physical Android or server ownership guarantee. **N03 remains PARTIAL for launch**; R01 finance P0, R02 global CSRF, R03 Medusa patched baseline, RG-01/02/03/G3/G5 BLOCKED. No Production/main changes.
+
+
 ## 2026-11-14 — N03 late receipt during awaited cart reset mitigated (client scope)
 
 [Code ef251e9](https://github.com/titanfit102-bit/ShqipShop/commit/ef251e92d6de796034e4047e19d063d23d98f773) + [integrated test a7b1f18](https://github.com/titanfit102-bit/ShqipShop/commit/a7b1f1878a7f9943a617d582ad38e531a021aad7) [CI #43602658250](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43602658250) **110/110 Jest, 19 suites, ESLint+TS PASS**. After successfully receiving an order ID for A, a concurrent logout can increase cart generation before A's awaited AsyncStorage cart reset finishes. The newly added after-reset generation guard rejects that stale completion, preventing old receipt handoff after logout. Initial CI #43602485832 was test-only TS error, corrected without altering the assertion. No server auth, payment, tenant isolation or Production change.
