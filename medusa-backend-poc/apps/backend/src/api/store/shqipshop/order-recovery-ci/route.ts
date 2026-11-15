@@ -21,13 +21,16 @@ const disposableEnvironments = new Map([
   ],
 ])
 
-const enabled = () =>
-  process.env.CI === "true" &&
-  process.env.NODE_ENV === "development" &&
-  process.env.SHQIPSHOP_REQUIRE_REDIS === "true" &&
-  process.env.SHQIPSHOP_N03_RECOVERY_CI === "true" &&
-  disposableEnvironments.get(process.env.DATABASE_URL ?? "") === process.env.REDIS_URL &&
-  /^[a-f0-9]{64}$/.test(process.env.JWT_SECRET ?? "")
+const enabled = () => {
+  const expectedRedis = disposableEnvironments.get(process.env.DATABASE_URL ?? "")
+  return expectedRedis !== undefined &&
+    process.env.CI === "true" &&
+    process.env.NODE_ENV === "development" &&
+    process.env.SHQIPSHOP_REQUIRE_REDIS === "true" &&
+    process.env.SHQIPSHOP_N03_RECOVERY_CI === "true" &&
+    expectedRedis === process.env.REDIS_URL &&
+    /^[a-f0-9]{64}$/.test(process.env.JWT_SECRET ?? "")
+}
 
 const cartPattern = /^cart_[A-Za-z0-9_-]{8,}$/
 const orderPattern = /^order_[A-Za-z0-9_-]{8,}$/
