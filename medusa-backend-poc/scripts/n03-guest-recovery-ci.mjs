@@ -105,6 +105,18 @@ for(const m of guests){
   assert.equal(recovered.status,200)
   assert.deepEqual(recovered.data,{state:"confirmed",order_id:m.order})
   assert.deepEqual((await request(m,"GET",m.path,opts)).data,recovered.data)
+  // A newly issued guest recovery secret must also protect the private receipt.
+  // Legacy cart ID alone is NOT an alternative authority for this new cart.
+  const receiptPath="/store/orders/"+encodeURIComponent(m.order)
+  denied(await request(m,"GET",receiptPath,{key:true,
+    headers:{"x-shqipshop-cart-proof":m.cart}}),"legacy cart-id proof cannot read N03 receipt")
+  denied(await request(m,"GET",receiptPath,{key:true,
+    headers:{"x-shqipshop-recovery-proof":"A".repeat(43)}}),"wrong N03 receipt proof")
+  const receipt=await request(m,"GET",receiptPath,{key:true,
+    headers:{"x-shqipshop-recovery-proof":m.proof}})
+  assert.equal(receipt.status,200,m.id+" new capability must read its own receipt")
+  assert.equal(receipt.data?.order?.id,m.order)
+  console.log("SHQIPSHOP_N03_GUEST_CAPABILITY_ONLY_RECEIPT_"+m.id)
   console.log("SHQIPSHOP_N03_GUEST_ORDER_PERSISTED_RECOVERY_"+m.id)
 }
 const b=guests[1],a=guests[0]
@@ -115,6 +127,8 @@ assert.equal(revoke.status,200)
 assert.equal(revoke.data?.revoked,true)
 denied(await request(b,"GET",b.path,{key:true,headers:{"x-shqipshop-recovery-proof":b.proof}}),
   "revoked capability")
+denied(await request(b,"GET","/store/orders/"+encodeURIComponent(b.order),{key:true,
+  headers:{"x-shqipshop-recovery-proof":b.proof}}),"revoked capability cannot read receipt")
 console.log("SHQIPSHOP_N03_GUEST_REVOCATION_DENIED")
 
 // An expired row is advanced only inside the disposable A CI database;
