@@ -1,5 +1,24 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-17 — N03 Stage 2b1 fresh guest cart/capability + receipt (disposable A/B)
+
+[Source 9f1f3b68](https://github.com/titanfit102-bit/ShqipShop/commit/9f1f3b684008cdeea2934eb675c8d0b294507e59), [A/B HTTP/PG CI #44179914333](https://github.com/titanfit102-bit/ShqipShop/actions/runs/44179914333) SUCCESS. [Original failure #44178994327](https://github.com/titanfit102-bit/ShqipShop/actions/runs/44178994327) proved old cart-ID receipt access for new guest cart BEFORE fix.
+
+| Scenario | CI result | Limit |
+| --- | --- | --- |
+| Server starts new cart, issues independent 32-byte bearer | PASS; keyed digest only in isolated PostgreSQL | No migration, production secret, rate-limit/UX |
+| Guest GET before checkout and after synthetic order | `unknown` → `confirmed` with original persisted ID, repeat GET identical | `unknown` is not `no_order`; not real PSP |
+| Guess/cart ID substituted for proof, foreign merchant/foreign proof | 401/403/404 denial on A and B | Legacy guest carts remain old semantics |
+| Minted guest receipt with old cart-ID, invalid token | Denied; **pre-fix red**, corrected green | Production F06 untouched |
+| Minted guest receipt with valid new bearer | HTTP 200 with exactly own order | Not real device/PSP |
+| Capability revocation/expiry | Discovery AND private receipt denied after invalidation | No restart proof, rotation or recovery replacement |
+| Registered N03 Stage 2a and existing merchant isolation | Existing owner/cookie/tenant tests preserved PASS | Not global auth/CSRF |
+| CI-only scope | Exact A/B PostgreSQL+Redis+dev+feature flag required | No production release |
+
+Next Stage 2b2 persistent cross-process/restart, registered conversion, server attempt finality before native integration; R01/R02/R03 release veto unchanged.
+
+
+
 ## 2026-11-15 — N03 Stage 2a registered HTTP recovery, exact disposable A/B
 
 [Red-before #43752637046](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43752637046) (new route absent, owner 404) → [code ab8cd503](https://github.com/titanfit102-bit/ShqipShop/commit/ab8cd503d1c845234c60d0ffb72a8b73557f5415), [parallel A/B #43753587901](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43753587901) **SUCCESS**. Two isolated real Medusa/PostgreSQL backends, synthetic payment only.

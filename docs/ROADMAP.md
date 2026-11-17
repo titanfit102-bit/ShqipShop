@@ -1,5 +1,11 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-17 — N03 Stage 2b1 guest recovery credential and private receipt VERIFIED in A/B CI
+
+[Code 9f1f3b68](https://github.com/titanfit102-bit/ShqipShop/commit/9f1f3b684008cdeea2934eb675c8d0b294507e59), [A/B CI #44179914333](https://github.com/titanfit102-bit/ShqipShop/actions/runs/44179914333) SUCCESS; [pre-fix receipt access #44178994327](https://github.com/titanfit102-bit/ShqipShop/actions/runs/44178994327) FAIL as intended. Server creates a new guest cart and independent capability together; 32-byte random credential stored only as keyed digest, 4h CI expiry/revocation. Owned minted-cart receipt requires new token, not legacy cart ID. Medusa A/B separate backend/PostgreSQL proof covers unknown→confirmed, cross-tenant/foreign/wrong/expired/revoked/no-proof denials, without checkout replay. Stage 2b1 CI VERIFIED **only for freshly minted prototype carts**. NEXT Stage 2b2: second process/restart persistence and guest→registered, durable server attempt outcome; Stage 2c: native/PWA recovery UI after backend authority. Legacy guest cart/receipt, real PSP, app, global CSRF, P0 refund, Medusa patched release baseline OPEN. No release.
+
+
+
 ## 2026-11-15 — N03 Stage 2a REGISTERED HTTP recovery VERIFIED, guest and no-order authority NEXT
 
 [Code ab8cd503](https://github.com/titanfit102-bit/ShqipShop/commit/ab8cd503d1c845234c60d0ffb72a8b73557f5415) [pinned A/B #43753587901](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43753587901) SUCCESS, including cookie/mixed-mode denials; [candidate 2.22.6 #43753587711](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43753587711) SUCCESS with preexisting candidate suite intact. Registered Medusa customer bearer can read a verified owned cart-order link in disposable two-merchant PostgreSQL; absent link = **unknown**, not `no_order`. N03 Stage 2a CI VERIFIED but no native integration/guest credential, real PSP or Production. NEXT Stage 2b: durable independent scoped guest recovery proof issued before completion; distinguish confirmed/unknown from truly finalized no-order without replay, tests for stale/revoked/wrong-store proof and process restarts. Then Stage 2c native recovery UI/connectors. R01/R02/R03/G3/G5 still NO RELEASE. Details in CURRENT_STATE.
