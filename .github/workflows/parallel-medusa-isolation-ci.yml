@@ -81,6 +81,7 @@ jobs:
       - name: Verify boundary transport and fail-closed assertions
         run: |
           node --check scripts/parallel-auth-boundary.mjs
+          node --check scripts/n03-guest-recovery-ci.mjs
           node --check scripts/verify-redis-session-handoff.mjs
           node --check scripts/parallel-mutation-boundary.mjs
           node --test scripts/boundary-http.test.mjs
@@ -147,6 +148,18 @@ jobs:
                   assert sock.recv(1024) == b'+PONG\r\n'
           print('SHQIPSHOP_PARALLEL_REDIS_SERVICES_REACHABLE')
           PY
+      - name: Initialize disposable N03 guest capability tables (A and B only)
+        run: |
+          set -euo pipefail
+          ddl="CREATE TABLE shqipshop_n03_disposable_guest_recovery (
+            cart_id text PRIMARY KEY,
+            proof_digest char(64) NOT NULL,
+            expires_at timestamptz NOT NULL,
+            revoked_at timestamptz,
+            created_at timestamptz NOT NULL DEFAULT now()
+          );"
+          PGPASSWORD=merchantA_disposable psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U shqipshop_ci_a -d shqipshop_ci_a -c "$ddl"
+          PGPASSWORD=merchantB_disposable psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U shqipshop_ci_b -d shqipshop_ci_b -c "$ddl"
       - name: Both Medusa servers run simultaneously while orders and boundaries are tested
         env:
           SHQIPSHOP_A_KEY_FILE: ${{ runner.temp }}/merchant-a-key.txt
@@ -201,6 +214,7 @@ jobs:
           SHQIPSHOP_CI_MEDUSA_PORT=9001 SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE="$SHQIPSHOP_B_KEY_FILE" SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE="$SHQIPSHOP_CHANNEL_B_FILE" SHQIPSHOP_CI_ORDER_ID_FILE="$SHQIPSHOP_B_ORDER_FILE" SHQIPSHOP_CI_CART_ID_FILE="$SHQIPSHOP_B_CART_FILE" node scripts/store-api-checkout.mjs
           node scripts/parallel-merchant-boundary.mjs
           SHQIPSHOP_N03_RECOVERY_PROBE=true node scripts/parallel-auth-boundary.mjs
+          SHQIPSHOP_N03_GUEST_RECOVERY_PROBE=true node scripts/n03-guest-recovery-ci.mjs
           # Spin up a separate merchant-A Medusa process using the SAME
           # database, Redis, JWT secret and cookie secret. A's existing cookie
           # must resolve on this process without a bearer token.
