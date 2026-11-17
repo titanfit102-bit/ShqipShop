@@ -142,5 +142,7 @@ execFileSync("psql",["-v","ON_ERROR_STOP=1","-h","127.0.0.1","-U","shqipshop_ci_
   })
 denied(await request(a,"GET",a.path,{key:true,headers:{"x-shqipshop-recovery-proof":a.proof}}),
   "expired capability")
+denied(await request(a,"GET","/store/orders/"+encodeURIComponent(a.order),{key:true,
+  headers:{"x-shqipshop-recovery-proof":a.proof}}),"expired capability cannot read receipt")
 console.log("SHQIPSHOP_N03_GUEST_EXPIRY_DENIED")
 console.log("SHQIPSHOP_N03_GUEST_RECOVERY_A_B_CI_PASSED")
