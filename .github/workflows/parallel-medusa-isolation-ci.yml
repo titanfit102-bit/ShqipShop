@@ -185,9 +185,9 @@ jobs:
             echo "::add-mask::$value"
           done
           test "$secret_a" != "$secret_b" && test "$cookie_a" != "$cookie_b"
-          SHQIPSHOP_N03_RECOVERY_CI=true DATABASE_URL='postgres://shqipshop_ci_a:merchantA_disposable@127.0.0.1:5432/shqipshop_ci_a' REDIS_URL='redis://127.0.0.1:6379' JWT_SECRET="$secret_a" COOKIE_SECRET="$cookie_a" pnpm --filter @dtc/backend exec medusa develop --port 9000 > "$RUNNER_TEMP/merchant-a.log" 2>&1 &
+          SHQIPSHOP_N03_GUEST_RECOVERY_CI=true SHQIPSHOP_N03_RECOVERY_CI=true DATABASE_URL='postgres://shqipshop_ci_a:merchantA_disposable@127.0.0.1:5432/shqipshop_ci_a' REDIS_URL='redis://127.0.0.1:6379' JWT_SECRET="$secret_a" COOKIE_SECRET="$cookie_a" pnpm --filter @dtc/backend exec medusa develop --port 9000 > "$RUNNER_TEMP/merchant-a.log" 2>&1 &
           pid_a=$!
-          SHQIPSHOP_N03_RECOVERY_CI=true DATABASE_URL='postgres://shqipshop_ci_b:merchantB_disposable@127.0.0.1:5432/shqipshop_ci_b' REDIS_URL='redis://127.0.0.1:6381' JWT_SECRET="$secret_b" COOKIE_SECRET="$cookie_b" pnpm --filter @dtc/backend exec medusa develop --port 9001 > "$RUNNER_TEMP/merchant-b.log" 2>&1 &
+          SHQIPSHOP_N03_GUEST_RECOVERY_CI=true SHQIPSHOP_N03_RECOVERY_CI=true DATABASE_URL='postgres://shqipshop_ci_b:merchantB_disposable@127.0.0.1:5432/shqipshop_ci_b' REDIS_URL='redis://127.0.0.1:6381' JWT_SECRET="$secret_b" COOKIE_SECRET="$cookie_b" pnpm --filter @dtc/backend exec medusa develop --port 9001 > "$RUNNER_TEMP/merchant-b.log" 2>&1 &
           pid_b=$!
           pid_clone=""
           cleanup() {
