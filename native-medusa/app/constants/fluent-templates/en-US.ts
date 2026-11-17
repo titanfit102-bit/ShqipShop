@@ -155,6 +155,7 @@ const en_US: FluentTemplate = {
   'invalid-email-address': 'Invalid email address',
   'password-must-be-at-least-n-characters':
     'Password must be at least { $n } characters',
+  'order-confirmation-pending': 'Order status is not confirmed. Do not place the order again; contact support to verify it.',
   register: 'Register',
   'enter-your-first-name': 'Enter your first name',
   'enter-your-last-name': 'Enter your last name',

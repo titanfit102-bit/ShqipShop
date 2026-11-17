@@ -155,6 +155,7 @@ const id_ID: FluentTemplate = {
   'invalid-email-address': 'Alamat email tidak valid',
   'password-must-be-at-least-n-characters':
     'Kata sandi harus terdiri dari setidaknya { $n } karakter',
+  'order-confirmation-pending': 'Status pesanan belum dikonfirmasi. Jangan membuat pesanan lagi; hubungi dukungan untuk memeriksanya.',
   register: 'Daftar',
   'enter-your-first-name': 'Masukkan nama depan Anda',
   'enter-your-last-name': 'Masukkan nama belakang Anda',

@@ -43,6 +43,9 @@ importers:
       '@medusajs/admin-shared':
         specifier: 2.22.0
         version: 2.22.0
+      '@medusajs/caching-redis':
+        specifier: 2.22.0
+        version: 2.22.0(@medusajs/framework@2.22.0(@medusajs/cli@2.22.0(@types/node@20.19.43))(@types/node@20.19.43)(ioredis@5.11.1)(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(terser@5.51.0)(yaml@2.9.0))(zod@4.2.0))
       '@medusajs/caching':
         specifier: 2.22.0
         version: 2.22.0(@medusajs/framework@2.22.0(@medusajs/cli@2.22.0(@types/node@20.19.43))(@types/node@20.19.43)(ioredis@5.11.1)(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(terser@5.51.0)(yaml@2.9.0))(zod@4.2.0))(awilix@8.0.1)

@@ -1,7 +1,18 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { HttpTypes } from '@medusajs/types';
 import apiClient from '@api/client';
+import {
+  blockAuthForLogin,
+  clearNativeCustomerToken,
+  confirmNewLoginToken,
+  isCurrentAuthAttempt,
+  persistPendingAuthBarrier,
+  serializeNativeAuthOperation,
+  verifyPendingRegistrationToken,
+} from '@api/auth-token-storage';
 import { useCart } from './cart-context';
+import { clearPrivateCustomerQueries } from './private-customer-queries';
 
 type CustomerContextType = {
   customer?: HttpTypes.StoreCustomer;
@@ -26,50 +37,152 @@ type CustomerProviderProps = {
 export const CustomerProvider = ({ children }: CustomerProviderProps) => {
   const [customer, setCustomer] = useState<HttpTypes.StoreCustomer>();
   const { linkCartToCustomer, resetCart } = useCart();
+  const queryClient = useQueryClient();
+  // Ignore responses from a previous login/logout generation.
+  const identityEpoch = useRef(0);
+  const currentPrincipalId = useRef<string | undefined>(undefined);
 
-  useEffect(() => {
-    // Check for existing session on mount
-    refreshCustomer();
-  }, []);
+  const applyCustomer = useCallback(async (
+    nextCustomer: HttpTypes.StoreCustomer | undefined,
+    epoch: number,
+  ) => {
+    if (epoch !== identityEpoch.current) return;
+    if (currentPrincipalId.current !== nextCustomer?.id) {
+      currentPrincipalId.current = nextCustomer?.id;
+      await clearPrivateCustomerQueries(queryClient);
+    }
+    if (epoch === identityEpoch.current) setCustomer(nextCustomer);
+  }, [queryClient]);
 
-  const refreshCustomer = async () => {
+  const refreshCustomerForEpoch = useCallback(async (epoch: number) => {
     try {
       const { customer: existingCustomer } =
         await apiClient.store.customer.retrieve();
-      setCustomer(existingCustomer);
+      await applyCustomer(existingCustomer, epoch);
     } catch {
-      // Customer isn't logged in
-      setCustomer(undefined);
+      // Failed or expired identity must not leave previous private data visible.
+      await applyCustomer(undefined, epoch);
+    }
+  }, [applyCustomer]);
+
+  const refreshCustomer = useCallback(
+    () => refreshCustomerForEpoch(identityEpoch.current),
+    [refreshCustomerForEpoch],
+  );
+
+  useEffect(() => {
+    // The identity generation rejects late responses from previous logins.
+    refreshCustomer();
+  }, [refreshCustomer]);
+
+  const ensureOwnedAuth = (epoch: number, authVersion: number) => {
+    if (epoch !== identityEpoch.current || !isCurrentAuthAttempt(authVersion)) {
+      throw new Error('Customer auth superseded by a newer session transition');
+    }
+  };
+
+  // Reused by login and the final sign-in following a successful customer
+  // creation. It runs INSIDE one serialized SDK operation; no nested queue.
+  const finishOwnedLogin = async (
+    email: string, password: string, epoch: number, authVersion: number,
+  ) => {
+    ensureOwnedAuth(epoch, authVersion);
+    const response = await apiClient.auth.login('customer', 'emailpass', {
+      email, password,
+    });
+    // Medusa SDK may persist a JWT before returning its login response.
+    ensureOwnedAuth(epoch, authVersion);
+    if (typeof response === 'string') {
+      await confirmNewLoginToken(response, authVersion);
+      ensureOwnedAuth(epoch, authVersion);
+      await Promise.all([
+        refreshCustomerForEpoch(epoch),
+        linkCartToCustomer(),
+      ]);
+      ensureOwnedAuth(epoch, authVersion);
+    } else {
+      // SDK can persist an authentication JWT for MFA or verification-required
+      // responses. None is a completed customer session in this app yet.
+      // Reject without logging potentially sensitive SDK challenge payloads.
+      if ('verification_required' in response && response.verification_required) {
+        throw new Error('Customer login verification required before session activation');
+      }
+      if ('mfa_required' in response && response.mfa_required) {
+        throw new Error('Customer login multi-factor authentication required');
+      }
+      throw new Error('Customer login requires additional authentication');
     }
   };
 
   const login = async (email: string, password: string) => {
-    try {
-      // Authenticate using the auth endpoint
-      const response = await apiClient.auth.login('customer', 'emailpass', {
-        email,
-        password,
-      });
+    const epoch = ++identityEpoch.current;
+    const authVersion = blockAuthForLogin();
+    setCustomer(undefined);
+    currentPrincipalId.current = undefined;
 
-      // Check if the response is a string
-      if (typeof response === 'string') {
-        await Promise.all([refreshCustomer(), linkCartToCustomer()]);
-      } else {
-        // Handle third party auth
-        console.log('Third party auth', response);
+    return serializeNativeAuthOperation(async () => {
+      ensureOwnedAuth(epoch, authVersion);
+      try {
+        await persistPendingAuthBarrier(authVersion);
+        ensureOwnedAuth(epoch, authVersion);
+        await clearPrivateCustomerQueries(queryClient);
+        ensureOwnedAuth(epoch, authVersion);
+        await finishOwnedLogin(email, password, epoch, authVersion);
+      } catch (error) {
+        // A failed/incomplete SDK login may already have written a JWT.
+        // Its physical removal must finish before the next queued identity.
+        if (epoch === identityEpoch.current && isCurrentAuthAttempt(authVersion)) {
+          blockAuthForLogin();
+        }
+        let cleanupError: unknown;
+        try {
+          await clearNativeCustomerToken(apiClient.client);
+        } catch (failure) {
+          cleanupError = failure;
+        }
+        if (epoch === identityEpoch.current) {
+          setCustomer(undefined);
+          currentPrincipalId.current = undefined;
+          await clearPrivateCustomerQueries(queryClient);
+        }
+        if (cleanupError) {
+          throw new Error('Customer login could not clear its JWT', {
+            cause: cleanupError,
+          });
+        }
+        throw error;
       }
-    } catch (error) {
-      throw error;
-    }
+    });
   };
 
   const logout = async () => {
+    const epoch = ++identityEpoch.current;
+    // Block JWT access and wipe cart memory at logout INTENT, independently
+    // of an older SDK login that may still be awaiting a remote response.
+    blockAuthForLogin();
+    setCustomer(undefined);
+    currentPrincipalId.current = undefined;
+    const cartReset = resetCart().then(
+      () => ({ error: undefined as unknown }),
+      (error: unknown) => ({ error }),
+    );
+    // Reserve this slot immediately, BEFORE the first await. A newer B login
+    // queues behind both old A and its required physical token removal.
+    const clearToken = serializeNativeAuthOperation(
+      () => clearNativeCustomerToken(apiClient.client),
+    );
     try {
-      await apiClient.auth.logout();
-      await resetCart();
-      setCustomer(undefined);
-    } catch (error) {
-      throw error;
+      await clearPrivateCustomerQueries(queryClient);
+      await clearToken;
+    } finally {
+      const cartResult = await cartReset;
+      // A newer B may have started while cleanup was in flight: old logout
+      // must not clear B's identity or private query cache afterward.
+      if (epoch === identityEpoch.current) {
+        await clearPrivateCustomerQueries(queryClient);
+        setCustomer(undefined);
+      }
+      if (cartResult.error) throw cartResult.error;
     }
   };
 
@@ -79,34 +192,81 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
     firstName: string,
     lastName: string,
   ) => {
-    try {
-      const token = await apiClient.auth.register('customer', 'emailpass', {
-        email,
-        password,
-      });
+    const epoch = ++identityEpoch.current;
+    let authVersion = blockAuthForLogin();
+    // A previous signed-in account must disappear at registration intent.
+    setCustomer(undefined);
+    currentPrincipalId.current = undefined;
 
-      await apiClient.client.setToken(token);
+    // auth.register and client.setToken can both write to SDK custom storage.
+    // Reserve the same operation queue as login/logout before the first await.
+    return serializeNativeAuthOperation(async () => {
+      ensureOwnedAuth(epoch, authVersion);
+      try {
+        await persistPendingAuthBarrier(authVersion);
+        ensureOwnedAuth(epoch, authVersion);
+        await clearPrivateCustomerQueries(queryClient);
+        ensureOwnedAuth(epoch, authVersion);
 
-      await apiClient.store.customer.create({
-        first_name: firstName,
-        last_name: lastName,
-        email,
-      });
-      // There's some bug with the token received from the register endpoint
-      // so we need to login again
-      await login(email, password);
-    } catch (error) {
-      throw error;
-    }
+        const token = await apiClient.auth.register('customer', 'emailpass', {
+          email, password,
+        });
+        ensureOwnedAuth(epoch, authVersion);
+        await apiClient.client.setToken(token);
+        ensureOwnedAuth(epoch, authVersion);
+
+        // Registration JWT is an actor-creation capability only: keep the
+        // signed-out marker persisted for the ENTIRE create request. A restart
+        // mid-create must not promote this temporary JWT to a customer session.
+        await verifyPendingRegistrationToken(token, authVersion);
+        ensureOwnedAuth(epoch, authVersion);
+
+        // Use Medusa's documented per-request registration bearer. The SDK
+        // generic token accessor stays blocked by the durable marker.
+        await apiClient.store.customer.create(
+          { first_name: firstName, last_name: lastName, email },
+          undefined,
+          { Authorization: `Bearer ${token}` },
+        );
+        ensureOwnedAuth(epoch, authVersion);
+
+        // After customer creation replace the registration JWT with a fresh
+        // login JWT, without nesting a second serialized auth operation.
+        authVersion = blockAuthForLogin();
+        await persistPendingAuthBarrier(authVersion);
+        ensureOwnedAuth(epoch, authVersion);
+        await finishOwnedLogin(email, password, epoch, authVersion);
+      } catch (error) {
+        // Cleanup runs before the next queued B login/logout: an SDK-written
+        // registration JWT must never be re-used after failed/stale creation.
+        if (epoch === identityEpoch.current && isCurrentAuthAttempt(authVersion)) {
+          blockAuthForLogin();
+        }
+        let cleanupError: unknown;
+        try {
+          await clearNativeCustomerToken(apiClient.client);
+        } catch (failedCleanup) {
+          cleanupError = failedCleanup;
+        }
+        if (epoch === identityEpoch.current) {
+          setCustomer(undefined);
+          currentPrincipalId.current = undefined;
+          await clearPrivateCustomerQueries(queryClient);
+        }
+        if (cleanupError) {
+          throw new Error('Customer registration could not clear its JWT', {
+            cause: cleanupError,
+          });
+        }
+        throw error;
+      }
+    });
   };
 
   const updateCustomer = async (data: HttpTypes.StoreUpdateCustomer) => {
-    try {
-      const response = await apiClient.store.customer.update(data);
-      setCustomer(response.customer);
-    } catch (error) {
-      throw error;
-    }
+    const epoch = identityEpoch.current;
+    const response = await apiClient.store.customer.update(data);
+    await applyCustomer(response.customer, epoch);
   };
 
   return (

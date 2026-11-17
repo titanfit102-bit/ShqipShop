@@ -55,6 +55,8 @@ jobs:
       NODE_ENV: development
       DATABASE_URL: postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci
       REDIS_URL: redis://127.0.0.1:6379
+      SHQIPSHOP_REQUIRE_REDIS: "true"
+      SHQIPSHOP_ENFORCE_PAYMENT_TOTAL_MATCH: "true"
       STORE_CORS: http://localhost:8000
       ADMIN_CORS: http://localhost:9000,http://localhost:5173
       AUTH_CORS: http://localhost:9000,http://localhost:5173
@@ -74,13 +76,57 @@ jobs:
         run: npm install -g pnpm@10.11.1
       - name: Generate per-run development secrets
         run: |
-          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-          echo "COOKIE_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          set -euo pipefail
+          jwt_secret="$(openssl rand -hex 32)"
+          cookie_secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$jwt_secret"
+          echo "::add-mask::$cookie_secret"
+          echo "JWT_SECRET=$jwt_secret" >> "$GITHUB_ENV"
+          echo "COOKIE_SECRET=$cookie_secret" >> "$GITHUB_ENV"
           echo "SHQIPSHOP_FX_AS_OF=$(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
       - name: Install locked Medusa backend dependencies
         run: pnpm install --frozen-lockfile --filter '@dtc/backend...'
       - name: Run Medusa PostgreSQL migrations
         run: pnpm --filter @dtc/backend exec medusa db:migrate
+      - name: F08 Stage 11L atomic refund reservation and two-connection race (CI only)
+        env:
+          SHQIPSHOP_F08_RESERVATION_RACE_CI: "true"
+          WORKER_MODE: server
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-reservation-race-ci.ts
+      - name: F08 Stage 11M mock provider lost acknowledgement and restart reconciliation (CI only)
+        env:
+          SHQIPSHOP_F08_ACK_RECOVERY_CI: "true"
+          WORKER_MODE: server
+        run: |
+          set -euo pipefail
+          cleanup() {
+            SHQIPSHOP_F08_ACK_RECOVERY_PHASE=cleanup pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-ack-recovery-ci.ts
+          }
+          trap cleanup EXIT
+          for phase in prepare dispatch retry reconcile verify; do
+            SHQIPSHOP_F08_ACK_RECOVERY_PHASE="$phase" pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-ack-recovery-ci.ts
+          done
+          trap - EXIT
+          cleanup
+      - name: F08 Stage 11N merchant-scoped finance outbox contract (CI only)
+        env:
+          SHQIPSHOP_F08_AUTH_OUTBOX_CI: "true"
+          WORKER_MODE: server
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-authorized-outbox-ci.ts
+      - name: Assert payment amount match and stale/ambiguous session rejection (F07f)
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07f-payment-amount-guard-ci.ts
+      - name: Assert bounded buyer-accepted checkout quote contract (F07g stage 1, CI-only)
+        env:
+          SHQIPSHOP_F07G_CONTRACT_CI: "true"
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-quote-contract-ci.ts
+      - name: Prove server-verified guest and authenticated-customer quote identity (F07g stage 2B-2A)
+        env:
+          SHQIPSHOP_F07G_PRINCIPAL_CI: "true"
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-principal-binding-ci.ts
+      - name: Prove atomic tenant-bound quote persistence with disposable PostgreSQL (F07g stage 2A)
+        env:
+          SHQIPSHOP_F07G_TRANSACTION_CI: "true"
+        run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-persisted-quote-ci.ts
       - name: Assert Albania region, ALL currency, products and shipping
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-albania-seed.ts
       - name: Export ephemeral publishable key into runner-local file
@@ -98,11 +144,21 @@ jobs:
           SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
           SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE: ${{ runner.temp }}/shqipshop-empty-channel-key.txt
           SHQIPSHOP_CI_ORDER_ID_FILE: ${{ runner.temp }}/shqipshop-order-id.txt
+          SHQIPSHOP_CI_CART_ID_FILE: ${{ runner.temp }}/shqipshop-cart-id.txt
+          SHQIPSHOP_F07E_REPRICE_PROBE: "true"
+          SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
+          SHQIPSHOP_F07G_REAL_CART_CI: "true"
+          SHQIPSHOP_F07G_HTTP_CI: "true"
+          SHQIPSHOP_F08_REVOCATION_CI: "true"
+          SHQIPSHOP_F08_OWNER_CART_CI: "true"
+          SHQIPSHOP_F07G_REAL_CART_PROOF_FILE: ${{ runner.temp }}/shqipshop-f07g-medusa-cart-snapshot.json
+          SHQIPSHOP_F07G_REGISTERED_QUOTE_PROOF_FILE: ${{ runner.temp }}/shqipshop-f07g-registered-quote.json
         run: |
           set -euo pipefail
+          SHQIPSHOP_F08_CI_FIXTURE_ACTION=create pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
           pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/medusa-backend.log" 2>&1 &
           backend_pid=$!
-          trap 'kill "$backend_pid" 2>/dev/null || true' EXIT
+          trap 'status=$?; if [ "$status" -ne 0 ]; then grep -E "SHQIPSHOP_F08_CI_DEBUG_" "$RUNNER_TEMP/medusa-backend.log" | tail -35 || true; fi; kill "$backend_pid" 2>/dev/null || true' EXIT
           for i in $(seq 1 90); do
             if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:9000/health > "$RUNNER_TEMP/health.json" 2>/dev/null; then
               echo "Medusa API health endpoint returned HTTP 200"
@@ -114,6 +170,23 @@ jobs:
                 > "$RUNNER_TEMP/indicative-fx.json"
               node -e "const q=require(process.env.RUNNER_TEMP+'/indicative-fx.json'); if(q.available!==true || q.all_per_eur!==100 || q.indicative_only!==true || !q.source?.includes('CI')) process.exit(1); console.log('SHQIPSHOP_INDICATIVE_FX_HTTP_PASSED')"
               node scripts/store-api-checkout.mjs
+              node scripts/store-api-cart-totals-ci.mjs
+              node scripts/store-api-reprice-ci.mjs prepare
+              node scripts/f07g-http-quote-boundary-ci.mjs
+              node scripts/f07g-http-registered-customer-ci.mjs
+              pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-live-cart-snapshot-ci.ts before
+              node scripts/f07g-http-registered-quote-ci.mjs setup
+              pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-registered-http-quote-fixture-ci.ts
+              node scripts/f07g-http-registered-quote-ci.mjs verify
+              node scripts/f07g-http-review-accept-ci.mjs before
+              pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07e-store-reprice-ci.ts
+              node scripts/f07g-http-registered-quote-ci.mjs after
+              node scripts/f07g-http-review-accept-ci.mjs after
+              node scripts/f08-jwt-revocation-ci.mjs
+              SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+              node scripts/f08-jwt-revocation-ci.mjs outage
+              pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-live-cart-snapshot-ci.ts after
+              node scripts/store-api-reprice-ci.mjs verify
               exit 0
             fi
             if ! kill -0 "$backend_pid" 2>/dev/null; then
@@ -135,6 +208,348 @@ jobs:
           SHQIPSHOP_CI_INVENTORY_SNAPSHOT: ${{ runner.temp }}/shqipshop-inventory-before.json
           SHQIPSHOP_CI_INVENTORY_MODE: after
         run: pnpm --filter @dtc/backend exec medusa exec ./src/scripts/assert-ci-inventory.ts
+      - name: Verify repriced active-cart final order and protected guest receipt using mock payment
+        env:
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+          SHQIPSHOP_F07E_REPRICE_PROBE: "true"
+          SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
+          SHQIPSHOP_F07F_INJECT_TEST: "true"
+          SHQIPSHOP_F07F_PROOF_FILE: ${{ runner.temp }}/shqipshop-f07f-stale-amount.json
+        run: |
+          set -euo pipefail
+          pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/f07e-checkout-backend.log" 2>&1 &
+          backend_pid=$!
+          cleanup() {
+            kill "$backend_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for i in $(seq 1 90); do
+            if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:9000/health > /dev/null 2>&1; then
+              node scripts/store-api-reprice-ci.mjs complete
+              node scripts/f07f-post-session-cart-mutation-ci.mjs
+              node scripts/f07f-stale-amount-http-ci.mjs prepare
+              pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07f-inject-stale-ci.ts
+              node scripts/f07f-stale-amount-http-ci.mjs verify
+              exit 0
+            fi
+            if ! kill -0 "$backend_pid" 2>/dev/null; then
+              echo "::error::Disposable Medusa backend exited during repricing checkout proof"
+              tail -100 "$RUNNER_TEMP/f07e-checkout-backend.log"
+              exit 1
+            fi
+            sleep 4
+          done
+          echo "::error::Medusa API not healthy for repricing checkout proof"
+          tail -100 "$RUNNER_TEMP/f07e-checkout-backend.log"
+          exit 1
+      - name: Verify registered mock checkout concurrency and PostgreSQL uniqueness (F08 11B)
+        env:
+          SHQIPSHOP_F08_COMPLETE_CI: "true"
+          SHQIPSHOP_F07G_HTTP_CI: "true"
+          SHQIPSHOP_F08_REVOCATION_CI: "true"
+          SHQIPSHOP_F08_OWNER_CART_CI: "true"
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+          SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
+          SHQIPSHOP_F08_COMPLETE_PROOF_FILE: ${{ runner.temp }}/shqipshop-f08-complete-proof.json
+        run: |
+          set -euo pipefail
+          # Run AFTER the existing exact-one-unit inventory check. No global
+          # reservation assertion is weakened or changed by extra mock orders.
+          SHQIPSHOP_F08_CI_FIXTURE_ACTION=create pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+          pnpm --filter @dtc/backend dev > "$RUNNER_TEMP/f08-complete-backend.log" 2>&1 &
+          backend_pid=$!
+          trap 'kill "$backend_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 90); do
+            if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:9000/health > /dev/null 2>&1; then
+              node scripts/f08-registered-complete-ci.mjs
+              kill "$backend_pid" 2>/dev/null || true
+              wait "$backend_pid" 2>/dev/null || true
+              pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-cart-orders-ci.ts
+              SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+              exit 0
+            fi
+            if ! kill -0 "$backend_pid" 2>/dev/null; then
+              echo "::error::Disposable Medusa API stopped during F08 completion proof"
+              exit 1
+            fi
+            sleep 4
+          done
+          echo "::error::Medusa API unavailable for F08 completion proof"
+          exit 1
+      - name: Two API processes and restart replay, synthetic checkout F08 Stage 11C
+        env:
+          SHQIPSHOP_F08_MULTIPROC_CI: "true"
+          SHQIPSHOP_F08_REVOCATION_CI: "true"
+          SHQIPSHOP_F08_OWNER_CART_CI: "true"
+          SHQIPSHOP_F07G_HTTP_CI: "true"
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+          SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
+          SHQIPSHOP_F08_MULTIPROC_PROOF_FILE: ${{ runner.temp }}/shqipshop-f08-multiproc-proof.json
+          WORKER_MODE: server
+        run: |
+          set -euo pipefail
+          pid_a=""
+          pid_b=""
+          cleanup() {
+            for p in "$pid_a" "$pid_b"; do
+              if [ -n "$p" ]; then kill -TERM -- "-$p" 2>/dev/null || true; fi
+            done
+          }
+          trap cleanup EXIT
+          ready() {
+            for i in $(seq 1 90); do
+              if curl -fsS --max-time 3 "http://127.0.0.1:$1/health" > /dev/null 2>&1; then return 0; fi
+              sleep 3
+            done
+            echo "::error::Medusa failed readiness on requested port"
+            return 1
+          }
+          SHQIPSHOP_F08_CI_FIXTURE_ACTION=create pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-multiproc-a.log" 2>&1 &
+          pid_a=$!
+          ready 9220
+          node scripts/f08-multiprocess-complete-ci.mjs prepare
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9221 > "$RUNNER_TEMP/f08-multiproc-b.log" 2>&1 &
+          pid_b=$!
+          ready 9221
+          node scripts/f08-multiprocess-complete-ci.mjs race
+          kill -TERM -- "-$pid_a" 2>/dev/null || true
+          kill -TERM -- "-$pid_b" 2>/dev/null || true
+          wait "$pid_a" 2>/dev/null || true
+          wait "$pid_b" 2>/dev/null || true
+          pid_a=""
+          pid_b=""
+          sleep 2
+          for port in 9220 9221; do
+            if curl -fsS --max-time 3 "http://127.0.0.1:$port/health" > /dev/null 2>&1; then
+              echo "::error::An old Medusa API remains active after stop"
+              exit 1
+            fi
+          done
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-restarted.log" 2>&1 &
+          pid_a=$!
+          ready 9220
+          node scripts/f08-multiprocess-complete-ci.mjs replay
+          kill -TERM -- "-$pid_a" 2>/dev/null || true
+          wait "$pid_a" 2>/dev/null || true
+          pid_a=""
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
+          SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+      - name: F08 Stage 11D crash mid-request during disposable Redis pause, then recover
+        env:
+          SHQIPSHOP_F08_MULTIPROC_CI: "true"
+          SHQIPSHOP_F08_FAILURE_CI: "true"
+          SHQIPSHOP_F08_REVOCATION_CI: "true"
+          SHQIPSHOP_F08_OWNER_CART_CI: "true"
+          SHQIPSHOP_F07G_HTTP_CI: "true"
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+          SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
+          SHQIPSHOP_F08_MULTIPROC_PROOF_FILE: ${{ runner.temp }}/shqipshop-f08-fault-proof.json
+          SHQIPSHOP_F08_INFLIGHT_STARTED_FILE: ${{ runner.temp }}/shqipshop-f08-inflight.started
+          WORKER_MODE: server
+        run: |
+          set -euo pipefail
+          api=""
+          client=""
+          cleanup() {
+            node scripts/f08-redis-pause-ci.mjs unpause > /dev/null 2>&1 || true
+            if [ -n "$api" ]; then
+              kill -KILL -- "-$api" 2>/dev/null || true
+              wait "$api" 2>/dev/null || true
+            fi
+            if [ -n "$client" ]; then
+              kill "$client" 2>/dev/null || true
+              wait "$client" 2>/dev/null || true
+            fi
+            rm -f "$SHQIPSHOP_F08_MULTIPROC_PROOF_FILE" "$SHQIPSHOP_F08_INFLIGHT_STARTED_FILE"
+          }
+          trap cleanup EXIT
+          ready() {
+            for i in $(seq 1 90); do
+              if curl -fsS --max-time 3 http://127.0.0.1:9220/health > /dev/null 2>&1; then return 0; fi
+              sleep 3
+            done
+            echo "::error::Disposable Medusa API did not start"
+            return 1
+          }
+          SHQIPSHOP_F08_CI_FIXTURE_ACTION=create pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-fault-api.log" 2>&1 &
+          api=$!
+          ready
+          node scripts/f08-multiprocess-complete-ci.mjs prepare
+          node scripts/f08-redis-pause-ci.mjs ping
+          # Pause ONLY runner-local Redis: the in-flight checkout cannot
+          # obtain a lock while the owning API is force-terminated.
+          node scripts/f08-redis-pause-ci.mjs pause
+          node scripts/f08-multiprocess-complete-ci.mjs fault-attempt &
+          client=$!
+          for i in $(seq 1 80); do
+            if [ -f "$SHQIPSHOP_F08_INFLIGHT_STARTED_FILE" ]; then break; fi
+            sleep 0.1
+          done
+          test -f "$SHQIPSHOP_F08_INFLIGHT_STARTED_FILE"
+          sleep 1
+          kill -KILL -- "-$api"
+          wait "$api" 2>/dev/null || true
+          api=""
+          wait "$client"
+          client=""
+          node scripts/f08-redis-pause-ci.mjs unpause
+          if curl -fsS --max-time 3 http://127.0.0.1:9220/health > /dev/null 2>&1; then
+            echo "::error::Terminated API still responds"
+            exit 1
+          fi
+          SHQIPSHOP_F08_ORDER_CHECK_PHASE=before pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-fault-recovery.log" 2>&1 &
+          api=$!
+          ready
+          node scripts/f08-multiprocess-complete-ci.mjs recover
+          kill -TERM -- "-$api" 2>/dev/null || true
+          wait "$api" 2>/dev/null || true
+          api=""
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
+          SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+      - name: F08 Stage 11E lost client acknowledgement then restart owner retry
+        env:
+          SHQIPSHOP_F08_MULTIPROC_CI: "true"
+          SHQIPSHOP_F08_ACK_LOSS_CI: "true"
+          SHQIPSHOP_F08_PAYMENT_CHAIN_CI: "true"
+          SHQIPSHOP_F08_PSP_CONTRACT_CI: "true"
+          SHQIPSHOP_F08_REFUND_WORKFLOW_CI: "true"
+          SHQIPSHOP_F08_EXACT_REFUND_CI: "true"
+          SHQIPSHOP_F08_ADMIN_REFUND_BOUNDARY_CI: "true"
+          SHQIPSHOP_F08_COMPLETE_PROOF_FILE: ${{ runner.temp }}/shqipshop-f08-complete-proof.json
+          SHQIPSHOP_F08_REVOCATION_CI: "true"
+          SHQIPSHOP_F08_OWNER_CART_CI: "true"
+          SHQIPSHOP_F07G_HTTP_CI: "true"
+          SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE: ${{ runner.temp }}/shqipshop-publishable-key.txt
+          SHQIPSHOP_F07E_REPRICE_PROOF_FILE: ${{ runner.temp }}/shqipshop-reprice-proof.json
+          SHQIPSHOP_F08_MULTIPROC_PROOF_FILE: ${{ runner.temp }}/shqipshop-f08-ack-state.json
+          SHQIPSHOP_F08_ACK_BASELINE_FILE: ${{ runner.temp }}/shqipshop-f08-ack-baseline.json
+          SHQIPSHOP_F08_PAYMENT_BASELINE_FILE: ${{ runner.temp }}/shqipshop-f08-payment-baseline.json
+          WORKER_MODE: server
+        run: |
+          set -euo pipefail
+          api=""
+          api_second=""
+          cleanup() {
+            if [ -n "$api" ]; then kill -TERM -- "-$api" 2>/dev/null || true; fi
+            if [ -n "$api_second" ]; then kill -TERM -- "-$api_second" 2>/dev/null || true; fi
+            rm -f "$SHQIPSHOP_F08_MULTIPROC_PROOF_FILE" "$SHQIPSHOP_F08_ACK_BASELINE_FILE" "$SHQIPSHOP_F08_PAYMENT_BASELINE_FILE"
+          }
+          trap cleanup EXIT
+          ready() {
+            for i in $(seq 1 90); do
+              if curl -fsS --max-time 3 http://127.0.0.1:${1:-9220}/health >/dev/null 2>&1; then return 0; fi
+              sleep 3
+            done
+            echo "::error::Stage 11E disposable Medusa API did not start"
+            return 1
+          }
+          SHQIPSHOP_F08_CI_FIXTURE_ACTION=create pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
+          # Stage 11P: disposable user only; password never committed or logged.
+          stage11p_admin_password="$(openssl rand -hex 24)"
+          echo "::add-mask::$stage11p_admin_password"
+          stage11p_admin_seed_rc=0
+          pnpm --filter @dtc/backend exec medusa user -e stage11p-admin@shqipshop.example.invalid -p "$stage11p_admin_password" > /dev/null || stage11p_admin_seed_rc=$?
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-ack-initial.log" 2>&1 &
+          api=$!
+          ready
+          node scripts/f08-multiprocess-complete-ci.mjs prepare
+          node scripts/f08-multiprocess-complete-ci.mjs ack-discard
+          kill -TERM -- "-$api" 2>/dev/null || true
+          wait "$api" 2>/dev/null || true
+          api=""
+          sleep 2
+          if curl -fsS --max-time 3 http://127.0.0.1:9220/health >/dev/null 2>&1; then
+            echo "::error::Old Stage 11E API still listening"
+            exit 1
+          fi
+          SHQIPSHOP_F08_ORDER_CHECK_PHASE=ack-before pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
+          SHQIPSHOP_F08_PAYMENT_CHECK_PHASE=before pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-payment-ledger-ci.ts
+          setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-ack-restart.log" 2>&1 &
+          api=$!
+          ready
+          node scripts/f08-multiprocess-complete-ci.mjs ack-retry
+          # Stage 11O: real runner-local Admin HTTP unauthenticated negatives.
+          SHQIPSHOP_F08_ADMIN_REFUND_PHASE=http-deny pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-admin-boundary-ci.ts
+          export SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD="$stage11p_admin_password"
+          stage11p_admin_rc=0
+          SHQIPSHOP_F08_ADMIN_REFUND_PHASE=http-authenticated pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-admin-boundary-ci.ts || stage11p_admin_rc=$?
+          unset SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD
+          kill -TERM -- "-$api" 2>/dev/null || true
+          wait "$api" 2>/dev/null || true
+          api=""
+          sleep 2
+          if curl -fsS --max-time 3 http://127.0.0.1:9220/health >/dev/null 2>&1; then
+            echo "::error::Stage 11P API still live before isolated 11Q restart"
+            exit 1
+          fi
+          # Strict preflight enabled for this one restarted CI API ONLY.
+          # Earlier 11P P0 and later 11I/J/O sentinels remain unguarded/RED.
+          SHQIPSHOP_F08_STRICT_REFUND_CI=true SHQIPSHOP_F08_11R_ATOMIC_CI=true SHQIPSHOP_F08_11R_MERCHANT=merchant_ci_a setsid pnpm --filter @dtc/backend exec medusa develop --port 9220 > "$RUNNER_TEMP/f08-11q-11r-ci.log" 2>&1 &
+          api=$!
+          ready
+          export SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD="$stage11p_admin_password"
+          stage11q_rc=0
+          SHQIPSHOP_F08_STRICT_REFUND_CI=true SHQIPSHOP_F08_ADMIN_REFUND_PHASE=http-guard pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-admin-boundary-ci.ts || stage11q_rc=$?
+          # Stage 11X: separate linked mock order, same HTTP operation key
+          # replay while funds remain. Preserve RED if duplicate refund occurs.
+          stage11x_rc=0
+          SHQIPSHOP_F08_STRICT_REFUND_CI=true SHQIPSHOP_F08_ADMIN_REFUND_PHASE=http-key-replay pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-admin-boundary-ci.ts || stage11x_rc=$?
+          # Stage 11S: a second disposable Medusa API races the first.
+          # Both have independent HTTP processes on shared runner-local PG/Redis.
+          SHQIPSHOP_F08_STRICT_REFUND_CI=true SHQIPSHOP_F08_11R_ATOMIC_CI=true SHQIPSHOP_F08_11R_MERCHANT=merchant_ci_a setsid pnpm --filter @dtc/backend exec medusa develop --port 9221 > "$RUNNER_TEMP/f08-11s-second-api.log" 2>&1 &
+          api_second=$!
+          ready 9221
+          # Stage 11Y: two API processes concurrently retry the exact
+          # same Admin refund body key against the Medusa payment ledger.
+          stage11y_rc=0
+          SHQIPSHOP_F08_STRICT_REFUND_CI=true SHQIPSHOP_F08_ADMIN_REFUND_PHASE=http-key-race pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-admin-boundary-ci.ts || stage11y_rc=$?
+          # Stage 11Z: two independent Medusa APIs with DISTINCT keys race
+          # for one real disposable payment capture; no bypass of P0 tests.
+          stage11z_rc=0
+          SHQIPSHOP_F08_STRICT_REFUND_CI=true SHQIPSHOP_F08_ADMIN_REFUND_PHASE=http-distinct-key-race pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-admin-boundary-ci.ts || stage11z_rc=$?
+          stage11r_rc=0
+          SHQIPSHOP_F08_STRICT_REFUND_CI=true SHQIPSHOP_F08_11R_ATOMIC_CI=true SHQIPSHOP_F08_11R_MERCHANT=merchant_ci_a SHQIPSHOP_F08_11S_MULTIPROC_CI=true pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-atomic-admin-http-ci.ts || stage11r_rc=$?
+          kill -TERM -- "-$api_second" 2>/dev/null || true
+          wait "$api_second" 2>/dev/null || true
+          api_second=""
+          unset SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD stage11p_admin_password
+          kill -TERM -- "-$api" 2>/dev/null || true
+          wait "$api" 2>/dev/null || true
+          api=""
+          SHQIPSHOP_F08_ORDER_CHECK_PHASE=ack-after pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-multiprocess-orders-ci.ts
+          SHQIPSHOP_F08_PAYMENT_CHECK_PHASE=after pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-payment-ledger-ci.ts
+          # Both tests are mandatory: execute independent Stage 11B workflow
+          # and known-red Stage 11I direct-module sentinel on separate orders.
+          # Preserve each nonzero exit and fail the job after collecting BOTH
+          # outcomes; never suppress or bypass the critical money assertions.
+          # Independent Stage 11B second-order strict amount guard probe.
+          # This is NOT a production or multi-process locking proof.
+          exact_rc=0
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-exact-bound-ci.ts || exact_rc=$?
+          # Stage 11T: ACTUAL Medusa PostgreSQL payment/capture/refund
+          # read-only audit versus Query Graph after isolated 11K full refund.
+          # Stage 11U checks PG row locks. Stage 11V makes the *installed*
+          # Payment Module capture/refund writers contend for those same rows.
+          # Only disposable mock-provider calls; any non-lock error fails 11V.
+          # Provider calls run outside the DB transaction; real PSP still OPEN.
+          # A separate RC is mandatory; never bypass pre-existing 11I/J/O/P.
+          authority_rc=0
+          SHQIPSHOP_F08_11T_LEDGER_CI=true SHQIPSHOP_F08_11U_LOCK_CI=true SHQIPSHOP_F08_11V_NATIVE_WRITER_CI=true pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-authoritative-ledger-ci.ts || authority_rc=$?
+          workflow_rc=0
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-workflow-ci.ts || workflow_rc=$?
+          # Stage 11O: separate singular workflow post-11K/11J negative probes.
+          singular_rc=0
+          SHQIPSHOP_F08_ADMIN_REFUND_PHASE=singular-workflow pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-refund-admin-boundary-ci.ts || singular_rc=$?
+          module_rc=0
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-psp-contract-ci.ts || module_rc=$?
+          if [ "$exact_rc" -ne 0 ] || [ "$workflow_rc" -ne 0 ] || [ "$singular_rc" -ne 0 ] || [ "$module_rc" -ne 0 ] || [ "$stage11p_admin_seed_rc" -ne 0 ] || [ "$stage11p_admin_rc" -ne 0 ] || [ "$stage11q_rc" -ne 0 ] || [ "$stage11x_rc" -ne 0 ] || [ "$stage11y_rc" -ne 0 ] || [ "$stage11z_rc" -ne 0 ] || [ "$stage11r_rc" -ne 0 ] || [ "$authority_rc" -ne 0 ]; then
+            echo "::error::F08 Stage 11K/11J/11O/11I/11P/11Q/11X/11Y/11Z/11R/11S/11T/11U/11V invariant failed; financial release remains blocked"
+            exit 1
+          fi
+          SHQIPSHOP_F08_CI_FIXTURE_ACTION=drop pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f08-revocation-fixture-ci.ts
       - name: CI state
         if: always()
         run: |
