@@ -4,7 +4,8 @@ import { createCartWorkflow } from "@medusajs/medusa/core-flows"
 import { randomBytes, randomUUID } from "node:crypto"
 import {
   activeProof, ATTEMPT_TABLE, cartIdPattern, digest, DISPATCH_CLAIMED,
-  forbiddenCredentialMode, GUEST_TABLE, isN03GuestCi, proofPattern,
+  forbiddenCredentialMode, GUEST_TABLE, hasN03CartChannel, isN03GuestCi,
+  jsonOnly, proofPattern, SEALED_BEFORE_DISPATCH, singleField,
 } from "../../../middlewares/n03-guest-ci"
 
 /**
@@ -19,15 +20,6 @@ const regionIdPattern = /^reg_[A-Za-z0-9_-]{8,}$/
 const channelIdPattern = /^sc_[A-Za-z0-9_-]{8,}$/
 const orderIdPattern = /^order_[A-Za-z0-9_-]{8,}$/
 const TTL_HOURS = 4
-
-const jsonOnly = (req: MedusaStoreRequest) =>
-  typeof req.headers["content-type"] === "string" &&
-  /^application\/json(?:;\s*charset=utf-8)?$/i.test(req.headers["content-type"])
-
-const singleField = (value: unknown, field: string): value is Record<string,string> =>
-  value !== null && typeof value === "object" && !Array.isArray(value) &&
-  Object.keys(value).length === 1 &&
-  typeof (value as Record<string,unknown>)[field] === "string"
 
 const disallowCaching = (res: MedusaResponse) => {
   res.setHeader("Cache-Control", "private, no-store, max-age=0")
@@ -111,7 +103,7 @@ export const GET = async (req: MedusaStoreRequest, res: MedusaResponse) => {
     const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
     const { data: carts } = await query.graph({
       entity: "cart",
-      fields: ["id", "customer_id", "order.id"],
+      fields: ["id", "customer_id", "sales_channel_id", "order.id"],
       filters: { id: cartId },
     })
     // Unknown never means that there was no committed order.
@@ -129,12 +121,14 @@ export const GET = async (req: MedusaStoreRequest, res: MedusaResponse) => {
       if (customers[0].has_account) return res.sendStatus(404)
     }
     const orderId = cart.order?.id
-    if (orderId == null) return res.status(200).json({ state: "unknown" })
+    const attempt = await db(ATTEMPT_TABLE).where({ cart_id: cartId }).first("phase")
+    if (orderId == null) {
+      const sealed = attempt?.phase === SEALED_BEFORE_DISPATCH &&
+        hasN03CartChannel(req, cart.sales_channel_id)
+      return res.status(200).json({ state: sealed ? "no_order" : "unknown" })
+    }
     if (typeof orderId !== "string" || !orderIdPattern.test(orderId)) return res.sendStatus(503)
-    const claim = await db(ATTEMPT_TABLE)
-      .where({ cart_id: cartId, phase: DISPATCH_CLAIMED })
-      .first("attempt_id")
-    if (!claim) return res.status(200).json({ state: "unknown" })
+    if (attempt?.phase !== DISPATCH_CLAIMED) return res.status(200).json({ state: "unknown" })
     const { data: orders } = await query.graph({
       entity: "order",
       fields: ["id", "customer_id", "cart.id"],

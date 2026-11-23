@@ -78,6 +78,62 @@ async function dispatch(merchant, fixture) {
   })
 }
 
+function cancel(merchant, fixture) {
+  return request(merchant, "POST", recoveryEndpoint + "/cancel", {
+    ...proofOptions(fixture.proof), body:{cart_id:fixture.cart},
+  })
+}
+
+async function verifySealed(merchant, fixture) {
+  const recovered = await request(merchant, "GET", recoveryPath(fixture.cart), proofOptions(fixture.proof))
+  assert.equal(recovered.status, 200)
+  assert.deepEqual(recovered.data, {state:"no_order"})
+  assertPhase(merchant, fixture.cart, "sealed_before_dispatch")
+  assert.equal((await dispatch(merchant, fixture)).status, 409)
+  assert.equal(persistedGuestOrders(merchant, fixture.cart), "")
+}
+
+async function verifyCancellation(merchant, clone) {
+  const sealed = await mintPendingCart(merchant)
+  await prepareGuestCheckout(merchant, sealed, "guest-n03-sealed@example.invalid")
+  const forbidden = await request(merchant, "POST", recoveryEndpoint + "/cancel", {
+    key:true, body:{cart_id:sealed.cart},
+  })
+  denied(forbidden, "Cancellation requires the guest credential")
+  assertPhase(merchant, sealed.cart, "prepared")
+
+  const cancelled = await cancel(merchant, sealed)
+  assert.equal(cancelled.status, 200)
+  assert.deepEqual(cancelled.data, {state:"no_order"})
+  const repeated = await cancel(clone, sealed)
+  assert.equal(repeated.status, 200)
+  assert.deepEqual(repeated.data, cancelled.data)
+  await verifySealed(clone, sealed)
+
+  const competing = await mintPendingCart(merchant)
+  await prepareGuestCheckout(merchant, competing, "guest-n03-competing@example.invalid")
+  const [cancellation, completion] = await Promise.all([
+    cancel(clone, competing),
+    dispatch(merchant, competing),
+  ])
+  assert.deepEqual([cancellation.status, completion.status].sort(), [200, 409])
+  if (cancellation.status === 200) {
+    assert.deepEqual(cancellation.data, {state:"no_order"})
+    await verifySealed(merchant, competing)
+  } else {
+    assert.equal(completion.data.type, "order")
+    assertPhase(merchant, competing.cart, "claimed_for_dispatch")
+    const order = onlyPersistedOrder(merchant, competing.cart)
+    assert.equal(completion.data.order?.id, order)
+    await verifyConfirmed(clone, {...competing, order})
+  }
+
+  assert.equal((await cancel(clone, merchant)).status, 409)
+  await verifyConfirmed(clone, merchant)
+  console.log("SHQIPSHOP_N03_CANCEL_AND_DISPATCH_EXCLUSION_PASSED")
+  return sealed
+}
+
 async function verifyConfirmed(merchant, fixture) {
   const options = proofOptions(fixture.proof)
   const recovery = await request(merchant, "GET", recoveryPath(fixture.cart), options)
@@ -290,6 +346,8 @@ async function verifyBeforeRestart() {
   assert.equal(unconfirmed.status, 200)
   assert.deepEqual(unconfirmed.data, {state:"unknown"})
 
+  const sealed = await verifyCancellation(a, clone)
+
   const interrupted = await mintPendingCart(a)
   await prepareGuestCheckout(a, interrupted, "guest-n03-interrupted@example.invalid")
   assertPhase(a, interrupted.cart, "prepared")
@@ -299,7 +357,7 @@ async function verifyBeforeRestart() {
 
   // This file exists only on the runner, with access restricted to its owner.
   const {cart, proof, order} = a
-  writeFileSync(handoffFile, JSON.stringify({active:{cart, proof, order}, revoked, registered, unresolved, interrupted}),
+  writeFileSync(handoffFile, JSON.stringify({active:{cart, proof, order}, revoked, registered, unresolved, interrupted, sealed}),
     {mode:0o600, flag:"wx"})
 }
 
@@ -359,7 +417,13 @@ async function interruptDuringOrderInsert() {
 
 async function verifyAfterRestart() {
   loadMerchantKey(a)
-  const {active, revoked, registered, unresolved, interrupted} = JSON.parse(readFileSync(handoffFile, "utf8"))
+  const {active, revoked, registered, unresolved, interrupted, sealed} = JSON.parse(readFileSync(handoffFile, "utf8"))
+  await verifySealed(a, sealed)
+  const repeated = await cancel(a, sealed)
+  assert.equal(repeated.status, 200)
+  assert.deepEqual(repeated.data, {state:"no_order"})
+  assert.equal((await cancel(a, interrupted)).status, 409)
+  console.log("SHQIPSHOP_N03_CANCELLED_NO_ORDER_DURABLE_AFTER_RESTART")
   const interruptedOutcome = await request(a, "GET", recoveryPath(interrupted.cart), proofOptions(interrupted.proof))
   assert.equal(interruptedOutcome.status, 200)
   assert.deepEqual(interruptedOutcome.data, {state:"unknown"})
