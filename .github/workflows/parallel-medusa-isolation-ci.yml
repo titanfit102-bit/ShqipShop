@@ -148,6 +148,10 @@ jobs:
                   assert sock.recv(1024) == b'+PONG\r\n'
           print('SHQIPSHOP_PARALLEL_REDIS_SERVICES_REACHABLE')
           PY
+      - name: Verify N03 checkout attempt finality in disposable PostgreSQL
+        env:
+          SHQIPSHOP_N03_ATTEMPT_LEDGER_CI: "true"
+        run: python3 scripts/n03-attempt-ledger-ci.py
       - name: Initialize disposable N03 guest capability tables (A and B only)
         run: |
           set -euo pipefail
