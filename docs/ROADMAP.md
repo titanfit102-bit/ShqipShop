@@ -1,5 +1,9 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-23 — N03 pre-dispatch cancellation and durable no_order, CI VERIFIED
+
+[Medusa A/B CI #45277227946](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45277227946) verified [source 972035e](https://github.com/titanfit102-bit/ShqipShop/commit/972035e72a348de094d54b3d1e54e858ade7a975). Exact-CI guest cancellation persists a pre-dispatch seal and restores `no_order` after restart. Cancellation and finalization cannot both succeed for one attempt. Next validate equivalent registered customer cancellation and recovery before connecting clients. Release blockers remain open.
+
 ## 2026-11-23 — N03 interruption during order insertion, CI VERIFIED
 
 [Medusa A/B CI #45274122554](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45274122554) verified [source e53ce6b](https://github.com/titanfit102-bit/ShqipShop/commit/e53ce6b0f9c5d967c61ba56dd7d9260241f48a91). An API process terminated during a blocked order INSERT, with the claim already committed. Restart kept the interrupted attempt `unknown` and refused re-dispatch. The next disposable runtime proof is pre-dispatch cancellation competing against dispatch, with durable `no_order` after an explicit seal. Production payment reconciliation remains open.

@@ -1,5 +1,9 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-23 — N03 pre-dispatch cancellation and durable no_order, CI VERIFIED
+
+[source 972035e](https://github.com/titanfit102-bit/ShqipShop/commit/972035e72a348de094d54b3d1e54e858ade7a975) added the guest pre-dispatch cancellation operation to the isolated Medusa runtime. [Medusa A/B CI #45277227946](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45277227946) verified credential checks, persistence, idempotency, cross-process contention and the interrupted checkout regression. See [CURRENT_STATE](CURRENT_STATE.md).
+
 ## 2026-11-23 — N03 interruption during order insertion, CI VERIFIED
 
 [source e53ce6b](https://github.com/titanfit102-bit/ShqipShop/commit/e53ce6b0f9c5d967c61ba56dd7d9260241f48a91) extended the existing Medusa A/B fixture with a PostgreSQL write barrier and API process termination during a real checkout. [Medusa A/B CI #45274122554](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45274122554) verified zero orders and a fail-closed ambiguous state after restart. The original successful order still recovered. Runtime application code was outside this test change. See [CURRENT_STATE](CURRENT_STATE.md).

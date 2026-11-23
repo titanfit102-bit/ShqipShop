@@ -1,5 +1,9 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-23 — N03 pre-dispatch cancellation and durable no_order, CI VERIFIED
+
+[Current state](CURRENT_STATE.md). [source 972035e](https://github.com/titanfit102-bit/ShqipShop/commit/972035e72a348de094d54b3d1e54e858ade7a975) in [Medusa A/B CI #45277227946](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45277227946) verified durable `no_order` after a pre-dispatch guest cancellation. The sealed attempt was idempotent across processes, survived API restart and rejected checkout with zero persisted orders. The concurrent dispatch race had a single winner. A previously claimed attempt still could not be cancelled. Next prove an equivalent registered customer contract before application integration. N03 PARTIAL and release BLOCKED. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft.
+
 ## 2026-11-23 — N03 interruption during order insertion, CI VERIFIED
 
 [Current state](CURRENT_STATE.md). [source e53ce6b](https://github.com/titanfit102-bit/ShqipShop/commit/e53ce6b0f9c5d967c61ba56dd7d9260241f48a91) in [Medusa A/B CI #45274122554](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45274122554) exercised a real interrupted order INSERT after the guest attempt had committed a dispatch claim. After the API was terminated and restarted, the same credential returned `unknown`, completion retry returned 409 and the interrupted synthetic checkout had zero persisted orders. Next prove guest-authorized pre-dispatch cancellation and durable `no_order` against the disposable Medusa runtime. N03 PARTIAL and release BLOCKED. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft.

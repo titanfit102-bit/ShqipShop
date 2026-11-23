@@ -1,5 +1,18 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-23 — N03 pre-dispatch cancellation and durable no_order, CI VERIFIED
+
+[source 972035e](https://github.com/titanfit102-bit/ShqipShop/commit/972035e72a348de094d54b3d1e54e858ade7a975), [Medusa A/B CI #45277227946](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45277227946), verify these isolated Medusa outcomes.
+
+| Scenario | Observed outcome |
+| --- | --- |
+| Prepared guest cancellation without credential | Denied and attempt remained prepared |
+| Authorized cancellation, replay on second process, API restart | Durable `no_order`, checkout HTTP 409 and zero persisted orders |
+| Cancellation racing completion on separate processes | One success and one conflict, with order count matching the winning outcome |
+| Cancellation of claimed completed or interrupted attempts | HTTP 409. Existing confirmed and unknown outcomes remained intact |
+
+Coverage is limited to guest CI carts and a synthetic provider. Registered cancellation, live payments and production rollout remain open.
+
 ## 2026-11-23 — N03 interruption during order insertion, CI VERIFIED
 
 [source e53ce6b](https://github.com/titanfit102-bit/ShqipShop/commit/e53ce6b0f9c5d967c61ba56dd7d9260241f48a91), [Medusa A/B CI #45274122554](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45274122554), verify the interruption case in disposable merchant-A Medusa.

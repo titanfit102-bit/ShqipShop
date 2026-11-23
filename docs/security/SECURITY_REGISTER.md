@@ -1,5 +1,9 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-23 — N03 pre-dispatch cancellation and durable no_order, CI VERIFIED
+
+[source 972035e](https://github.com/titanfit102-bit/ShqipShop/commit/972035e72a348de094d54b3d1e54e858ade7a975) and [Medusa A/B CI #45277227946](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45277227946) verified a cart-bound guest credential and tenant-local sales channel before a pre-dispatch seal in disposable Medusa. One committed ledger transition decides cancellation versus dispatch. Recovery returned durable `no_order` for the sealed test attempt and retained `unknown` for the unresolved claimed attempt. Registered cancellation, concurrent account conversion, real-provider reconciliation and R01/R02/R03 release gates remain open.
+
 ## 2026-11-23 — N03 interruption during order insertion, CI VERIFIED
 
 [source e53ce6b](https://github.com/titanfit102-bit/ShqipShop/commit/e53ce6b0f9c5d967c61ba56dd7d9260241f48a91) and [Medusa A/B CI #45274122554](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45274122554) verified the guest dispatch claim survives API termination during an order INSERT. A restart retained `unknown`, refused a second dispatch and left zero orders for the interrupted fixture. This is a controlled interruption with a disposable payment provider. Pre-dispatch runtime cancellation, external payment reconciliation, other failure points and R01/R02/R03 release gates remain open.
