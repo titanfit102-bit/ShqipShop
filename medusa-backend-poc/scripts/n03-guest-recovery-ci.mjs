@@ -95,7 +95,7 @@ async function verifySealed(merchant, fixture) {
 
 async function verifyCancellation(merchant, clone) {
   const sealed = await mintPendingCart(merchant)
-  await prepareGuestCheckout(merchant, sealed, "guest-n03-sealed@example.invalid")
+  await prepareCheckout(merchant, sealed, "guest-n03-sealed@example.invalid")
   const forbidden = await request(merchant, "POST", recoveryEndpoint + "/cancel", {
     key:true, body:{cart_id:sealed.cart},
   })
@@ -111,7 +111,7 @@ async function verifyCancellation(merchant, clone) {
   await verifySealed(clone, sealed)
 
   const competing = await mintPendingCart(merchant)
-  await prepareGuestCheckout(merchant, competing, "guest-n03-competing@example.invalid")
+  await prepareCheckout(merchant, competing, "guest-n03-competing@example.invalid")
   const [cancellation, completion] = await Promise.all([
     cancel(clone, competing),
     dispatch(merchant, competing),
@@ -164,21 +164,128 @@ async function verifyRegisteredCart(merchant, fixture, token) {
     "Guest credential after registered ownership was confirmed")
 }
 
-async function loginMerchantA(merchant) {
-  const password = process.env.SHQIPSHOP_A_CUSTOMER_PASSWORD
+const registeredEndpoint = "/store/shqipshop/order-recovery-ci"
+const registeredEmail = "n03-owner-a@example.invalid"
+const shopperEmail = "shopper-a@shqipshop.example.invalid"
+
+async function loginBuyer(merchant, email, password = process.env.SHQIPSHOP_A_CUSTOMER_PASSWORD) {
   assert(password?.length >= 12)
   const login = await request(merchant, "POST", "/auth/customer/emailpass", {
-    body:{email:"shopper-a@shqipshop.example.invalid", password},
+    body:{email, password},
   })
   assert.equal(login.status, 200)
   assert(login.data.token?.length > 20, "Expected registered customer credential")
   return login.data.token
 }
 
-async function prepareGuestCheckout(merchant, fixture, email) {
+const loginMerchantA = merchant => loginBuyer(merchant, shopperEmail)
+
+async function createRegisteredTestOwner(merchant) {
+  const password = process.env.SHQIPSHOP_A_CUSTOMER_PASSWORD
+  const identity = await request(merchant, "POST", "/auth/customer/emailpass/register", {
+    body:{email:registeredEmail, password},
+  })
+  assert([200, 201].includes(identity.status))
+  assert(identity.data.token?.length > 20)
+  const customer = await request(merchant, "POST", "/store/customers", {
+    key:true, token:identity.data.token,
+    body:{email:registeredEmail, first_name:"Synthetic", last_name:"Owner"},
+  })
+  assert([200, 201].includes(customer.status))
+  return loginBuyer(merchant, registeredEmail)
+}
+
+async function mintRegisteredCart(merchant, token) {
+  const response = await request(merchant, "POST", registeredEndpoint, {
+    key:true, token, body:{region_id:merchant.region},
+  })
+  assert.equal(response.status, 201, "Registered N03 cart creation")
+  const cart = response.data.cart_id
+  assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(cart))
+  return cart
+}
+
+const cancelRegistered = (merchant, cart, token) => request(merchant, "POST", registeredEndpoint + "/cancel", {
+  key:true, token, body:{cart_id:cart},
+})
+const recoverRegistered = (merchant, cart, token) => request(merchant, "GET",
+  registeredEndpoint + "?cart_id=" + encodeURIComponent(cart), {key:true, token})
+const completeRegistered = (merchant, cart, token) => request(merchant, "POST", completePath(cart), {
+  key:true, token, body:{},
+})
+
+async function verifyRegisteredSeal(merchant, cart, token) {
+  const recovered = await recoverRegistered(merchant, cart, token)
+  assert.equal(recovered.status, 200)
+  assert.deepEqual(recovered.data, {state:"no_order"})
+  assertPhase(merchant, cart, "sealed_before_dispatch")
+  assert.equal((await completeRegistered(merchant, cart, token)).status, 409)
+}
+
+async function verifyRegisteredCancellation(merchant, clone) {
+  const owner = await createRegisteredTestOwner(merchant)
+  const shopper = await loginMerchantA(merchant)
+  const cart = await mintRegisteredCart(merchant, owner)
+  await prepareCheckout(merchant, {cart}, registeredEmail, owner)
+  assert.equal(fixtureQuery(merchant, cart,
+    `SELECT count(*) FROM cart WHERE id = :'cart' AND customer_id IS NOT NULL;`), "1")
+
+  const pending = await recoverRegistered(merchant, cart, owner)
+  assert.equal(pending.status, 200)
+  assert.deepEqual(pending.data, {state:"unknown"})
+  denied(await cancelRegistered(clone, cart, shopper), "Only the owning customer can cancel")
+  denied(await recoverRegistered(clone, cart, shopper), "Only the owning customer can recover")
+  denied(await cancelRegistered(merchant, cart), "Anonymous cancellation")
+  denied(await completeRegistered(merchant, cart, shopper), "Only the owning customer can dispatch")
+  assertPhase(merchant, cart, "prepared")
+
+  const [first, repeat] = await Promise.all([
+    cancelRegistered(merchant, cart, owner),
+    cancelRegistered(clone, cart, owner),
+  ])
+  for (const result of [first, repeat]) {
+    assert.equal(result.status, 200)
+    assert.deepEqual(result.data, {state:"no_order"})
+  }
+  await verifyRegisteredSeal(clone, cart, owner)
+  assert.equal(persistedGuestOrders(merchant, cart), "")
+
+  const competing = await mintRegisteredCart(merchant, shopper)
+  await prepareCheckout(merchant, {cart:competing}, shopperEmail, shopper)
+  const [cancelled, completed] = await Promise.all([
+    cancelRegistered(clone, competing, shopper),
+    completeRegistered(merchant, competing, shopper),
+  ])
+  assert.deepEqual([cancelled.status, completed.status].sort(), [200, 409])
+  if (cancelled.status === 200) {
+    await verifyRegisteredSeal(merchant, competing, shopper)
+  } else {
+    assert.equal(completed.data.type, "order")
+    assertPhase(merchant, competing, "claimed_for_dispatch")
+    const recovered = await recoverRegistered(clone, competing, shopper)
+    assert.equal(recovered.status, 200)
+    assert.deepEqual(recovered.data, {state:"confirmed", order_id:completed.data.order?.id})
+  }
+  // Independently cover the dispatch-first result even when cancellation wins the race.
+  const dispatched = await mintRegisteredCart(merchant, shopper)
+  await prepareCheckout(merchant, {cart:dispatched}, shopperEmail, shopper)
+  const order = await completeRegistered(merchant, dispatched, shopper)
+  assert.equal(order.status, 200)
+  assert.equal(order.data.type, "order")
+  assert(/^order_[A-Za-z0-9_-]{8,}$/.test(order.data.order?.id))
+  assertPhase(merchant, dispatched, "claimed_for_dispatch")
+  assert.equal((await cancelRegistered(clone, dispatched, shopper)).status, 409)
+  const confirmed = await recoverRegistered(clone, dispatched, shopper)
+  assert.equal(confirmed.status, 200)
+  assert.deepEqual(confirmed.data, {state:"confirmed", order_id:order.data.order.id})
+  console.log("SHQIPSHOP_N03_REGISTERED_CANCEL_OR_DISPATCH_PASSED")
+  return {cart, dispatched, order:order.data.order.id}
+}
+
+async function prepareCheckout(merchant, fixture, email, token) {
   const write=async(method,path,body)=>{
-    const response=await request(merchant,method,path,{key:true,body})
-    assert.equal(response.status,200,merchant.id+" guest cart mutation failed")
+    const response=await request(merchant,method,path,{key:true,token,body})
+    assert.equal(response.status,200,merchant.id+" checkout cart mutation failed")
     return response.data
   }
   await write("POST","/store/carts/"+fixture.cart+"/line-items",{variant_id:merchant.variant,quantity:1})
@@ -188,19 +295,19 @@ async function prepareGuestCheckout(merchant, fixture, email) {
     email,
     shipping_address:address,billing_address:address,
   })
-  const options=await request(merchant,"GET","/store/shipping-options?cart_id="+encodeURIComponent(fixture.cart),{key:true})
+  const options=await request(merchant,"GET","/store/shipping-options?cart_id="+encodeURIComponent(fixture.cart),{key:true,token})
   assert.equal(options.status,200)
   assert(options.data.shipping_options?.length)
   await write("POST","/store/carts/"+fixture.cart+"/shipping-methods",
     {option_id:options.data.shipping_options[0].id})
   const payCollection=await request(merchant,"POST","/store/payment-collections",{
-    key:true,body:{cart_id:fixture.cart},
+    key:true,token,body:{cart_id:fixture.cart},
   })
   assert.equal(payCollection.status,200)
   const collectionId=payCollection.data.payment_collection?.id
   assert(collectionId)
   const session=await request(merchant,"POST","/store/payment-collections/"+collectionId+"/payment-sessions",{
-    key:true,body:{provider_id:"pp_system_default"},
+    key:true,token,body:{provider_id:"pp_system_default"},
   })
   assert([200,201].includes(session.status))
 }
@@ -258,7 +365,7 @@ async function verifyBeforeRestart() {
   console.log("SHQIPSHOP_N03_GUEST_PRECOMPLETE_CAPABILITY_BOUNDARY_A_B_PASSED")
 
   for(const m of guests){
-    await prepareGuestCheckout(m, m, "guest-" + m.id.toLowerCase() + "@example.invalid")
+    await prepareCheckout(m, m, "guest-" + m.id.toLowerCase() + "@example.invalid")
     denied(await request(m, "POST", completePath(m.cart), {key:true, body:{}}),
       "Checkout of a minted cart requires the guest credential")
     assertPhase(m, m.cart, "prepared")
@@ -347,9 +454,10 @@ async function verifyBeforeRestart() {
   assert.deepEqual(unconfirmed.data, {state:"unknown"})
 
   const sealed = await verifyCancellation(a, clone)
+  const registeredAttempt = await verifyRegisteredCancellation(a, clone)
 
   const interrupted = await mintPendingCart(a)
-  await prepareGuestCheckout(a, interrupted, "guest-n03-interrupted@example.invalid")
+  await prepareCheckout(a, interrupted, "guest-n03-interrupted@example.invalid")
   assertPhase(a, interrupted.cart, "prepared")
   assert.equal(fixtureQuery(a, interrupted.cart,
     `SELECT count(*) FROM cart WHERE id = :'cart' AND customer_id IS NOT NULL;`), "1")
@@ -357,7 +465,7 @@ async function verifyBeforeRestart() {
 
   // This file exists only on the runner, with access restricted to its owner.
   const {cart, proof, order} = a
-  writeFileSync(handoffFile, JSON.stringify({active:{cart, proof, order}, revoked, registered, unresolved, interrupted, sealed}),
+  writeFileSync(handoffFile, JSON.stringify({active:{cart, proof, order}, revoked, registered, unresolved, interrupted, sealed, registeredAttempt}),
     {mode:0o600, flag:"wx"})
 }
 
@@ -417,8 +525,17 @@ async function interruptDuringOrderInsert() {
 
 async function verifyAfterRestart() {
   loadMerchantKey(a)
-  const {active, revoked, registered, unresolved, interrupted, sealed} = JSON.parse(readFileSync(handoffFile, "utf8"))
+  const {active, revoked, registered, unresolved, interrupted, sealed, registeredAttempt} = JSON.parse(readFileSync(handoffFile, "utf8"))
   await verifySealed(a, sealed)
+  const owner = await loginBuyer(a, registeredEmail)
+  await verifyRegisteredSeal(a, registeredAttempt.cart, owner)
+  assert.equal(persistedGuestOrders(a, registeredAttempt.cart), "")
+  const shopper = await loginMerchantA(a)
+  const registeredOrder = await recoverRegistered(a, registeredAttempt.dispatched, shopper)
+  assert.equal(registeredOrder.status, 200)
+  assert.deepEqual(registeredOrder.data, {state:"confirmed", order_id:registeredAttempt.order})
+  assert.equal((await completeRegistered(a, registeredAttempt.dispatched, shopper)).status, 409)
+  console.log("SHQIPSHOP_N03_REGISTERED_CANCEL_AND_CONFIRM_DURABLE_AFTER_RESTART")
   const repeated = await cancel(a, sealed)
   assert.equal(repeated.status, 200)
   assert.deepEqual(repeated.data, {state:"no_order"})

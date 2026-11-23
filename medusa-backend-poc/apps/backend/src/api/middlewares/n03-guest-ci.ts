@@ -19,16 +19,18 @@ const CI_CONNECTIONS = new Map([
 export const cartIdPattern = /^cart_[A-Za-z0-9_-]{8,}$/
 export const proofPattern = /^[A-Za-z0-9_-]{43}$/
 
-export const isN03GuestCi = () => {
+export const isN03DisposableCi = (flag: string) => {
   const redis = CI_CONNECTIONS.get(process.env.DATABASE_URL ?? "")
   return redis !== undefined &&
     process.env.CI === "true" &&
     process.env.NODE_ENV === "development" &&
     process.env.SHQIPSHOP_REQUIRE_REDIS === "true" &&
-    process.env.SHQIPSHOP_N03_GUEST_RECOVERY_CI === "true" &&
+    process.env[flag] === "true" &&
     process.env.REDIS_URL === redis &&
     /^[a-f0-9]{64}$/.test(process.env.JWT_SECRET ?? "")
 }
+
+export const isN03GuestCi = () => isN03DisposableCi("SHQIPSHOP_N03_GUEST_RECOVERY_CI")
 
 export const forbiddenCredentialMode = (req: MedusaStoreRequest) =>
   Boolean(req.headers.authorization || req.headers.cookie) ||
@@ -97,13 +99,22 @@ export async function transitionN03Attempt(
   return db.transaction(async (trx: typeof db) => {
     const proof = await activeProof(trx, cartId, token).forUpdate().first("cart_id")
     if (!proof) return 404
-    const row = trx(ATTEMPT_TABLE).where({ cart_id: cartId })
-    const changed = await row.clone().where({ phase: "prepared" }).update({ phase })
-    if (changed === 1) return 200
-    if (phase === SEALED_BEFORE_DISPATCH) {
-      const existing = await row.first("phase")
-      if (existing?.phase === SEALED_BEFORE_DISPATCH) return 200
-    }
-    return 409
+    return updateN03Attempt(trx, cartId, null, phase)
   })
+}
+
+export async function updateN03Attempt(
+  trx: any,
+  cartId: string,
+  ownerId: string | null,
+  phase: typeof DISPATCH_CLAIMED | typeof SEALED_BEFORE_DISPATCH,
+) {
+  const row = trx(ATTEMPT_TABLE).where({ cart_id: cartId, owner_customer_id: ownerId })
+  const changed = await row.clone().where({ phase: "prepared" }).update({ phase })
+  if (changed === 1) return 200
+  if (phase === SEALED_BEFORE_DISPATCH) {
+    const existing = await row.first("phase")
+    if (existing?.phase === SEALED_BEFORE_DISPATCH) return 200
+  }
+  return 409
 }
