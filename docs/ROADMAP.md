@@ -1,5 +1,9 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-23 — N03 interruption during order insertion, CI VERIFIED
+
+[Medusa A/B CI #45274122554](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45274122554) verified [source e53ce6b](https://github.com/titanfit102-bit/ShqipShop/commit/e53ce6b0f9c5d967c61ba56dd7d9260241f48a91). An API process terminated during a blocked order INSERT, with the claim already committed. Restart kept the interrupted attempt `unknown` and refused re-dispatch. The next disposable runtime proof is pre-dispatch cancellation competing against dispatch, with durable `no_order` after an explicit seal. Production payment reconciliation remains open.
+
 ## 2026-11-23 — N03 guest checkout dispatch and restart recovery, CI VERIFIED
 
 [Medusa A/B CI #45272683600](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45272683600) verified [source c744b0d](https://github.com/titanfit102-bit/ShqipShop/commit/c744b0d6296723f418bbde61aff0cebb6e59ba48). A disposable Medusa guest can recover the same persisted order after API restart, with one dispatch allowed between processes. Unconfirmed committed claims remain `unknown`. Next prove in-flight interruption and authoritative pre-dispatch cancellation in the Medusa workflow. Then evaluate client integration. R01/R02/R03 remain release blockers.

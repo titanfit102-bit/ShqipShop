@@ -1,5 +1,9 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-23 — N03 interruption during order insertion, CI VERIFIED
+
+[source e53ce6b](https://github.com/titanfit102-bit/ShqipShop/commit/e53ce6b0f9c5d967c61ba56dd7d9260241f48a91) and [Medusa A/B CI #45274122554](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45274122554) verified the guest dispatch claim survives API termination during an order INSERT. A restart retained `unknown`, refused a second dispatch and left zero orders for the interrupted fixture. This is a controlled interruption with a disposable payment provider. Pre-dispatch runtime cancellation, external payment reconciliation, other failure points and R01/R02/R03 release gates remain open.
+
 ## 2026-11-23 — N03 guest checkout dispatch and restart recovery, CI VERIFIED
 
 [source c744b0d](https://github.com/titanfit102-bit/ShqipShop/commit/c744b0d6296723f418bbde61aff0cebb6e59ba48) and [Medusa A/B CI #45272683600](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45272683600) verified a single committed checkout dispatch claim per newly minted disposable guest cart. The current CI merchant database binds the guest credential and attempt to the cart. Only a persisted claim and matching Medusa order yield confirmation. Separate registered-cart behavior, account-conversion races, process loss during order commit and live payment finality remain open. R01/R02/R03 and RG-01/02/03/G3/G5 block release.

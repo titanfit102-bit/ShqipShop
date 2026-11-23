@@ -1,5 +1,9 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-23 — N03 interruption during order insertion, CI VERIFIED
+
+[source e53ce6b](https://github.com/titanfit102-bit/ShqipShop/commit/e53ce6b0f9c5d967c61ba56dd7d9260241f48a91) extended the existing Medusa A/B fixture with a PostgreSQL write barrier and API process termination during a real checkout. [Medusa A/B CI #45274122554](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45274122554) verified zero orders and a fail-closed ambiguous state after restart. The original successful order still recovered. Runtime application code was outside this test change. See [CURRENT_STATE](CURRENT_STATE.md).
+
 ## 2026-11-23 — N03 guest checkout dispatch and restart recovery, CI VERIFIED
 
 [source c744b0d](https://github.com/titanfit102-bit/ShqipShop/commit/c744b0d6296723f418bbde61aff0cebb6e59ba48) linked N03 guest credentials and checkout attempts to actual Medusa test checkout and recovery. [Medusa A/B CI #45272683600](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45272683600) verified cross-process dispatch exclusion, recovery after restart and one persisted order despite repeat calls. Existing application release gates and live provider reconciliation remain open. See [CURRENT_STATE](CURRENT_STATE.md).

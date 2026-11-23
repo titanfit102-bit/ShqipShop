@@ -1,5 +1,11 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-23 — N03 interruption during order insertion, CI VERIFIED
+
+[source e53ce6b](https://github.com/titanfit102-bit/ShqipShop/commit/e53ce6b0f9c5d967c61ba56dd7d9260241f48a91) and [Medusa A/B CI #45274122554](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45274122554). A fully prepared merchant-A guest cart submitted checkout with the synthetic payment provider. PostgreSQL independently showed Medusa's order INSERT waiting on the test transaction while the dispatch claim was already committed. CI terminated the API process, observed the dropped HTTP connection and stopped any remaining queued database session before releasing the test lock. After the API restarted, guest recovery returned `unknown`, a second completion returned HTTP 409 and PostgreSQL still held zero orders for that fixture customer. The earlier committed order still recovered with a single persisted order after the same restart.
+
+**Scope and next step:** This is a test-only interruption of one pre-insert point. It leaves external payment effects and autonomous workflow resumption outside the proof. Preserve `unknown` for an unresolved committed claim. Next implement and test a guest-authorized pre-dispatch cancellation in disposable Medusa. Require the cancellation and dispatch claim to be mutually exclusive and show final `no_order` only after the cancellation commits. Native/PWA integration, live provider reconciliation, R01/R02/R03 and release gates remain open. PR #12 Draft on #11.
+
 ## 2026-11-23 — N03 guest checkout dispatch and restart recovery, CI VERIFIED
 
 [source c744b0d](https://github.com/titanfit102-bit/ShqipShop/commit/c744b0d6296723f418bbde61aff0cebb6e59ba48) and [Medusa A/B CI #45272683600](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45272683600). In disposable Medusa A/B, minting a guest recovery credential now persists its digest and a prepared checkout attempt together. For a minted cart, the built-in completion route requires the valid guest credential and a matching sales channel. A PostgreSQL transaction commits at most one dispatch claim before Medusa runs. Recovery requires a persisted claim and the reciprocal Medusa cart-to-order link for `confirmed`. Reads do not dispatch checkout.

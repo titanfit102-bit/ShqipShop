@@ -1,5 +1,18 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-23 — N03 interruption during order insertion, CI VERIFIED
+
+[source e53ce6b](https://github.com/titanfit102-bit/ShqipShop/commit/e53ce6b0f9c5d967c61ba56dd7d9260241f48a91), [Medusa A/B CI #45274122554](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45274122554), verify the interruption case in disposable merchant-A Medusa.
+
+| Scenario | Observed outcome |
+| --- | --- |
+| Prepared guest submitted checkout with a test payment | PostgreSQL showed an order INSERT waiting on the test lock and the dispatch claim was committed |
+| API terminated at the write barrier | The HTTP connection dropped and any surviving queued database writer was stopped before the test lock was released |
+| Same guest recovered after restart | `unknown`, second completion HTTP 409 and zero persisted orders for this fixture customer |
+| Earlier completed guest recovered after the same restart | Same order and receipt, with one persisted order |
+
+This covers a controlled pre-insert interruption. External payment effects, worker recovery and other interruption points remain open.
+
 ## 2026-11-23 — N03 guest checkout dispatch and restart recovery, CI VERIFIED
 
 [source c744b0d](https://github.com/titanfit102-bit/ShqipShop/commit/c744b0d6296723f418bbde61aff0cebb6e59ba48), [Medusa A/B CI #45272683600](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45272683600), verify the disposable Medusa checkout and PostgreSQL bridge.

@@ -1,5 +1,9 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-23 — N03 interruption during order insertion, CI VERIFIED
+
+[Current state](CURRENT_STATE.md). [source e53ce6b](https://github.com/titanfit102-bit/ShqipShop/commit/e53ce6b0f9c5d967c61ba56dd7d9260241f48a91) in [Medusa A/B CI #45274122554](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45274122554) exercised a real interrupted order INSERT after the guest attempt had committed a dispatch claim. After the API was terminated and restarted, the same credential returned `unknown`, completion retry returned 409 and the interrupted synthetic checkout had zero persisted orders. Next prove guest-authorized pre-dispatch cancellation and durable `no_order` against the disposable Medusa runtime. N03 PARTIAL and release BLOCKED. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft.
+
 ## 2026-11-23 — N03 guest checkout dispatch and restart recovery, CI VERIFIED
 
 [Current state](CURRENT_STATE.md). [source c744b0d](https://github.com/titanfit102-bit/ShqipShop/commit/c744b0d6296723f418bbde61aff0cebb6e59ba48) in [Medusa A/B CI #45272683600](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45272683600) connected the disposable guest attempt ledger to the built-in Medusa completion route and guest recovery. Two API processes shared one committed dispatch claim. After API restart, only the original persisted order could be recovered and both successful and unconfirmed attempts refused redispatch. Next exercise in-flight interruption and pre-dispatch cancellation with Medusa reconciliation before wiring the app. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft. N03 PARTIAL and release BLOCKED.
