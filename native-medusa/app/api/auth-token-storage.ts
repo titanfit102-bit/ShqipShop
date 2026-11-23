@@ -12,6 +12,8 @@ let pendingWrites: Promise<void> = Promise.resolve();
 let authTransitionVersion = 0;
 let authOperationTail: Promise<void> = Promise.resolve();
 
+export const getNativeAuthVersion = () => authTransitionVersion;
+
 export const isCurrentAuthAttempt = (version: number) =>
   version === authTransitionVersion;
 

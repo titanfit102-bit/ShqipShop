@@ -8,6 +8,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Navbar from '@components/common/navbar';
 import apiClient from '@api/client';
+import { authTokenStorage, AUTH_TOKEN_KEY, getNativeAuthVersion, isCurrentAuthAttempt } from '@api/auth-token-storage';
+import { nativeCheckoutRecoveryEnabled, nativeCheckoutRecoveryScope } from '@data/native-checkout-recovery';
+import type { CheckoutRecoveryScope } from '@data/order-completion-recovery';
 import {
   CheckoutFormData,
   checkoutSchema,
@@ -232,6 +235,8 @@ const Checkout = () => {
           throw new Error(l10n.getString('payment-provider-not-supported'));
       }
     } else {
+      let recoveryScope: CheckoutRecoveryScope | undefined;
+      const authVersion = getNativeAuthVersion();
       const { cartId, orderId, isCurrent } = await runCurrentCartCompletion(async activeCart => {
         const activePayment = activeCheckoutPaymentSession(activeCart);
         if (!activePayment || activePayment.provider_id !== selectedPaymentProviderId) {
@@ -239,7 +244,21 @@ const Checkout = () => {
         }
         // Persist BEFORE the irreversible server call; never replay an
         // uncertain outcome (even if the cart later returns 404).
-        await reserveOrderCompletion(activeCart.id, AsyncStorage);
+        if (nativeCheckoutRecoveryEnabled && await authTokenStorage.getItem(AUTH_TOKEN_KEY)) {
+          const { customer } = await apiClient.store.customer.retrieve();
+          recoveryScope = nativeCheckoutRecoveryScope(customer.id);
+          if (!recoveryScope || activeCart.customer_id !== customer.id ||
+              !isCurrentAuthAttempt(authVersion)) {
+            throw new Error(ORDER_COMPLETION_PENDING_MESSAGE);
+          }
+        }
+        if (nativeCheckoutRecoveryEnabled && !isCurrentAuthAttempt(authVersion)) {
+          throw new Error(ORDER_COMPLETION_PENDING_MESSAGE);
+        }
+        await reserveOrderCompletion(activeCart.id, AsyncStorage, recoveryScope);
+        if (nativeCheckoutRecoveryEnabled && !isCurrentAuthAttempt(authVersion)) {
+          throw new Error(ORDER_COMPLETION_PENDING_MESSAGE);
+        }
         let response: Awaited<ReturnType<typeof apiClient.store.cart.complete>>;
         try {
           response = await apiClient.store.cart.complete(activeCart.id);
@@ -247,6 +266,8 @@ const Checkout = () => {
           throw new Error(ORDER_COMPLETION_PENDING_MESSAGE);
         }
         if (response.type === 'cart') {
+          // Tracked checkout can hold a server dispatch claim without a receipt.
+          if (recoveryScope) throw new Error(ORDER_COMPLETION_PENDING_MESSAGE);
           await clearKnownOrderCompletion(activeCart.id, AsyncStorage);
           throw new Error(
             response.error?.message || l10n.getString('failed-to-complete-order'),
@@ -256,10 +277,11 @@ const Checkout = () => {
         return response.order.id;
       });
       // resetCart is complete; do not clear marker if disk cleanup failed.
-      await clearKnownOrderCompletion(cartId, AsyncStorage);
+      await clearKnownOrderCompletion(cartId, AsyncStorage, recoveryScope,
+        () => !recoveryScope || (isCurrent() && isCurrentAuthAttempt(authVersion)));
       // Logout can begin while journal removal awaits; fence the final handoff.
       // Navigation follows synchronously, with no additional await.
-      if (!isCurrent()) {
+      if (!isCurrent() || (recoveryScope && !isCurrentAuthAttempt(authVersion))) {
         throw new Error('Cart changed while completing order; do not submit again');
       }
       retryCart();

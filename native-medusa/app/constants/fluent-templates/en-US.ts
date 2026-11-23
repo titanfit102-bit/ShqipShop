@@ -156,6 +156,8 @@ const en_US: FluentTemplate = {
   'password-must-be-at-least-n-characters':
     'Password must be at least { $n } characters',
   'order-confirmation-pending': 'Order status is not confirmed. Do not place the order again; contact support to verify it.',
+  'check-order-status': 'Check order status',
+  'order-not-created': 'The order was not created. You can start a new cart.',
   register: 'Register',
   'enter-your-first-name': 'Enter your first name',
   'enter-your-last-name': 'Enter your last name',

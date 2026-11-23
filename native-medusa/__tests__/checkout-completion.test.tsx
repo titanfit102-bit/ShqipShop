@@ -3,10 +3,14 @@ import ReactTestRenderer from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../app/api/client';
 import Checkout from '../app/screens/checkout';
-import { ORDER_COMPLETION_PENDING_KEY } from '../app/data/order-completion-recovery';
+import { clearKnownOrderCompletion, ORDER_COMPLETION_PENDING_KEY } from '../app/data/order-completion-recovery';
+import { AUTH_TOKEN_KEY } from '../app/api/auth-token-storage';
 
 const mockDisk = new Map<string, string>();
+const mockRecoveryScope = { backend: 'https://merchant-a.example.invalid', customerId: 'cus_recovery123' };
+let mockNativeRecovery = false;
 const mockCart = {
+  customer_id: null as string | null,
   id: 'cart_A',
   region_id: 'reg_al',
   email: 'guest@example.invalid',
@@ -38,7 +42,11 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 }));
 jest.mock('../app/api/client', () => ({
   __esModule: true,
-  default: { store: { cart: { complete: jest.fn() } } },
+  default: { store: { cart: { complete: jest.fn() }, customer: { retrieve: jest.fn() } } },
+}));
+jest.mock('../app/data/native-checkout-recovery', () => ({
+  get nativeCheckoutRecoveryEnabled() { return mockNativeRecovery; },
+  nativeCheckoutRecoveryScope: () => mockRecoveryScope,
 }));
 jest.mock('../app/data/cart-context', () => ({
   useCart: () => ({
@@ -81,6 +89,8 @@ const press = async () => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockDisk.clear();
+  mockNativeRecovery = false;
+  mockCart.customer_id = null;
   mockReceiptHandoffCurrent = true;
   (AsyncStorage.getItem as jest.Mock).mockImplementation(
     async (key: string) => mockDisk.get(key) ?? null,
@@ -154,6 +164,25 @@ test('N03 logout after cart reset during awaited journal cleanup cannot navigate
   expect(journalRemovals).toBe(1);
   expect(mockNav.dispatch).not.toHaveBeenCalled();
   expect(mockRetryCart).not.toHaveBeenCalled();
+});
+
+test('development registered checkout retains the owner-bound marker on type=cart', async () => {
+  mockNativeRecovery = true;
+  mockCart.customer_id = mockRecoveryScope.customerId;
+  mockDisk.set(AUTH_TOKEN_KEY, 'synthetic-bearer');
+  (apiClient.store.customer.retrieve as jest.Mock).mockResolvedValue({
+    customer: { id: mockRecoveryScope.customerId },
+  });
+  complete.mockResolvedValue({ type: 'cart', error: { message: 'synthetic unknown checkout' } });
+  await mount();
+  await press();
+  expect(complete).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(mockDisk.get(ORDER_COMPLETION_PENDING_KEY)!)).toEqual({
+    cartId: mockCart.id, ...mockRecoveryScope,
+  });
+  expect(mockNav.dispatch).not.toHaveBeenCalled();
+  // Release the fixture reservation before the independent legacy checkout case.
+  await clearKnownOrderCompletion(mockCart.id, AsyncStorage, mockRecoveryScope);
 });
 
 test('N03 lost acknowledgement never triggers a second complete on user retry', async () => {

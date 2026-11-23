@@ -1,7 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { ORDER_COMPLETION_PENDING_KEY } from "../../native-medusa/app/data/order-completion-recovery.ts"
-import { createCheckoutRecoveryClient } from "./n03-checkout-recovery-client.mjs"
+import { createCheckoutRecoveryClient, ORDER_COMPLETION_PENDING_KEY } from "../../native-medusa/app/data/order-completion-recovery.ts"
 
 const cart = "cart_fixture123"
 const order = "order_fixture123"

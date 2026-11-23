@@ -10,6 +10,11 @@ import { HttpTypes } from '@medusajs/types';
 import { useRegion } from './region-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '@api/client';
+import { nativeCheckoutRecoveryEnabled } from './native-checkout-recovery';
+import {
+  createCheckoutRecoveryClient, ORDER_COMPLETION_PENDING_MESSAGE,
+} from './order-completion-recovery';
+import type { CheckoutRecoveryResult, CheckoutRecoveryScope } from './order-completion-recovery';
 import { CART_FIELDS, CART_RESET_PENDING_KEY, isMissingCartError, restoreOrCreateCart } from './cart-recovery';
 
 const CART_KEY = 'cart_id';
@@ -51,6 +56,9 @@ type CartContextType = {
   runCurrentCartCompletion: (
     task: (activeCart: HttpTypes.StoreCart) => Promise<string>,
   ) => Promise<{ cartId: string; orderId: string; isCurrent: () => boolean }>;
+  recoverPendingOrder: (
+    scope: CheckoutRecoveryScope, isOwnerCurrent: () => boolean,
+  ) => Promise<CheckoutRecoveryResult>;
   linkCartToCustomer: () => Promise<void>;
   setShippingMethod: (shippingMethodId: string) => Promise<HttpTypes.StoreCart>;
   applyPromoCode: (code: string) => Promise<boolean>;
@@ -69,6 +77,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
   currentCartRef.current = cart;
   // A reset/logout invalidates responses issued for the previous cart identity.
   const cartGeneration = useRef(0);
+  const recoveryInFlight = useRef(false);
   // Queue restore writes and reset removal: no stale restore may resurrect disk ID.
   const storageWriteTail = useRef<Promise<void>>(Promise.resolve());
   const queueCartStorageWrite = useCallback((operation: () => Promise<void>) => {
@@ -167,7 +176,16 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     const activeCart = currentCartRef.current;
     if (!activeCart?.id) throw new Error('No active cart for completion');
     const generation = cartGeneration.current;
-    const orderId = await task(activeCart);
+    let orderId: string;
+    try {
+      orderId = await task(activeCart);
+    } catch (error) {
+      if (nativeCheckoutRecoveryEnabled && generation === cartGeneration.current &&
+          error instanceof Error && error.message === ORDER_COMPLETION_PENDING_MESSAGE) {
+        setCartError(ORDER_COMPLETION_PENDING_MESSAGE);
+      }
+      throw error;
+    }
     if (!orderId || generation !== cartGeneration.current ||
         currentCartRef.current?.id !== activeCart.id) {
       throw new Error('Cart changed while completing order; do not submit again');
@@ -187,6 +205,56 @@ export const CartProvider = ({ children }: CartProviderProps) => {
       // Checkout can recheck identity after asynchronous receipt-journal cleanup.
       isCurrent: () => cartGeneration.current === expectedResetGeneration,
     };
+  };
+
+  const recoverPendingOrder = async (
+    scope: CheckoutRecoveryScope,
+    isOwnerCurrent: () => boolean,
+  ): Promise<CheckoutRecoveryResult> => {
+    if (!nativeCheckoutRecoveryEnabled || recoveryInFlight.current) {
+      return { state: 'pending' };
+    }
+
+    recoveryInFlight.current = true;
+    let generation = cartGeneration.current;
+    const isCurrent = () => generation === cartGeneration.current && isOwnerCurrent();
+    try {
+      const client = createCheckoutRecoveryClient({
+        scope,
+        storage: AsyncStorage,
+        isCurrent,
+        readOutcome: async cartId => ({
+          status: 200,
+          data: await apiClient.client.fetch<unknown>(
+            `/store/shqipshop/order-recovery-ci?cart_id=${encodeURIComponent(cartId)}`,
+            { method: 'GET' },
+          ),
+        }),
+        readReceipt: async orderId => ({
+          status: 200, data: await apiClient.store.order.retrieve(orderId),
+        }),
+        discardCart: async cartId => {
+          const savedId = await AsyncStorage.getItem(CART_KEY);
+          if (!isCurrent() || (savedId !== null && savedId !== cartId) ||
+              (currentCartRef.current && currentCartRef.current.id !== cartId)) {
+            throw new Error(ORDER_COMPLETION_PENDING_MESSAGE);
+          }
+          // resetCart increments the cart generation before yielding.
+          generation++;
+          await resetCart();
+        },
+      });
+      const result = await client.recover();
+      if (!isCurrent()) return { state: 'pending' };
+      if (result.state === 'pending') {
+        setCartError(ORDER_COMPLETION_PENDING_MESSAGE);
+      } else {
+        retryCart();
+      }
+      return result;
+    } finally {
+      recoveryInFlight.current = false;
+    }
   };
 
   // Restore can outlive a region switch or logout. Both React state and
@@ -352,6 +420,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
         updateCart,
         runCurrentCartTask,
         runCurrentCartCompletion,
+        recoverPendingOrder,
         linkCartToCustomer,
         setShippingMethod,
         applyPromoCode,

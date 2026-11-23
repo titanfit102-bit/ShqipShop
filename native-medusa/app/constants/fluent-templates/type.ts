@@ -155,4 +155,6 @@ export interface FluentTemplate {
   'already-have-an-account': string;
   'registration-failed': string;
   'order-confirmation-pending': string;
+  'check-order-status': string;
+  'order-not-created': string;
 }

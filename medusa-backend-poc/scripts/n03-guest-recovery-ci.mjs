@@ -7,8 +7,8 @@ import { createInterface } from "node:readline"
 import { setTimeout as delay } from "node:timers/promises"
 import { join } from "node:path"
 import { request } from "./boundary-http.mjs"
-import { createCheckoutRecoveryClient } from "./n03-checkout-recovery-client.mjs"
 import {
+  createCheckoutRecoveryClient,
   ORDER_COMPLETION_PENDING_KEY,
   reserveOrderCompletion,
 } from "../../native-medusa/app/data/order-completion-recovery.ts"

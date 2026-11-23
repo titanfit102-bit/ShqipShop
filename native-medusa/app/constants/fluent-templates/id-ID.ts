@@ -156,6 +156,8 @@ const id_ID: FluentTemplate = {
   'password-must-be-at-least-n-characters':
     'Kata sandi harus terdiri dari setidaknya { $n } karakter',
   'order-confirmation-pending': 'Status pesanan belum dikonfirmasi. Jangan membuat pesanan lagi; hubungi dukungan untuk memeriksanya.',
+  'check-order-status': 'Periksa status pesanan',
+  'order-not-created': 'Pesanan tidak dibuat. Anda dapat memulai keranjang baru.',
   register: 'Daftar',
   'enter-your-first-name': 'Masukkan nama depan Anda',
   'enter-your-last-name': 'Masukkan nama belakang Anda',

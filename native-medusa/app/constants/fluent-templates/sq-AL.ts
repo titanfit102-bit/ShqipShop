@@ -150,6 +150,8 @@ const sq_AL: FluentTemplate = {
   "invalid-email-address": "Adresa e email-it është e pavlefshme",
   "password-must-be-at-least-n-characters": "Fjalëkalimi duhet të ketë të paktën { $n } karaktere",
   "order-confirmation-pending": "Statusi i porosisë ende nuk është konfirmuar. Mos e dërgo sërish porosinë; kontakto mbështetjen për verifikim.",
+  'check-order-status': 'Kontrollo statusin e porosisë',
+  'order-not-created': 'Porosia nuk u krijua. Mund të nisësh një shportë të re.',
   "register": "Regjistrohu",
   "enter-your-first-name": "Shkruaj emrin",
   "enter-your-last-name": "Shkruaj mbiemrin",
