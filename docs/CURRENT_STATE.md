@@ -1,5 +1,13 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-24 — N03 disposable client recovery, CI VERIFIED
+
+[source d8b02ea](https://github.com/titanfit102-bit/ShqipShop/commit/d8b02ea2d52d91d9ede4e2e042142f6d5a7b16f3) and [Medusa A/B CI #45285394746](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45285394746). A disposable client action uses the existing native completion journal contract with local fixture storage. It reads the Medusa recovery outcome and verifies the exact receipt before finalizing `confirmed`. An explicit `no_order` discards the sealed cart and clears the journal. `unknown`, unreadable outcomes, denied requests, inconsistent receipts, stale scope and failed cleanup retain the pending result. The action uses read-only HTTP operations and never resubmits checkout.
+
+**Evidence:** The fixtures persisted five cart journals ahead of their terminal actions. After the test process and original Medusa API restarted, the disposable client recovered the guest and registered receipts, released both sealed carts, and preserved the interrupted guest journal and cart. A new reservation for the uncertain checkout stayed blocked. Same-action concurrent calls shared the recovery operation. Four client tests also cover denial, invalid responses, mismatched receipts, offline behavior, stale scope and storage failure.
+
+**Scope and next step:** The verified client is the CI harness with filesystem backing. Native/PWA screen wiring, durable identity-scoped on-device storage and external payment reconciliation remain open. Next adapt the native cart recovery screen to this read-only behavior, with production activation gated separately. N03 is PARTIAL. R01/R02/R03 and RG-01/02/03/G3/G5 continue to block release. PR #12 Draft on #11.
+
 ## 2026-11-23 — N03 registered checkout cancellation and recovery, CI VERIFIED
 
 [source d88ea6d](https://github.com/titanfit102-bit/ShqipShop/commit/d88ea6d2fb46b850a520829be8553a83edd33d38) and [Medusa A/B CI #45281995719](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45281995719). Disposable Medusa now creates a tracked registered cart for the authenticated customer. Checkout and cancellation validate the customer and sales channel, and compare the current cart owner and immutable attempt owner before changing the phase. An owner can cancel a prepared attempt idempotently. A retained seal returns `no_order`, and a dispatched attempt can return `confirmed` only with a matching persisted order. A missing outcome remains `unknown`. Existing untracked registered carts retain their prior order-link recovery behavior.

@@ -1,5 +1,9 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-24 — N03 disposable client recovery, CI VERIFIED
+
+[Current state](CURRENT_STATE.md). [source d8b02ea](https://github.com/titanfit102-bit/ShqipShop/commit/d8b02ea2d52d91d9ede4e2e042142f6d5a7b16f3) and [Medusa A/B CI #45285394746](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45285394746) verified the disposable client with the native completion journal contract, filesystem backing and real Medusa CI endpoints. Confirmed orders required the matching receipt. Sealed carts were discarded only after `no_order`. The interrupted cart retained its pending marker and blocked a fresh reservation. Next apply and test the action in the native recovery screen with identity-scoped storage. N03 PARTIAL and release BLOCKED. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft.
+
 ## 2026-11-23 — N03 registered checkout cancellation and recovery, CI VERIFIED
 
 [Current state](CURRENT_STATE.md). [source d88ea6d](https://github.com/titanfit102-bit/ShqipShop/commit/d88ea6d2fb46b850a520829be8553a83edd33d38) and [Medusa A/B CI #45281995719](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45281995719) verified registered-owner cancellation and durable recovery in disposable Medusa. Non-owner operations were denied. After a restart a sealed attempt returned `no_order` with zero orders, and a separately completed attempt returned its original confirmed order. Neither attempt could dispatch again. Next prove the disposable client recovery behavior for sealed, confirmed and unknown results. N03 PARTIAL and release BLOCKED. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft.

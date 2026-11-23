@@ -1,5 +1,9 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-24 — N03 disposable client recovery, CI VERIFIED
+
+[source d8b02ea](https://github.com/titanfit102-bit/ShqipShop/commit/d8b02ea2d52d91d9ede4e2e042142f6d5a7b16f3) and [Medusa A/B CI #45285394746](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45285394746) verified read-only client recovery with pending journals persisted across the disposable client and API restart. Matching receipts or an explicit sealed result permit cleanup. An interrupted unresolved attempt remains pending and refuses a new reservation. Native/PWA integration, real-device storage behavior, live payment reconciliation and release gates remain open.
+
 ## 2026-11-23 — N03 registered checkout cancellation and recovery, CI VERIFIED
 
 [source d88ea6d](https://github.com/titanfit102-bit/ShqipShop/commit/d88ea6d2fb46b850a520829be8553a83edd33d38) and [Medusa A/B CI #45281995719](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45281995719) verified owner-bound cancellation and checkout for newly tracked registered carts. A validated customer bearer, matching sales channel and current cart ownership are required, with an owner-bound ledger decision for the state change. Non-owner requests failed, and cancelled and confirmed attempts rejected checkout after restart. This proof is CI-only. Account transitions after dispatch, live reconciliation and R01/R02/R03 release gates remain open.

@@ -1,5 +1,9 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-24 — N03 disposable client recovery, CI VERIFIED
+
+[Medusa A/B CI #45285394746](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45285394746) verified [source d8b02ea](https://github.com/titanfit102-bit/ShqipShop/commit/d8b02ea2d52d91d9ede4e2e042142f6d5a7b16f3). The disposable client recovers confirmed and sealed outcomes after restart and preserves the interrupted attempt as pending. Next connect and test the native recovery screen with identity-scoped journals. Live settlement and release gates remain open.
+
 ## 2026-11-23 — N03 registered checkout cancellation and recovery, CI VERIFIED
 
 [Medusa A/B CI #45281995719](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45281995719) verified [source d88ea6d](https://github.com/titanfit102-bit/ShqipShop/commit/d88ea6d2fb46b850a520829be8553a83edd33d38). Tracked registered checkout has owner-bound cancellation and recovery, cross-process dispatch exclusion and durable final states after restart. Next wire and test these results in the disposable client. Live payment reconciliation and release blockers remain open.

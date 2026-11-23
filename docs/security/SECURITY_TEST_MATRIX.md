@@ -1,5 +1,18 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-24 — N03 disposable client recovery, CI VERIFIED
+
+[source d8b02ea](https://github.com/titanfit102-bit/ShqipShop/commit/d8b02ea2d52d91d9ede4e2e042142f6d5a7b16f3), [Medusa A/B CI #45285394746](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45285394746), verify the disposable client.
+
+| Scenario | Observed outcome |
+| --- | --- |
+| Guest and registered confirmed after restart | Matching receipt read before discarding the cart and clearing its journal |
+| Guest and registered sealed after restart | `no_order` released the sealed cart. Zero receipt reads |
+| Interrupted guest after restart | Cart and pending journal retained. A new completion reservation was rejected |
+| Bad response or cleanup failure | Client tests retained the pending marker for denied and malformed responses, an inconsistent receipt, offline access, stale scope and storage failure |
+
+The integration uses a Node client and local filesystem journal. Native UI, real-device storage and live payments remain open.
+
 ## 2026-11-23 — N03 registered checkout cancellation and recovery, CI VERIFIED
 
 [source d88ea6d](https://github.com/titanfit102-bit/ShqipShop/commit/d88ea6d2fb46b850a520829be8553a83edd33d38), [Medusa A/B CI #45281995719](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45281995719), verify the disposable registered checkout flow.
