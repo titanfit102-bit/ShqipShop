@@ -21,6 +21,42 @@ const recoveryEndpoint = "/store/shqipshop/guest-recovery-ci"
 const recoveryPath = cart => recoveryEndpoint + "?cart_id=" + encodeURIComponent(cart)
 const receiptPath = order => "/store/orders/" + encodeURIComponent(order)
 const proofOptions = proof => ({key:true, headers:{"x-shqipshop-recovery-proof":proof}})
+const completePath = cart => "/store/carts/" + encodeURIComponent(cart) + "/complete"
+
+function fixtureQuery(merchant, cart, sql) {
+  assert(["A", "B"].includes(merchant.id))
+  assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(cart))
+  const db = "shqipshop_ci_" + merchant.id.toLowerCase()
+  return execFileSync("psql", ["-X", "-qAt", "-w", "-v", "ON_ERROR_STOP=1",
+    "-h", "127.0.0.1", "-p", "5432", "-U", db, "-d", db, "-v", "cart=" + cart], {
+    env:{PATH:process.env.PATH, PGPASSWORD:"merchant" + merchant.id + "_disposable"},
+    input:sql, encoding:"utf8", timeout:10000, stdio:["pipe", "pipe", "pipe"],
+  }).trim()
+}
+
+function assertPhase(merchant, cart, phase) {
+  assert.equal(fixtureQuery(merchant, cart, `
+    SELECT phase FROM shqipshop_n03_disposable_attempt WHERE cart_id = :'cart';
+  `), phase)
+}
+
+function onlyPersistedOrder(merchant, cart) {
+  // Each fixture checks out with its own guest customer. Count even orders
+  // without a cart link, so a duplicate cannot be hidden by the recovery query.
+  const observed = fixtureQuery(merchant, cart, `
+    SELECT o.id
+    FROM "order" o JOIN cart c ON c.customer_id = o.customer_id
+    WHERE c.id = :'cart' AND o.deleted_at IS NULL;
+  `)
+  assert(/^order_[A-Za-z0-9_-]{8,}$/.test(observed), "Expected exactly one guest order in PostgreSQL")
+  return observed
+}
+
+async function dispatch(merchant, fixture) {
+  return request(merchant, "POST", completePath(fixture.cart), {
+    ...proofOptions(fixture.proof), body:{},
+  })
+}
 
 async function verifyConfirmed(merchant, fixture) {
   const options = proofOptions(fixture.proof)
@@ -146,12 +182,24 @@ async function verifyBeforeRestart() {
       key:true,body:{provider_id:"pp_system_default"},
     })
     assert([200,201].includes(session.status))
-    const completed=await request(m,"POST","/store/carts/"+m.cart+"/complete",{key:true,body:{}})
-    assert.equal(completed.status,200)
-    assert.equal(completed.data.type,"order")
-    m.order=completed.data.order?.id
-    assert(/^order_[A-Za-z0-9_-]{8,}$/.test(m.order))
-    // Simulate lost acknowledgement: never invoke complete again.
+    denied(await request(m, "POST", completePath(m.cart), {key:true, body:{}}),
+      "Checkout of a minted cart requires the guest credential")
+    assertPhase(m, m.cart, "prepared")
+    if (m.id === "A") {
+      const clone = {...m, base:"http://127.0.0.1:9002"}
+      const results = await Promise.all([dispatch(m, m), dispatch(clone, m)])
+      assert.deepEqual(results.map(result => result.status).sort(), [200, 409],
+        "Only one process may dispatch the checkout")
+      // Discard response bodies. Recovery uses only the credential and the database.
+      m.order = onlyPersistedOrder(m, m.cart)
+    } else {
+      const completed = await dispatch(m, m)
+      assert.equal(completed.status, 200)
+      assert.equal(completed.data.type, "order")
+      m.order = onlyPersistedOrder(m, m.cart)
+      assert.equal(completed.data.order?.id, m.order)
+    }
+    assertPhase(m, m.cart, "claimed_for_dispatch")
     const opts={key:true,headers:{"x-shqipshop-recovery-proof":m.proof}}
     const recovered=await request(m,"GET",m.path,opts)
     assert.equal(recovered.status,200)
@@ -212,9 +260,18 @@ async function verifyBeforeRestart() {
   await verifyRegisteredCart(clone, registered, token)
   console.log("SHQIPSHOP_N03_GUEST_TO_REGISTERED_SECOND_PROCESS_PASSED")
 
+  const unresolved = await mintPendingCart(a)
+  const incomplete = await dispatch(a, unresolved)
+  assert([200, 400, 409, 422].includes(incomplete.status) && incomplete.data.type !== "order",
+    "An incomplete checkout must not report a completed order")
+  assertPhase(a, unresolved.cart, "claimed_for_dispatch")
+  const unconfirmed = await request(a, "GET", recoveryPath(unresolved.cart), proofOptions(unresolved.proof))
+  assert.equal(unconfirmed.status, 200)
+  assert.deepEqual(unconfirmed.data, {state:"unknown"})
+
   // This file exists only on the runner, with access restricted to its owner.
   const {cart, proof, order} = a
-  writeFileSync(handoffFile, JSON.stringify({active:{cart, proof, order}, revoked, registered}),
+  writeFileSync(handoffFile, JSON.stringify({active:{cart, proof, order}, revoked, registered, unresolved}),
     {mode:0o600, flag:"wx"})
 }
 
@@ -222,8 +279,18 @@ async function verifyAfterRestart() {
   const a = guests[0]
   a.key = readFileSync(process.env.SHQIPSHOP_A_KEY_FILE, "utf8").trim()
   assert(a.key.length > 10)
-  const {active, revoked, registered} = JSON.parse(readFileSync(handoffFile, "utf8"))
+  const {active, revoked, registered, unresolved} = JSON.parse(readFileSync(handoffFile, "utf8"))
   await verifyConfirmed(a, active)
+  const unconfirmed = await request(a, "GET", recoveryPath(unresolved.cart), proofOptions(unresolved.proof))
+  assert.equal(unconfirmed.status, 200)
+  assert.deepEqual(unconfirmed.data, {state:"unknown"})
+  assertPhase(a, active.cart, "claimed_for_dispatch")
+  assertPhase(a, unresolved.cart, "claimed_for_dispatch")
+  assert.equal((await dispatch(a, active)).status, 409)
+  assert.equal((await dispatch(a, unresolved)).status, 409)
+  await verifyConfirmed(a, active)
+  assert.equal(onlyPersistedOrder(a, active.cart), active.order)
+  console.log("SHQIPSHOP_N03_MEDUSA_ATTEMPT_RECOVERY_NO_REDISPATCH_PASSED")
   denied(await request(a, "GET", recoveryPath(revoked.cart), proofOptions(revoked.proof)),
     "Restarted process must observe persisted guest revocation")
   await verifyRegisteredCart(a, registered, await loginMerchantA(a))

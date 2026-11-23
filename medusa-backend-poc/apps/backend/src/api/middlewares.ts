@@ -1,6 +1,7 @@
 import { authenticate, configureStoreSearch, defineMiddlewares } from '@medusajs/framework/http'
 import { enforceStage12xCookieCsrfCi } from './middlewares/stage12x-cookie-csrf-ci'
 import { ensureOrderReader } from './middlewares/ensure-order-reader'
+import { claimN03GuestCheckoutCi } from './middlewares/n03-guest-checkout-ci'
 import {verifyF08StrictRefundCi} from './middlewares/f08-refund-amount-ci'
 import { enforceF08CiBearerPolicy, enforceF08CiProfilePolicy, enforceF08CiOwnerCartPolicy } from './middlewares/f08-revocation-ci'
 
@@ -74,7 +75,7 @@ export default defineMiddlewares({
       // Exact-CI proof only: completion requires registered-cart ownership.
       matcher: '/store/carts/:id/complete',
       method: ['POST'],
-      middlewares: [enforceF08CiOwnerCartPolicy],
+      middlewares: [enforceF08CiOwnerCartPolicy, claimN03GuestCheckoutCi],
     },
     {
       // CI-only demonstration of guard injection into a BUILT-IN Medusa
