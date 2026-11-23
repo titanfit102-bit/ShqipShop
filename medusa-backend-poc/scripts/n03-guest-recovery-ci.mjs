@@ -1,12 +1,17 @@
 /** N03 Stage 2b: disposable A/B Medusa guest capability contract.
  * No real PSP, no production hosts, no secret/PII in logs. */
 import assert from "node:assert/strict"
-import { readFileSync, writeFileSync } from "node:fs"
+import { readFileSync, renameSync, writeFileSync } from "node:fs"
 import { execFileSync, spawn } from "node:child_process"
 import { createInterface } from "node:readline"
 import { setTimeout as delay } from "node:timers/promises"
 import { join } from "node:path"
 import { request } from "./boundary-http.mjs"
+import { createCheckoutRecoveryClient } from "./n03-checkout-recovery-client.mjs"
+import {
+  ORDER_COMPLETION_PENDING_KEY,
+  reserveOrderCompletion,
+} from "../../native-medusa/app/data/order-completion-recovery.ts"
 
 assert.equal(process.env.CI, "true")
 assert.equal(process.env.NODE_ENV, "development")
@@ -72,6 +77,80 @@ function onlyPersistedOrder(merchant, cart) {
   return observed
 }
 
+const localCartKey = "cart_id"
+const recoveryScenarios = new Set([
+  "guest-confirmed", "guest-sealed", "guest-interrupted", "registered-confirmed", "registered-sealed",
+])
+
+function recoveryStorage(scenario) {
+  assert(recoveryScenarios.has(scenario))
+  const path = join(process.env.RUNNER_TEMP, "n03-client-" + scenario + ".json")
+  const read = () => JSON.parse(readFileSync(path, "utf8"))
+  function write(data) {
+    const replacement = path + ".next"
+    writeFileSync(replacement, JSON.stringify(data), {mode:0o600, flag:"wx"})
+    renameSync(replacement, path)
+  }
+  return {
+    initialize(cartId) {
+      writeFileSync(path, JSON.stringify({[localCartKey]:cartId}), {mode:0o600, flag:"wx"})
+    },
+    async getItem(key) { return read()[key] ?? null },
+    async setItem(key, value) { write({...read(), [key]:value}) },
+    async removeItem(key) {
+      const data = read()
+      delete data[key]
+      write(data)
+    },
+  }
+}
+
+async function reserveClientAttempt(scenario, cartId) {
+  const storage = recoveryStorage(scenario)
+  storage.initialize(cartId)
+  await reserveOrderCompletion(cartId, storage)
+}
+
+async function verifyClientRecovery(merchant, scenario, cart, options, expected) {
+  const storage = recoveryStorage(scenario)
+  assert.equal(await storage.getItem(ORDER_COMPLETION_PENDING_KEY), cart)
+  let reads = 0
+  let receipts = 0
+  const client = createCheckoutRecoveryClient({
+    storage,
+    readOutcome: id => {
+      reads++
+      const path = scenario.startsWith("registered-")
+        ? registeredEndpoint + "?cart_id=" + encodeURIComponent(id)
+        : recoveryPath(id)
+      return request(merchant, "GET", path, options)
+    },
+    readReceipt: id => {
+      receipts++
+      return request(merchant, "GET", receiptPath(id), options)
+    },
+    async discardCart(id) {
+      const saved = await storage.getItem(localCartKey)
+      assert(saved === id || saved === null, "Disposable client may discard only its original cart")
+      await storage.removeItem(localCartKey)
+    },
+    isCurrent: () => merchant.base === "http://127.0.0.1:9000",
+  })
+  assert.deepEqual(await client.recover(), expected)
+  assert.equal(reads, 1)
+  assert.equal(receipts, expected.state === "confirmed" ? 1 : 0)
+  if (expected.state === "pending") {
+    assert.equal(await storage.getItem(ORDER_COMPLETION_PENDING_KEY), cart)
+    assert.equal(await storage.getItem(localCartKey), cart)
+    await assert.rejects(reserveOrderCompletion(cart, storage), /confirmation pending/)
+  } else {
+    assert.equal(await storage.getItem(ORDER_COMPLETION_PENDING_KEY), null)
+    assert.equal(await storage.getItem(localCartKey), null)
+    assert.deepEqual(await client.recover(), {state:"idle"})
+    assert.equal(reads, 1, "A terminal result is not replayed")
+  }
+}
+
 async function dispatch(merchant, fixture) {
   return request(merchant, "POST", completePath(fixture.cart), {
     ...proofOptions(fixture.proof), body:{},
@@ -102,6 +181,7 @@ async function verifyCancellation(merchant, clone) {
   denied(forbidden, "Cancellation requires the guest credential")
   assertPhase(merchant, sealed.cart, "prepared")
 
+  await reserveClientAttempt("guest-sealed", sealed.cart)
   const cancelled = await cancel(merchant, sealed)
   assert.equal(cancelled.status, 200)
   assert.deepEqual(cancelled.data, {state:"no_order"})
@@ -239,6 +319,7 @@ async function verifyRegisteredCancellation(merchant, clone) {
   denied(await completeRegistered(merchant, cart, shopper), "Only the owning customer can dispatch")
   assertPhase(merchant, cart, "prepared")
 
+  await reserveClientAttempt("registered-sealed", cart)
   const [first, repeat] = await Promise.all([
     cancelRegistered(merchant, cart, owner),
     cancelRegistered(clone, cart, owner),
@@ -269,6 +350,7 @@ async function verifyRegisteredCancellation(merchant, clone) {
   // Independently cover the dispatch-first result even when cancellation wins the race.
   const dispatched = await mintRegisteredCart(merchant, shopper)
   await prepareCheckout(merchant, {cart:dispatched}, shopperEmail, shopper)
+  await reserveClientAttempt("registered-confirmed", dispatched)
   const order = await completeRegistered(merchant, dispatched, shopper)
   assert.equal(order.status, 200)
   assert.equal(order.data.type, "order")
@@ -370,6 +452,7 @@ async function verifyBeforeRestart() {
       "Checkout of a minted cart requires the guest credential")
     assertPhase(m, m.cart, "prepared")
     if (m.id === "A") {
+      await reserveClientAttempt("guest-confirmed", m.cart)
       const clone = {...m, base:"http://127.0.0.1:9002"}
       const results = await Promise.all([dispatch(m, m), dispatch(clone, m)])
       assert.deepEqual(results.map(result => result.status).sort(), [200, 409],
@@ -462,6 +545,7 @@ async function verifyBeforeRestart() {
   assert.equal(fixtureQuery(a, interrupted.cart,
     `SELECT count(*) FROM cart WHERE id = :'cart' AND customer_id IS NOT NULL;`), "1")
   assert.equal(persistedGuestOrders(a, interrupted.cart), "")
+  await reserveClientAttempt("guest-interrupted", interrupted.cart)
 
   // This file exists only on the runner, with access restricted to its owner.
   const {cart, proof, order} = a
@@ -558,6 +642,18 @@ async function verifyAfterRestart() {
   assert.equal((await dispatch(a, unresolved)).status, 409)
   await verifyConfirmed(a, active)
   assert.equal(onlyPersistedOrder(a, active.cart), active.order)
+  await verifyClientRecovery(a, "guest-confirmed", active.cart, proofOptions(active.proof),
+    {state:"confirmed", orderId:active.order})
+  await verifyClientRecovery(a, "guest-sealed", sealed.cart, proofOptions(sealed.proof), {state:"no_order"})
+  await verifyClientRecovery(a, "guest-interrupted", interrupted.cart, proofOptions(interrupted.proof),
+    {state:"pending"})
+  await verifyClientRecovery(a, "registered-confirmed", registeredAttempt.dispatched, {key:true, token:shopper},
+    {state:"confirmed", orderId:registeredAttempt.order})
+  await verifyClientRecovery(a, "registered-sealed", registeredAttempt.cart, {key:true, token:owner},
+    {state:"no_order"})
+  assert.equal(onlyPersistedOrder(a, active.cart), active.order)
+  assert.equal(persistedGuestOrders(a, interrupted.cart), "")
+  console.log("SHQIPSHOP_N03_DISPOSABLE_CLIENT_TERMINAL_AND_PENDING_RECOVERY_PASSED")
   console.log("SHQIPSHOP_N03_MEDUSA_ATTEMPT_RECOVERY_NO_REDISPATCH_PASSED")
   denied(await request(a, "GET", recoveryPath(revoked.cart), proofOptions(revoked.proof)),
     "Restarted process must observe persisted guest revocation")

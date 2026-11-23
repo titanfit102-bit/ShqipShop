@@ -6,10 +6,12 @@ on:
     paths:
       - .github/workflows/parallel-medusa-isolation-ci.yml
       - medusa-backend-poc/**
+      - native-medusa/app/data/order-completion-recovery.ts
   pull_request:
     paths:
       - .github/workflows/parallel-medusa-isolation-ci.yml
       - medusa-backend-poc/**
+      - native-medusa/app/data/order-completion-recovery.ts
   workflow_dispatch:
 
 permissions:
@@ -82,6 +84,7 @@ jobs:
         run: |
           node --check scripts/parallel-auth-boundary.mjs
           node --check scripts/n03-guest-recovery-ci.mjs
+          node --test scripts/n03-checkout-recovery-client.test.mjs
           node --check scripts/verify-redis-session-handoff.mjs
           node --check scripts/parallel-mutation-boundary.mjs
           node --test scripts/boundary-http.test.mjs
@@ -206,7 +209,7 @@ jobs:
             if [ -n "$interruption_client" ]; then
               kill "$interruption_client" 2>/dev/null || true
             fi
-            rm -f -- "$SHQIPSHOP_N03_HANDOFF_FILE" "$RUNNER_TEMP/n03-checkout-blocked"
+            rm -f -- "$SHQIPSHOP_N03_HANDOFF_FILE" "$RUNNER_TEMP/n03-checkout-blocked"               "$RUNNER_TEMP"/n03-client-*.json "$RUNNER_TEMP"/n03-client-*.json.next
           }
           trap cleanup EXIT
           ready=0
