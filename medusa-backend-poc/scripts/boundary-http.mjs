@@ -9,7 +9,11 @@ export const unchanged = (actual, expected, context) =>
   assert(isDeepStrictEqual(actual, expected), context + ": unexpected side effect")
 
 export async function request(m, method, path, {token, key, body, cookie, headers={}}={}) {
-  assert(["http://127.0.0.1:9000", "http://127.0.0.1:9001"].includes(m.base), "CI localhost only")
+  const allowedBases = ["http://127.0.0.1:9000", "http://127.0.0.1:9001"]
+  if (process.env.SHQIPSHOP_N03_GUEST_RECOVERY_PROBE === "true") {
+    allowedBases.push("http://127.0.0.1:9002")
+  }
+  assert(allowedBases.includes(m.base), "CI localhost only")
   assert(path.startsWith("/") && !path.startsWith("//"), "Relative API path required")
   const response = await fetch(m.base + path, {
     method,

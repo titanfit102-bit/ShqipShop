@@ -168,6 +168,7 @@ jobs:
           SHQIPSHOP_B_ORDER_FILE: ${{ runner.temp }}/merchant-b-order.txt
           SHQIPSHOP_A_CART_FILE: ${{ runner.temp }}/merchant-a-cart.txt
           SHQIPSHOP_B_CART_FILE: ${{ runner.temp }}/merchant-b-cart.txt
+          SHQIPSHOP_N03_HANDOFF_FILE: ${{ runner.temp }}/n03-guest-handoff.json
           SHQIPSHOP_CI_SESSION_PROOF_FILE: ${{ runner.temp }}/merchant-session-proof.json
           SHQIPSHOP_CHANNEL_A_FILE: ${{ runner.temp }}/merchant-a-second-channel.txt
           SHQIPSHOP_CHANNEL_B_FILE: ${{ runner.temp }}/merchant-b-second-channel.txt
@@ -185,15 +186,19 @@ jobs:
             echo "::add-mask::$value"
           done
           test "$secret_a" != "$secret_b" && test "$cookie_a" != "$cookie_b"
-          SHQIPSHOP_N03_GUEST_RECOVERY_CI=true SHQIPSHOP_N03_RECOVERY_CI=true DATABASE_URL='postgres://shqipshop_ci_a:merchantA_disposable@127.0.0.1:5432/shqipshop_ci_a' REDIS_URL='redis://127.0.0.1:6379' JWT_SECRET="$secret_a" COOKIE_SECRET="$cookie_a" pnpm --filter @dtc/backend exec medusa develop --port 9000 > "$RUNNER_TEMP/merchant-a.log" 2>&1 &
+          start_merchant_a() {
+            SHQIPSHOP_N03_GUEST_RECOVERY_CI=true SHQIPSHOP_N03_RECOVERY_CI=true DATABASE_URL='postgres://shqipshop_ci_a:merchantA_disposable@127.0.0.1:5432/shqipshop_ci_a' REDIS_URL='redis://127.0.0.1:6379' JWT_SECRET="$secret_a" COOKIE_SECRET="$cookie_a" setsid pnpm --filter @dtc/backend exec medusa develop --port "$1" > "$2" 2>&1 &
+          }
+          start_merchant_a 9000 "$RUNNER_TEMP/merchant-a.log"
           pid_a=$!
-          SHQIPSHOP_N03_GUEST_RECOVERY_CI=true SHQIPSHOP_N03_RECOVERY_CI=true DATABASE_URL='postgres://shqipshop_ci_b:merchantB_disposable@127.0.0.1:5432/shqipshop_ci_b' REDIS_URL='redis://127.0.0.1:6381' JWT_SECRET="$secret_b" COOKIE_SECRET="$cookie_b" pnpm --filter @dtc/backend exec medusa develop --port 9001 > "$RUNNER_TEMP/merchant-b.log" 2>&1 &
+          SHQIPSHOP_N03_GUEST_RECOVERY_CI=true SHQIPSHOP_N03_RECOVERY_CI=true DATABASE_URL='postgres://shqipshop_ci_b:merchantB_disposable@127.0.0.1:5432/shqipshop_ci_b' REDIS_URL='redis://127.0.0.1:6381' JWT_SECRET="$secret_b" COOKIE_SECRET="$cookie_b" setsid pnpm --filter @dtc/backend exec medusa develop --port 9001 > "$RUNNER_TEMP/merchant-b.log" 2>&1 &
           pid_b=$!
           pid_clone=""
           cleanup() {
             for pid in "$pid_a" "$pid_b" "$pid_clone"; do
-              if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; fi
+              if [ -n "$pid" ]; then kill -TERM -- "-$pid" 2>/dev/null || true; fi
             done
+            rm -f -- "$SHQIPSHOP_N03_HANDOFF_FILE"
           }
           trap cleanup EXIT
           ready=0
@@ -214,11 +219,11 @@ jobs:
           SHQIPSHOP_CI_MEDUSA_PORT=9001 SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE="$SHQIPSHOP_B_KEY_FILE" SHQIPSHOP_CI_EMPTY_CHANNEL_KEY_FILE="$SHQIPSHOP_CHANNEL_B_FILE" SHQIPSHOP_CI_ORDER_ID_FILE="$SHQIPSHOP_B_ORDER_FILE" SHQIPSHOP_CI_CART_ID_FILE="$SHQIPSHOP_B_CART_FILE" node scripts/store-api-checkout.mjs
           node scripts/parallel-merchant-boundary.mjs
           SHQIPSHOP_N03_RECOVERY_PROBE=true node scripts/parallel-auth-boundary.mjs
-          SHQIPSHOP_N03_GUEST_RECOVERY_PROBE=true node scripts/n03-guest-recovery-ci.mjs
+          export SHQIPSHOP_N03_GUEST_RECOVERY_PROBE=true
           # Spin up a separate merchant-A Medusa process using the SAME
           # database, Redis, JWT secret and cookie secret. A's existing cookie
           # must resolve on this process without a bearer token.
-          DATABASE_URL='postgres://shqipshop_ci_a:merchantA_disposable@127.0.0.1:5432/shqipshop_ci_a' REDIS_URL='redis://127.0.0.1:6379' JWT_SECRET="$secret_a" COOKIE_SECRET="$cookie_a" pnpm --filter @dtc/backend exec medusa develop --port 9002 > "$RUNNER_TEMP/merchant-a-clone.log" 2>&1 &
+          start_merchant_a 9002 "$RUNNER_TEMP/merchant-a-clone.log"
           pid_clone=$!
           clone_ready=0
           for i in $(seq 1 100); do
@@ -237,6 +242,30 @@ jobs:
           kill -0 "$pid_a" && kill -0 "$pid_b" && kill -0 "$pid_clone"
           # Require actual BullMQ queues on both tenant Redis endpoints.
           python3 scripts/verify-redis-runtime.py
+          node scripts/n03-guest-recovery-ci.mjs
+          kill -TERM -- "-$pid_a"
+          wait "$pid_a" 2>/dev/null || true
+          pid_a=""
+          # Require evidence that the original port stopped serving before reusing it.
+          if curl -fsS --max-time 3 http://127.0.0.1:9000/health >/dev/null 2>&1; then
+            echo '::error::Original merchant A API still responds after shutdown'
+            exit 1
+          fi
+          start_merchant_a 9000 "$RUNNER_TEMP/merchant-a-restarted.log"
+          pid_a=$!
+          ready=0
+          for i in $(seq 1 100); do
+            if curl -fsS --max-time 3 http://127.0.0.1:9000/health >/dev/null 2>&1; then
+              ready=1; break
+            fi
+            if ! kill -0 "$pid_a" 2>/dev/null; then break; fi
+            sleep 3
+          done
+          if [ "$ready" != 1 ]; then
+            echo '::error::Restarted merchant A API failed readiness'
+            exit 1
+          fi
+          node scripts/n03-guest-recovery-ci.mjs after-restart
           echo 'SHQIPSHOP_PARALLEL_MERCHANT_ORDER_ISOLATION_PASSED'
       - name: Statement of limits
         if: always()
