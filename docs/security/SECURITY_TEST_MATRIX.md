@@ -1,5 +1,18 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-23 — N03 Stage 2b2 guest recovery lifecycle, scoped CI VERIFIED
+
+[source 0043f9f](https://github.com/titanfit102-bit/ShqipShop/commit/0043f9f75c00ae615c8169d006288dfce1fcfaa7), [parallel Medusa A/B #45246290567](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45246290567) **SUCCESS** on Medusa 2.22.0 and disposable PostgreSQL/Redis.
+
+| Scenario | Verified outcome |
+| --- | --- |
+| Second same-merchant API and API after restart | Both returned the original confirmed order and private receipt with the guest credential |
+| Revocation on the second process | Original and restarted API denied the revoked pending-cart credential |
+| Authenticated account association of a separate pending guest cart | Second and restarted API denied the old guest credential and returned `unknown` for the registered owner |
+| Existing guest and A/B isolation tests | Passed, including revocation and expiry checks on private receipts |
+
+Evidence covers ordered calls and an API process restart for merchant A. Concurrent ownership/revocation and read operations, payment attempt finality, native recovery and real-provider flows remain open.
+
 ## 2026-11-17 — N03 Stage 2b1 fresh guest cart/capability + receipt (disposable A/B)
 
 [Source 9f1f3b68](https://github.com/titanfit102-bit/ShqipShop/commit/9f1f3b684008cdeea2934eb675c8d0b294507e59), [A/B HTTP/PG CI #44179914333](https://github.com/titanfit102-bit/ShqipShop/actions/runs/44179914333) SUCCESS. [Original failure #44178994327](https://github.com/titanfit102-bit/ShqipShop/actions/runs/44178994327) proved old cart-ID receipt access for new guest cart BEFORE fix.

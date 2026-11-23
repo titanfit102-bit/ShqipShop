@@ -1,5 +1,9 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-23 — N03 Stage 2b2 guest recovery lifecycle, scoped CI VERIFIED
+
+[parallel Medusa A/B #45246290567](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45246290567) verified [source 0043f9f](https://github.com/titanfit102-bit/ShqipShop/commit/0043f9f75c00ae615c8169d006288dfce1fcfaa7). Guest recovery and receipt work on a second same-merchant process and after restart. Revocation and sequential guest-to-registered ownership survived restart. Next is the disposable PostgreSQL attempt ledger and crash/retry proof for final `no_order`, followed by native/PWA integration when the backend can resolve ambiguous attempts. R01/R02/R03 and release gates remain open.
+
 ## 2026-11-17 — N03 Stage 2b1 guest recovery credential and private receipt VERIFIED in A/B CI
 
 [Code 9f1f3b68](https://github.com/titanfit102-bit/ShqipShop/commit/9f1f3b684008cdeea2934eb675c8d0b294507e59), [A/B CI #44179914333](https://github.com/titanfit102-bit/ShqipShop/actions/runs/44179914333) SUCCESS; [pre-fix receipt access #44178994327](https://github.com/titanfit102-bit/ShqipShop/actions/runs/44178994327) FAIL as intended. Server creates a new guest cart and independent capability together; 32-byte random credential stored only as keyed digest, 4h CI expiry/revocation. Owned minted-cart receipt requires new token, not legacy cart ID. Medusa A/B separate backend/PostgreSQL proof covers unknown→confirmed, cross-tenant/foreign/wrong/expired/revoked/no-proof denials, without checkout replay. Stage 2b1 CI VERIFIED **only for freshly minted prototype carts**. NEXT Stage 2b2: second process/restart persistence and guest→registered, durable server attempt outcome; Stage 2c: native/PWA recovery UI after backend authority. Legacy guest cart/receipt, real PSP, app, global CSRF, P0 refund, Medusa patched release baseline OPEN. No release.

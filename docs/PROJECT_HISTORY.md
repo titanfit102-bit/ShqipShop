@@ -1,5 +1,9 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-23 — N03 Stage 2b2 guest recovery lifecycle, scoped CI VERIFIED
+
+[source 0043f9f](https://github.com/titanfit102-bit/ShqipShop/commit/0043f9f75c00ae615c8169d006288dfce1fcfaa7) extended the existing A/B test workflow with a second-process and restart lifecycle for guest credentials. [parallel Medusa A/B #45246290567](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45246290567) passed recovery of the original order and receipt, persisted revocation, sequential guest-to-account transfer, and the existing isolation/expiry coverage. Changes were limited to tests and workflow orchestration. See [CURRENT_STATE](CURRENT_STATE.md) for remaining scope.
+
 ## 2026-11-17 — N03 Stage 2b1 guest proof and receipt security CI milestone
 
 New CI-only guest route builds a fresh Medusa cart with separate 32-byte proof (digest-only PostgreSQL storage, 4h expiry, DELETE revocation). [Initial code d8250059](https://github.com/titanfit102-bit/ShqipShop/commit/d8250059046d3616b3fa83d6378a4688f9684e8c) [A/B #44178304459](https://github.com/titanfit102-bit/ShqipShop/actions/runs/44178304459) passed. A new regression exposed that the original F06 built-in receipt still honored cart-ID proof for minted carts, [red #44178994327](https://github.com/titanfit102-bit/ShqipShop/actions/runs/44178994327); [scoped fix 2e75b621](https://github.com/titanfit102-bit/ShqipShop/commit/2e75b62145e9030a52f1138e5320463c79c4b30d) and expiry-receipt assertion [final CI #44179914333](https://github.com/titanfit102-bit/ShqipShop/actions/runs/44179914333) passed on A/B with all older boundary tests retained. Only disposable A/B backend and tests changed; no Production/Medusa baseline/payment/main changes. Canonical risk/next steps in [CURRENT_STATE](CURRENT_STATE.md), N03 still PARTIAL and NO RELEASE.
