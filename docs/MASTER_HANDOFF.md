@@ -1,5 +1,9 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-23 — N03 registered checkout cancellation and recovery, CI VERIFIED
+
+[Current state](CURRENT_STATE.md). [source d88ea6d](https://github.com/titanfit102-bit/ShqipShop/commit/d88ea6d2fb46b850a520829be8553a83edd33d38) and [Medusa A/B CI #45281995719](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45281995719) verified registered-owner cancellation and durable recovery in disposable Medusa. Non-owner operations were denied. After a restart a sealed attempt returned `no_order` with zero orders, and a separately completed attempt returned its original confirmed order. Neither attempt could dispatch again. Next prove the disposable client recovery behavior for sealed, confirmed and unknown results. N03 PARTIAL and release BLOCKED. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft.
+
 ## 2026-11-23 — N03 pre-dispatch cancellation and durable no_order, CI VERIFIED
 
 [Current state](CURRENT_STATE.md). [source 972035e](https://github.com/titanfit102-bit/ShqipShop/commit/972035e72a348de094d54b3d1e54e858ade7a975) in [Medusa A/B CI #45277227946](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45277227946) verified durable `no_order` after a pre-dispatch guest cancellation. The sealed attempt was idempotent across processes, survived API restart and rejected checkout with zero persisted orders. The concurrent dispatch race had a single winner. A previously claimed attempt still could not be cancelled. Next prove an equivalent registered customer contract before application integration. N03 PARTIAL and release BLOCKED. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft.

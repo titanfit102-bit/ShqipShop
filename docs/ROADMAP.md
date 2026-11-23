@@ -1,5 +1,9 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-23 — N03 registered checkout cancellation and recovery, CI VERIFIED
+
+[Medusa A/B CI #45281995719](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45281995719) verified [source d88ea6d](https://github.com/titanfit102-bit/ShqipShop/commit/d88ea6d2fb46b850a520829be8553a83edd33d38). Tracked registered checkout has owner-bound cancellation and recovery, cross-process dispatch exclusion and durable final states after restart. Next wire and test these results in the disposable client. Live payment reconciliation and release blockers remain open.
+
 ## 2026-11-23 — N03 pre-dispatch cancellation and durable no_order, CI VERIFIED
 
 [Medusa A/B CI #45277227946](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45277227946) verified [source 972035e](https://github.com/titanfit102-bit/ShqipShop/commit/972035e72a348de094d54b3d1e54e858ade7a975). Exact-CI guest cancellation persists a pre-dispatch seal and restores `no_order` after restart. Cancellation and finalization cannot both succeed for one attempt. Next validate equivalent registered customer cancellation and recovery before connecting clients. Release blockers remain open.

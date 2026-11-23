@@ -1,5 +1,19 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-23 — N03 registered checkout cancellation and recovery, CI VERIFIED
+
+[source d88ea6d](https://github.com/titanfit102-bit/ShqipShop/commit/d88ea6d2fb46b850a520829be8553a83edd33d38), [Medusa A/B CI #45281995719](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45281995719), verify the disposable registered checkout flow.
+
+| Scenario | Observed outcome |
+| --- | --- |
+| Non-owner registered requests and anonymous cancellation | Denied. Owner could still cancel the prepared attempt |
+| Owner cancellation on two API processes, then restart | Idempotent `no_order`, HTTP 409 on completion and zero orders for the fixture owner |
+| Owner cancellation racing checkout on separate processes | One success and one conflict. Recovery matched the persisted outcome |
+| Separate completed attempt after API restart | Same order ID and HTTP 409 on redispatch |
+| Existing guest and interrupted checkout cases | Passed in the same workflow |
+
+These tests use a synthetic provider and a disposable CI environment. Client integration, external settlement and release remain open.
+
 ## 2026-11-23 — N03 pre-dispatch cancellation and durable no_order, CI VERIFIED
 
 [source 972035e](https://github.com/titanfit102-bit/ShqipShop/commit/972035e72a348de094d54b3d1e54e858ade7a975), [Medusa A/B CI #45277227946](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45277227946), verify these isolated Medusa outcomes.

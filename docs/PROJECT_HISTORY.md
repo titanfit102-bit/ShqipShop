@@ -1,5 +1,9 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-23 — N03 registered checkout cancellation and recovery, CI VERIFIED
+
+[source d88ea6d](https://github.com/titanfit102-bit/ShqipShop/commit/d88ea6d2fb46b850a520829be8553a83edd33d38) added a disposable registered checkout attempt bound to the Medusa customer. [Medusa A/B CI #45281995719](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45281995719) verified owner-only access, cross-process cancellation and completion, and durable cancelled and confirmed outcomes after restart. See [CURRENT_STATE](CURRENT_STATE.md).
+
 ## 2026-11-23 — N03 pre-dispatch cancellation and durable no_order, CI VERIFIED
 
 [source 972035e](https://github.com/titanfit102-bit/ShqipShop/commit/972035e72a348de094d54b3d1e54e858ade7a975) added the guest pre-dispatch cancellation operation to the isolated Medusa runtime. [Medusa A/B CI #45277227946](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45277227946) verified credential checks, persistence, idempotency, cross-process contention and the interrupted checkout regression. See [CURRENT_STATE](CURRENT_STATE.md).
