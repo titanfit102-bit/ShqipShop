@@ -1,5 +1,9 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-24 — N03 native Cart recovery, development-only
+
+[Current state](CURRENT_STATE.md). [source d009294](https://github.com/titanfit102-bit/ShqipShop/commit/d0092941926eb6e21063528658951ce419b4f4fc) connected the existing native Cart screen to the shared read-only recovery action in opted-in development builds. Recovery uses buyer and backend-scoped markers, validates the receipt and fences stale sessions before cleanup and navigation. Guest and legacy journals remain pending in the native screen. [Native CI #45289026040](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45289026040) and [Medusa A/B CI #45289026050](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45289026050) passed. Next prove the tracked registered cart and cancellation flow on a debug emulator. N03 PARTIAL and release BLOCKED. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft.
+
 ## 2026-11-24 — N03 disposable client recovery, CI VERIFIED
 
 [Current state](CURRENT_STATE.md). [source d8b02ea](https://github.com/titanfit102-bit/ShqipShop/commit/d8b02ea2d52d91d9ede4e2e042142f6d5a7b16f3) and [Medusa A/B CI #45285394746](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45285394746) verified the disposable client with the native completion journal contract, filesystem backing and real Medusa CI endpoints. Confirmed orders required the matching receipt. Sealed carts were discarded only after `no_order`. The interrupted cart retained its pending marker and blocked a fresh reservation. Next apply and test the action in the native recovery screen with identity-scoped storage. N03 PARTIAL and release BLOCKED. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft.

@@ -1,5 +1,15 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-24 — N03 native Cart recovery, development-only
+
+[source d009294](https://github.com/titanfit102-bit/ShqipShop/commit/d0092941926eb6e21063528658951ce419b4f4fc). The native Cart offers **Check order status** for registered customers in development builds with `N03_REGISTERED_RECOVERY=true`. Newly reserved registered checkout journals bind the cart to its backend URL and to the customer verified by Medusa during checkout. Legacy plain-cart markers and journals for a different principal or backend remain pending and are never sent to recovery. The Cart and the disposable client use the same TypeScript recovery action.
+
+A verified receipt opens OrderDetail after scoped cart cleanup. A verified `no_order` releases the sealed cart. `unknown`, failed requests, invalid receipts and storage errors retain the pending state. Logout or account transition invalidates an in-flight read, and a second checkout reservation remains blocked. A `type: cart` response for an opted-in registered submission retains the journal until the server can verify its outcome.
+
+**Evidence:** [Native CI #45289026040](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45289026040) and [Medusa A/B CI #45289026050](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45289026050). Native lint, TypeScript and 120 Jest tests passed. The shared recovery action passed the five disposable Medusa scenarios.
+
+**Scope and next step:** An Android/iOS device or emulator did not run this new UI path. The native app still creates normal carts. A native `no_order` outcome requires a cart provisioned and sealed by the disposable server flow. Next provision tracked registered carts for the debug client and exercise the flow on an emulator after a simulated lost response. R01/R02/R03 and RG-01/02/03/G3/G5 continue to block release. PR #12 Draft on #11.
+
 ## 2026-11-24 — N03 disposable client recovery, CI VERIFIED
 
 [source d8b02ea](https://github.com/titanfit102-bit/ShqipShop/commit/d8b02ea2d52d91d9ede4e2e042142f6d5a7b16f3) and [Medusa A/B CI #45285394746](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45285394746). A disposable client action uses the existing native completion journal contract with local fixture storage. It reads the Medusa recovery outcome and verifies the exact receipt before finalizing `confirmed`. An explicit `no_order` discards the sealed cart and clears the journal. `unknown`, unreadable outcomes, denied requests, inconsistent receipts, stale scope and failed cleanup retain the pending result. The action uses read-only HTTP operations and never resubmits checkout.

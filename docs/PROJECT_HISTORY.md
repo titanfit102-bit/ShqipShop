@@ -1,5 +1,9 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-24 — N03 native Cart recovery, development-only
+
+[source d009294](https://github.com/titanfit102-bit/ShqipShop/commit/d0092941926eb6e21063528658951ce419b4f4fc) added the development-only native Cart recovery action, scoped registered checkout journals and React screen tests. The disposable Node client now consumes the same TypeScript recovery logic. See [CURRENT_STATE](CURRENT_STATE.md).
+
 ## 2026-11-24 — N03 disposable client recovery, CI VERIFIED
 
 [source d8b02ea](https://github.com/titanfit102-bit/ShqipShop/commit/d8b02ea2d52d91d9ede4e2e042142f6d5a7b16f3) linked the disposable checkout client to Medusa recovery using the existing native completion journal contract. [Medusa A/B CI #45285394746](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45285394746) verified five persisted guest/registered recovery cases and defensive client behavior. See [CURRENT_STATE](CURRENT_STATE.md).

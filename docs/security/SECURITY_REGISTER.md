@@ -1,5 +1,9 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-24 — N03 native Cart recovery, development-only
+
+[source d009294](https://github.com/titanfit102-bit/ShqipShop/commit/d0092941926eb6e21063528658951ce419b4f4fc) adds a read-only native recovery action with backend, customer and cart binding. Markers for another scope, stale identity responses and uncertain outcomes preserve the checkout lock. Tests cover refusal to navigate or clean up after an authentication change. Device behavior and production recovery remain open. R01/R02/R03 and RG-01/02/03/G3/G5 remain blockers.
+
 ## 2026-11-24 — N03 disposable client recovery, CI VERIFIED
 
 [source d8b02ea](https://github.com/titanfit102-bit/ShqipShop/commit/d8b02ea2d52d91d9ede4e2e042142f6d5a7b16f3) and [Medusa A/B CI #45285394746](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45285394746) verified read-only client recovery with pending journals persisted across the disposable client and API restart. Matching receipts or an explicit sealed result permit cleanup. An interrupted unresolved attempt remains pending and refuses a new reservation. Native/PWA integration, real-device storage behavior, live payment reconciliation and release gates remain open.
