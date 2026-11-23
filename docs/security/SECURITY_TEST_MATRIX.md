@@ -1,5 +1,21 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-23 — N03 durable checkout attempt fence, PostgreSQL CI VERIFIED
+
+[source 9beea06](https://github.com/titanfit102-bit/ShqipShop/commit/9beea06175e8187ef6b20a16ba5a23a3100f6439), [PostgreSQL A/B CI #45248023234](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45248023234), verify these fixture-level PostgreSQL conditions.
+
+| Scenario | Observed outcome |
+| --- | --- |
+| Missing or prepared attempt | `unknown` |
+| Seal requested with a mismatched cart | Rejected without changing the attempt |
+| Explicit seal before a dispatch claim | `no_order`; repeat seal and dispatch claim rejected |
+| Connection loss with uncommitted dispatch claim | Rollback preserves `unknown`; a subsequent explicit seal succeeds |
+| Connection loss after committing dispatch claim | `unknown`; neither redispatch claim nor seal succeeds |
+| Competing claims or claim versus seal | Exactly one state change, with the result matching the winning write |
+| Identical synthetic ID and cart on separate merchant databases | Distinct outcomes persisted independently |
+
+The fixture runs without Medusa order creation, payment dispatch or provider reconciliation. Production finality and application recovery remain open.
+
 ## 2026-11-23 — N03 Stage 2b2 guest recovery lifecycle, scoped CI VERIFIED
 
 [source 0043f9f](https://github.com/titanfit102-bit/ShqipShop/commit/0043f9f75c00ae615c8169d006288dfce1fcfaa7), [parallel Medusa A/B #45246290567](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45246290567) **SUCCESS** on Medusa 2.22.0 and disposable PostgreSQL/Redis.

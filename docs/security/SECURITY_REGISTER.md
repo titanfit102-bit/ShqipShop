@@ -1,5 +1,9 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-23 — N03 durable checkout attempt fence, PostgreSQL CI VERIFIED
+
+[source 9beea06](https://github.com/titanfit102-bit/ShqipShop/commit/9beea06175e8187ef6b20a16ba5a23a3100f6439) and [PostgreSQL A/B CI #45248023234](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45248023234) verified the fixture's pre-dispatch seal, mutually exclusive claim/seal, and a persistent ambiguous outcome after losing a committed claim's connection. This step exercises disposable databases directly. Authorization and order/payment authority stay with the separate Medusa workflow proofs. Full application adoption, real-provider finality and checkout replay policy remain open. R01/R02/R03 and RG-01/02/03/G3/G5 block release.
+
 ## 2026-11-23 — N03 Stage 2b2 guest recovery lifecycle, scoped CI VERIFIED
 
 [parallel Medusa A/B #45246290567](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45246290567) verified [source 0043f9f](https://github.com/titanfit102-bit/ShqipShop/commit/0043f9f75c00ae615c8169d006288dfce1fcfaa7). A fresh process on the same disposable merchant, and the original API after restart, could recover the intended guest order and receipt. A revoked pending-cart credential remained unusable after restart. After sequential guest-to-account transfer of a separate pending cart, the guest credential was denied while the registered owner could read `unknown` on either process. Legacy guest behavior, concurrent transition and read semantics, real provider reconciliation and authoritative negative outcomes remain open. R01/R02/R03 and RG-01/02/03/G3/G5 block release.

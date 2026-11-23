@@ -1,5 +1,9 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-23 — N03 durable checkout attempt fence, PostgreSQL CI VERIFIED
+
+[Current state](CURRENT_STATE.md). [source 9beea06](https://github.com/titanfit102-bit/ShqipShop/commit/9beea06175e8187ef6b20a16ba5a23a3100f6439) passed the PostgreSQL finality step in [PostgreSQL A/B CI #45248023234](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45248023234). The only proof of `no_order` in this fixture is a persisted seal before a dispatch claim. A committed claim remains `unknown` after lost connection, and subsequent claim/seal attempts are rejected. Next connect the attempt model to disposable Medusa completion and verify order/attempt reconciliation on restart before native or PWA wiring. N03 is PARTIAL. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft.
+
 ## 2026-11-23 — N03 Stage 2b2 guest recovery lifecycle, scoped CI VERIFIED
 
 [Current state and next work](CURRENT_STATE.md). Verified [source 0043f9f](https://github.com/titanfit102-bit/ShqipShop/commit/0043f9f75c00ae615c8169d006288dfce1fcfaa7) in [parallel Medusa A/B #45246290567](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45246290567). A second process and a restarted process recovered the same synthetic guest order and receipt. The restarted API honored persisted revocation and registered ownership on separate pending carts. The proof used Medusa 2.22.0 with isolated test databases and Redis, and the ownership transition ran in sequence. Continue with the durable attempt ledger and authoritative final `no_order` proof before app integration. N03 PARTIAL, release BLOCKED by R01/R02/R03 and RG-01/02/03/G3/G5. Resume in `feat/merchant-auth-boundary-ci`, PR #12 Draft on #11.
