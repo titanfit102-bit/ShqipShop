@@ -198,11 +198,15 @@ jobs:
           SHQIPSHOP_N03_GUEST_RECOVERY_CI=true SHQIPSHOP_N03_RECOVERY_CI=true DATABASE_URL='postgres://shqipshop_ci_b:merchantB_disposable@127.0.0.1:5432/shqipshop_ci_b' REDIS_URL='redis://127.0.0.1:6381' JWT_SECRET="$secret_b" COOKIE_SECRET="$cookie_b" setsid pnpm --filter @dtc/backend exec medusa develop --port 9001 > "$RUNNER_TEMP/merchant-b.log" 2>&1 &
           pid_b=$!
           pid_clone=""
+          interruption_client=""
           cleanup() {
             for pid in "$pid_a" "$pid_b" "$pid_clone"; do
               if [ -n "$pid" ]; then kill -TERM -- "-$pid" 2>/dev/null || true; fi
             done
-            rm -f -- "$SHQIPSHOP_N03_HANDOFF_FILE"
+            if [ -n "$interruption_client" ]; then
+              kill "$interruption_client" 2>/dev/null || true
+            fi
+            rm -f -- "$SHQIPSHOP_N03_HANDOFF_FILE" "$RUNNER_TEMP/n03-checkout-blocked"
           }
           trap cleanup EXIT
           ready=0
@@ -247,9 +251,19 @@ jobs:
           # Require actual BullMQ queues on both tenant Redis endpoints.
           python3 scripts/verify-redis-runtime.py
           node scripts/n03-guest-recovery-ci.mjs
-          kill -TERM -- "-$pid_a"
+          node scripts/n03-guest-recovery-ci.mjs interrupt &
+          interruption_client=$!
+          for i in $(seq 1 120); do
+            if [ -f "$RUNNER_TEMP/n03-checkout-blocked" ]; then break; fi
+            if ! kill -0 "$interruption_client" 2>/dev/null; then break; fi
+            sleep 0.1
+          done
+          test -f "$RUNNER_TEMP/n03-checkout-blocked"
+          kill -KILL -- "-$pid_a"
           wait "$pid_a" 2>/dev/null || true
           pid_a=""
+          wait "$interruption_client"
+          interruption_client=""
           # Require evidence that the original port stopped serving before reusing it.
           if curl -fsS --max-time 3 http://127.0.0.1:9000/health >/dev/null 2>&1; then
             echo '::error::Original merchant A API still responds after shutdown'

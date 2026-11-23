@@ -2,7 +2,9 @@
  * No real PSP, no production hosts, no secret/PII in logs. */
 import assert from "node:assert/strict"
 import { readFileSync, writeFileSync } from "node:fs"
-import { execFileSync } from "node:child_process"
+import { execFileSync, spawn } from "node:child_process"
+import { createInterface } from "node:readline"
+import { setTimeout as delay } from "node:timers/promises"
 import { join } from "node:path"
 import { request } from "./boundary-http.mjs"
 
@@ -17,20 +19,34 @@ const denied = (r, reason) => assert([401,403,404].includes(r.status),reason+": 
 const handoffFile = process.env.SHQIPSHOP_N03_HANDOFF_FILE
 assert(process.env.RUNNER_TEMP)
 assert.equal(handoffFile, join(process.env.RUNNER_TEMP, "n03-guest-handoff.json"))
+const blockedFile = join(process.env.RUNNER_TEMP, "n03-checkout-blocked")
+const a = guests[0]
+
+function loadMerchantKey(merchant) {
+  merchant.key = readFileSync(process.env["SHQIPSHOP_" + merchant.id + "_KEY_FILE"], "utf8").trim()
+  assert(merchant.key.length > 10)
+}
 const recoveryEndpoint = "/store/shqipshop/guest-recovery-ci"
 const recoveryPath = cart => recoveryEndpoint + "?cart_id=" + encodeURIComponent(cart)
 const receiptPath = order => "/store/orders/" + encodeURIComponent(order)
 const proofOptions = proof => ({key:true, headers:{"x-shqipshop-recovery-proof":proof}})
 const completePath = cart => "/store/carts/" + encodeURIComponent(cart) + "/complete"
 
-function fixtureQuery(merchant, cart, sql) {
+function fixtureConnection(merchant, cart) {
   assert(["A", "B"].includes(merchant.id))
   assert(/^cart_[A-Za-z0-9_-]{8,}$/.test(cart))
   const db = "shqipshop_ci_" + merchant.id.toLowerCase()
-  return execFileSync("psql", ["-X", "-qAt", "-w", "-v", "ON_ERROR_STOP=1",
-    "-h", "127.0.0.1", "-p", "5432", "-U", db, "-d", db, "-v", "cart=" + cart], {
+  return {
+    args:["-X", "-qAt", "-w", "-v", "ON_ERROR_STOP=1", "-h", "127.0.0.1", "-p", "5432",
+      "-U", db, "-d", db, "-v", "cart=" + cart],
     env:{PATH:process.env.PATH, PGPASSWORD:"merchant" + merchant.id + "_disposable"},
-    input:sql, encoding:"utf8", timeout:10000, stdio:["pipe", "pipe", "pipe"],
+  }
+}
+
+function fixtureQuery(merchant, cart, sql) {
+  const {args, env} = fixtureConnection(merchant, cart)
+  return execFileSync("psql", args, {
+    env, input:sql, encoding:"utf8", timeout:10000, stdio:["pipe", "pipe", "pipe"],
   }).trim()
 }
 
@@ -40,14 +56,18 @@ function assertPhase(merchant, cart, phase) {
   `), phase)
 }
 
-function onlyPersistedOrder(merchant, cart) {
+function persistedGuestOrders(merchant, cart) {
   // Each fixture checks out with its own guest customer. Count even orders
   // without a cart link, so a duplicate cannot be hidden by the recovery query.
-  const observed = fixtureQuery(merchant, cart, `
+  return fixtureQuery(merchant, cart, `
     SELECT o.id
     FROM "order" o JOIN cart c ON c.customer_id = o.customer_id
     WHERE c.id = :'cart' AND o.deleted_at IS NULL;
   `)
+}
+
+function onlyPersistedOrder(merchant, cart) {
+  const observed = persistedGuestOrders(merchant, cart)
   assert(/^order_[A-Za-z0-9_-]{8,}$/.test(observed), "Expected exactly one guest order in PostgreSQL")
   return observed
 }
@@ -99,12 +119,39 @@ async function loginMerchantA(merchant) {
   return login.data.token
 }
 
+async function prepareGuestCheckout(merchant, fixture, email) {
+  const write=async(method,path,body)=>{
+    const response=await request(merchant,method,path,{key:true,body})
+    assert.equal(response.status,200,merchant.id+" guest cart mutation failed")
+    return response.data
+  }
+  await write("POST","/store/carts/"+fixture.cart+"/line-items",{variant_id:merchant.variant,quantity:1})
+  const address={first_name:"Synthetic",last_name:"Guest",address_1:"CI street",
+    city:"Tirane",postal_code:"1001",country_code:"al"}
+  await write("POST","/store/carts/"+fixture.cart,{
+    email,
+    shipping_address:address,billing_address:address,
+  })
+  const options=await request(merchant,"GET","/store/shipping-options?cart_id="+encodeURIComponent(fixture.cart),{key:true})
+  assert.equal(options.status,200)
+  assert(options.data.shipping_options?.length)
+  await write("POST","/store/carts/"+fixture.cart+"/shipping-methods",
+    {option_id:options.data.shipping_options[0].id})
+  const payCollection=await request(merchant,"POST","/store/payment-collections",{
+    key:true,body:{cart_id:fixture.cart},
+  })
+  assert.equal(payCollection.status,200)
+  const collectionId=payCollection.data.payment_collection?.id
+  assert(collectionId)
+  const session=await request(merchant,"POST","/store/payment-collections/"+collectionId+"/payment-sessions",{
+    key:true,body:{provider_id:"pp_system_default"},
+  })
+  assert([200,201].includes(session.status))
+}
+
 async function verifyBeforeRestart() {
   for (const m of guests) {
-    const keyPath=process.env["SHQIPSHOP_"+m.id+"_KEY_FILE"]
-    assert(keyPath)
-    m.key=readFileSync(keyPath,"utf8").trim()
-    assert(m.key.length>10)
+    loadMerchantKey(m)
     const regions=await request(m,"GET","/store/regions",{key:true})
     assert.equal(regions.status,200)
     const region=regions.data.regions.find(r=>r.name==="Shqipëri")
@@ -155,33 +202,7 @@ async function verifyBeforeRestart() {
   console.log("SHQIPSHOP_N03_GUEST_PRECOMPLETE_CAPABILITY_BOUNDARY_A_B_PASSED")
 
   for(const m of guests){
-    const write=async(method,path,body)=>{
-      const response=await request(m,method,path,{key:true,body})
-      assert.equal(response.status,200,m.id+" guest cart mutation failed")
-      return response.data
-    }
-    await write("POST","/store/carts/"+m.cart+"/line-items",{variant_id:m.variant,quantity:1})
-    const address={first_name:"Synthetic",last_name:"Guest",address_1:"CI street",
-      city:"Tirane",postal_code:"1001",country_code:"al"}
-    await write("POST","/store/carts/"+m.cart,{
-      email:"guest-"+m.id.toLowerCase()+"@example.invalid",
-      shipping_address:address,billing_address:address,
-    })
-    const options=await request(m,"GET","/store/shipping-options?cart_id="+encodeURIComponent(m.cart),{key:true})
-    assert.equal(options.status,200)
-    assert(options.data.shipping_options?.length)
-    await write("POST","/store/carts/"+m.cart+"/shipping-methods",
-      {option_id:options.data.shipping_options[0].id})
-    const payCollection=await request(m,"POST","/store/payment-collections",{
-      key:true,body:{cart_id:m.cart},
-    })
-    assert.equal(payCollection.status,200)
-    const collectionId=payCollection.data.payment_collection?.id
-    assert(collectionId)
-    const session=await request(m,"POST","/store/payment-collections/"+collectionId+"/payment-sessions",{
-      key:true,body:{provider_id:"pp_system_default"},
-    })
-    assert([200,201].includes(session.status))
+    await prepareGuestCheckout(m, m, "guest-" + m.id.toLowerCase() + "@example.invalid")
     denied(await request(m, "POST", completePath(m.cart), {key:true, body:{}}),
       "Checkout of a minted cart requires the guest credential")
     assertPhase(m, m.cart, "prepared")
@@ -219,7 +240,7 @@ async function verifyBeforeRestart() {
     console.log("SHQIPSHOP_N03_GUEST_CAPABILITY_ONLY_RECEIPT_"+m.id)
     console.log("SHQIPSHOP_N03_GUEST_ORDER_PERSISTED_RECOVERY_"+m.id)
   }
-  const b=guests[1],a=guests[0]
+  const b=guests[1]
   const revoke=await request(b,"DELETE","/store/shqipshop/guest-recovery-ci",{
     key:true,headers:{"x-shqipshop-recovery-proof":b.proof},body:{cart_id:b.cart},
   })
@@ -269,17 +290,83 @@ async function verifyBeforeRestart() {
   assert.equal(unconfirmed.status, 200)
   assert.deepEqual(unconfirmed.data, {state:"unknown"})
 
+  const interrupted = await mintPendingCart(a)
+  await prepareGuestCheckout(a, interrupted, "guest-n03-interrupted@example.invalid")
+  assertPhase(a, interrupted.cart, "prepared")
+  assert.equal(fixtureQuery(a, interrupted.cart,
+    `SELECT count(*) FROM cart WHERE id = :'cart' AND customer_id IS NOT NULL;`), "1")
+  assert.equal(persistedGuestOrders(a, interrupted.cart), "")
+
   // This file exists only on the runner, with access restricted to its owner.
   const {cart, proof, order} = a
-  writeFileSync(handoffFile, JSON.stringify({active:{cart, proof, order}, revoked, registered, unresolved}),
+  writeFileSync(handoffFile, JSON.stringify({active:{cart, proof, order}, revoked, registered, unresolved, interrupted}),
     {mode:0o600, flag:"wx"})
 }
 
+async function interruptDuringOrderInsert() {
+  loadMerchantKey(a)
+  const {interrupted} = JSON.parse(readFileSync(handoffFile, "utf8"))
+  const {args, env} = fixtureConnection(a, interrupted.cart)
+  // SHARE allows reads but blocks the RowExclusiveLock PostgreSQL needs for INSERT.
+  const holder = spawn("psql", args, {env, stdio:["pipe", "pipe", "inherit"]})
+  const lines = createInterface({input:holder.stdout})
+  try {
+    holder.stdin.write(`BEGIN; SET LOCAL lock_timeout = '5s'; LOCK TABLE "order" IN SHARE MODE; SELECT pg_backend_pid();\n`)
+    const readPid = async () => (await lines[Symbol.asyncIterator]().next()).value
+    const blocker = Number(await Promise.race([readPid(), delay(6000, undefined, {ref:false})]))
+    assert(Number.isInteger(blocker) && blocker > 0, "The order table lock must be held")
+
+    const completion = dispatch(a, interrupted).then(
+      response => ({status:response.status}),
+      error => ({code:error.cause?.code}),
+    )
+    let writer
+    for (let i = 0; i < 50 && !writer; i++) {
+      writer = fixtureQuery(a, interrupted.cart, `
+        SELECT a.pid FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid
+        WHERE l.relation = '"order"'::regclass AND l.mode = 'RowExclusiveLock'
+          AND NOT l.granted AND ${blocker} = ANY(pg_blocking_pids(a.pid))
+          AND a.query ~* '^[[:space:]]*insert[[:space:]]+into';
+      `)
+      if (!writer) await delay(150)
+    }
+    assert(/^[1-9][0-9]*$/.test(writer ?? ""), "Expected one Medusa INSERT waiting on the fixture lock")
+    assertPhase(a, interrupted.cart, "claimed_for_dispatch")
+    assert.equal(persistedGuestOrders(a, interrupted.cart), "")
+    writeFileSync(blockedFile, "", {mode:0o600, flag:"wx"})
+
+    const result = await completion
+    assert(["UND_ERR_SOCKET", "ECONNRESET"].includes(result.code), "Expected API connection loss after SIGKILL")
+
+    // The database may still be waiting after its client disappears. End any
+    // surviving queued writer before releasing the lock so it cannot resume.
+    const stopped = fixtureQuery(a, interrupted.cart, `
+      SELECT pg_terminate_backend(a.pid, 5000)
+      FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid
+      WHERE l.relation = '"order"'::regclass AND l.mode = 'RowExclusiveLock'
+        AND NOT l.granted AND a.pid = ${writer}
+        AND ${blocker} = ANY(pg_blocking_pids(a.pid));
+    `)
+    assert(["", "t"].includes(stopped), "The queued database session must have ended")
+    assert.equal(persistedGuestOrders(a, interrupted.cart), "")
+    console.log("SHQIPSHOP_N03_ORDER_INSERT_INTERRUPTED_AFTER_CLAIM")
+  } finally {
+    lines.close()
+    holder.stdin.end()
+    holder.kill()
+  }
+}
+
 async function verifyAfterRestart() {
-  const a = guests[0]
-  a.key = readFileSync(process.env.SHQIPSHOP_A_KEY_FILE, "utf8").trim()
-  assert(a.key.length > 10)
-  const {active, revoked, registered, unresolved} = JSON.parse(readFileSync(handoffFile, "utf8"))
+  loadMerchantKey(a)
+  const {active, revoked, registered, unresolved, interrupted} = JSON.parse(readFileSync(handoffFile, "utf8"))
+  const interruptedOutcome = await request(a, "GET", recoveryPath(interrupted.cart), proofOptions(interrupted.proof))
+  assert.equal(interruptedOutcome.status, 200)
+  assert.deepEqual(interruptedOutcome.data, {state:"unknown"})
+  assertPhase(a, interrupted.cart, "claimed_for_dispatch")
+  assert.equal((await dispatch(a, interrupted)).status, 409)
+  assert.equal(persistedGuestOrders(a, interrupted.cart), "")
+  console.log("SHQIPSHOP_N03_INTERRUPTED_INSERT_RESTART_UNKNOWN_NO_REPLAY_PASSED")
   await verifyConfirmed(a, active)
   const unconfirmed = await request(a, "GET", recoveryPath(unresolved.cart), proofOptions(unresolved.proof))
   assert.equal(unconfirmed.status, 200)
@@ -314,9 +401,11 @@ async function verifyAfterRestart() {
 }
 
 const phase = process.argv[2]
-assert(phase === undefined || phase === "after-restart")
+assert([undefined, "interrupt", "after-restart"].includes(phase))
 if (phase === "after-restart") {
   await verifyAfterRestart()
+} else if (phase === "interrupt") {
+  await interruptDuringOrderInsert()
 } else {
   await verifyBeforeRestart()
 }
