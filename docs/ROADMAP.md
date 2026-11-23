@@ -1,5 +1,9 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-23 — N03 guest checkout dispatch and restart recovery, CI VERIFIED
+
+[Medusa A/B CI #45272683600](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45272683600) verified [source c744b0d](https://github.com/titanfit102-bit/ShqipShop/commit/c744b0d6296723f418bbde61aff0cebb6e59ba48). A disposable Medusa guest can recover the same persisted order after API restart, with one dispatch allowed between processes. Unconfirmed committed claims remain `unknown`. Next prove in-flight interruption and authoritative pre-dispatch cancellation in the Medusa workflow. Then evaluate client integration. R01/R02/R03 remain release blockers.
+
 ## 2026-11-23 — N03 durable checkout attempt fence, PostgreSQL CI VERIFIED
 
 [source 9beea06](https://github.com/titanfit102-bit/ShqipShop/commit/9beea06175e8187ef6b20a16ba5a23a3100f6439) and [PostgreSQL A/B CI #45248023234](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45248023234) verified the durable pre-dispatch finality rule, competing updates and connection loss. Next prove reservation and authoritative Medusa order linkage from the disposable completion workflow, including the ambiguous-commit case, before app integration. R01/R02/R03 remain release blockers.

@@ -1,5 +1,9 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-23 — N03 guest checkout dispatch and restart recovery, CI VERIFIED
+
+[source c744b0d](https://github.com/titanfit102-bit/ShqipShop/commit/c744b0d6296723f418bbde61aff0cebb6e59ba48) and [Medusa A/B CI #45272683600](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45272683600) verified a single committed checkout dispatch claim per newly minted disposable guest cart. The current CI merchant database binds the guest credential and attempt to the cart. Only a persisted claim and matching Medusa order yield confirmation. Separate registered-cart behavior, account-conversion races, process loss during order commit and live payment finality remain open. R01/R02/R03 and RG-01/02/03/G3/G5 block release.
+
 ## 2026-11-23 — N03 durable checkout attempt fence, PostgreSQL CI VERIFIED
 
 [source 9beea06](https://github.com/titanfit102-bit/ShqipShop/commit/9beea06175e8187ef6b20a16ba5a23a3100f6439) and [PostgreSQL A/B CI #45248023234](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45248023234) verified the fixture's pre-dispatch seal, mutually exclusive claim/seal, and a persistent ambiguous outcome after losing a committed claim's connection. This step exercises disposable databases directly. Authorization and order/payment authority stay with the separate Medusa workflow proofs. Full application adoption, real-provider finality and checkout replay policy remain open. R01/R02/R03 and RG-01/02/03/G3/G5 block release.

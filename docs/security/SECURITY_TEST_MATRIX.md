@@ -1,5 +1,19 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-23 — N03 guest checkout dispatch and restart recovery, CI VERIFIED
+
+[source c744b0d](https://github.com/titanfit102-bit/ShqipShop/commit/c744b0d6296723f418bbde61aff0cebb6e59ba48), [Medusa A/B CI #45272683600](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45272683600), verify the disposable Medusa checkout and PostgreSQL bridge.
+
+| Scenario | Observed outcome |
+| --- | --- |
+| Minted cart dispatched without its credential | Denied and the attempt stayed prepared |
+| Two legitimate completion calls on separate merchant-A processes | One success and one conflict. PostgreSQL held one order for that fixture customer |
+| Discarded checkout response body, then original API restarted | Credential recovered the same persisted order and receipt |
+| Retry after restart on confirmed and unconfirmed carts | Both attempts refused another dispatch. The confirmed cart still had one order |
+| Incomplete checkout with a committed claim | Recovery stayed `unknown` before and after restart |
+
+The test discards response bodies on a completed request, then restarts the API. Arbitrary in-flight interruption, real payment-provider settlement and production rollout remain open.
+
 ## 2026-11-23 — N03 durable checkout attempt fence, PostgreSQL CI VERIFIED
 
 [source 9beea06](https://github.com/titanfit102-bit/ShqipShop/commit/9beea06175e8187ef6b20a16ba5a23a3100f6439), [PostgreSQL A/B CI #45248023234](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45248023234), verify these fixture-level PostgreSQL conditions.

@@ -1,5 +1,9 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-23 — N03 guest checkout dispatch and restart recovery, CI VERIFIED
+
+[Current state](CURRENT_STATE.md). [source c744b0d](https://github.com/titanfit102-bit/ShqipShop/commit/c744b0d6296723f418bbde61aff0cebb6e59ba48) in [Medusa A/B CI #45272683600](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45272683600) connected the disposable guest attempt ledger to the built-in Medusa completion route and guest recovery. Two API processes shared one committed dispatch claim. After API restart, only the original persisted order could be recovered and both successful and unconfirmed attempts refused redispatch. Next exercise in-flight interruption and pre-dispatch cancellation with Medusa reconciliation before wiring the app. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft. N03 PARTIAL and release BLOCKED.
+
 ## 2026-11-23 — N03 durable checkout attempt fence, PostgreSQL CI VERIFIED
 
 [Current state](CURRENT_STATE.md). [source 9beea06](https://github.com/titanfit102-bit/ShqipShop/commit/9beea06175e8187ef6b20a16ba5a23a3100f6439) passed the PostgreSQL finality step in [PostgreSQL A/B CI #45248023234](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45248023234). The only proof of `no_order` in this fixture is a persisted seal before a dispatch claim. A committed claim remains `unknown` after lost connection, and subsequent claim/seal attempts are rejected. Next connect the attempt model to disposable Medusa completion and verify order/attempt reconciliation on restart before native or PWA wiring. N03 is PARTIAL. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft.
