@@ -1,5 +1,9 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-24 — Hosted R01 decision
+
+Draft PR #12 received `9e040e3`, with the exact tree from local `1d8cf5a`. [Hosted Medusa matrix](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813) verified the disposable candidate and kept the pinned baseline failure visible. The PR had eight successful workflows and one failure. The extra parallel isolation push run also passed. R01 is verified for simulated payments and remains open P0 for release. Start the next authorized phase from the existing [roadmap](ROADMAP.md) and [current state](CURRENT_STATE.md).
+
 ## 2026-11-24 — R01 local candidate, recovery and handoff
 
 Use `local/r01-reconciliation`. Its ancestry from the Draft PR tip is `d6cda80` → `15def9f` (recovered) → `1fe2c7d` (confirmed refund ID and atomic order posting) → `1b80fcf` (per-order credit serialization) → `af4cd2f` (mixed approvals and replays). The final test and documentation commit follows those revisions. PR #12 is still Draft on #11.

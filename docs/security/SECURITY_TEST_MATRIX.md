@@ -1,5 +1,11 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-24 — Hosted R01 reconciliation evidence
+
+The [candidate job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813/job/138794780712) confirmed all eight R01 PostgreSQL groups on `9e040e3`. The exact-capture Admin case and signed order/payment conservation checks also passed. The [pinned baseline](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813/job/138794781465) failed the mandatory uncaptured-payment assertion.
+
+For release acceptance, the selected runtime must pass the same financial checks through the ordinary Admin and workflow paths. Preserve one authoritative refund identity across provider acknowledgement loss and a restart between provider confirmation and order posting. Verify provider sandbox settlement and webhook handling against the payment and order records. Keep ambiguous historical postings held until the approved reconciliation procedure can match them to documented settlement evidence. [Release gates](SECURITY_RELEASE_GATES.md).
+
 ## 2026-11-24 — R01 candidate on PostgreSQL and two independent API processes
 
 | Case | Verified result in the isolated runtime |

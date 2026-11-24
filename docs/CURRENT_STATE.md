@@ -1,5 +1,13 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-24 — R01 GitHub verification and release decision
+
+Draft PR #12 ran the same tracked tree as local `1d8cf5a` at GitHub commit [9e040e3](https://github.com/titanfit102-bit/ShqipShop/commit/9e040e38795e6437c67cd0c66ae8497140c36310). The local branch and its five commits remain available. The repository connector used a single fast-forward commit with the identical Git tree because the shell had read-only Git access.
+
+**Candidate VERIFIED in hosted CI.** Eight of nine PR workflows passed, along with the additional push workflow for parallel merchant isolation. The financial matrix had a passing [R01 candidate job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813/job/138794780712) and a failing [pinned baseline job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813/job/138794781465). Candidate logs recorded all eight PostgreSQL reconciliation cases and confirmed that payment and order refund totals matched. The seven-order 610/445/165 ALL aggregate below is separate local evidence.
+
+**R01 remains P0 and open for release.** The baseline still failed the captured-payment requirement. The candidate only runs in a disposable simulation. The roadmap requires an authorized runtime change, recorded provider replays and recoverable settlement failures, and an explicit disposition for ambiguous historical entries. RG-03 and G3/G5 remain blocked. Continue with the approval-scoped runtime integration and provider-sandbox acceptance criteria in the [security test matrix](security/SECURITY_TEST_MATRIX.md).
+
 ## 2026-11-24 — R01 financial reconciliation verified on the local candidate
 
 **Status.** The published `feat/merchant-auth-boundary-ci` branch is at `d6cda80`. PR #12 is Draft on PR #11. The published candidate job passed and the pinned baseline failed. R01 remains P0 for release. Local branch `local/r01-reconciliation` contains the recovered `15def9f` and the fixes through `af4cd2f`. [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12) · [Hosted matrix](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45402855889).
@@ -237,7 +245,7 @@ The independent GPT Work report dated 2026-11-12 audited `17f47ba3`, **not curre
 
 | Finding | Priority for relevant target | Current evidence/classification | Required gate |
 | --- | --- | --- | --- |
-| R01 unbounded/refund before capture | P0 real payments | CONFIRMED pinned 2.22.0 PostgreSQL CI [#43325401868](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401868); authorized Admin/manual provider, not real PSP | Captured-balance and provider-authoritative idempotent refund fix, separate approval; negative concurrent/replay/crash tests |
+| R01 unbounded/refund before capture | P0 real payments | OPEN on [pinned runtime](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813/job/138794781465). [Disposable candidate](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813/job/138794780712) verified captured balance and accounting with simulated payments. | Approved runtime integration, provider-authoritative replay and recovery after interruption, sandbox settlement, and legacy reconciliation. |
 | R02 Admin cookie CSRF | P0 cookie-admin deployment | Stage12AF exploit CONFIRMED on synthetic 2.22.6; Stage12AG **exact-CI region guard VERIFIED** [#43325401851](https://github.com/titanfit102-bit/ShqipShop/actions/runs/43325401851); **global/Production OPEN** | Approved framework route/auth-mode policy, session token/Origin/Metadata/browser/tenant regressions |
 | R03 2.22.0 query hardening | P0 self-host exposure | CONFIRMED baseline `2.22.0`; upstream [v2.22.5](https://github.com/medusajs/medusa/releases/tag/v2.22.5) deprecated in favor of [v2.22.6](https://github.com/medusajs/medusa/releases/tag/v2.22.6); external exploitation UNKNOWN | Approved vetted upgrade/backport with complete package/lockfile, finance, auth, CSRF regression |
 | N01 native cart PII resurrection | P0 **only for native authenticated pilot** | SOURCE CONFIRMED: `resetCart` awaits disk deletion before clearing state; multiple async cart writes commit without generation guard. Audit harness reproduced 2 failures; device E2E UNKNOWN | Identity+cart generation barrier, immediate memory clear, serialized/persisted reset tombstone, A→logout→guest/B and storage/restart tests |

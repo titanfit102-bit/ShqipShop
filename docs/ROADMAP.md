@@ -1,5 +1,9 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-24 — R01 hosted candidate milestone verified
+
+The [disposable candidate](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813/job/138794780712) passed on the exact tracked tree of local `1d8cf5a`. The [pinned runtime](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813/job/138794781465) still fails the captured-payment check. Next confirm the supported runtime integration within an approved scope, then obtain provider-sandbox settlement and restart/retry evidence before considering R01 closure. See the [test matrix](security/SECURITY_TEST_MATRIX.md).
+
 ## 2026-11-24 — R01 simulated refund candidate, local suite complete
 
 The isolated PostgreSQL and two-API reconciliation milestone passed on `local/r01-reconciliation`. The next checkpoint is hosted verification of the exact local candidate once transfer to the draft workstream is authorized. General legacy reconciliation, provider settlement, R02/R03 and the G3/G5 release decisions remain open. [Current state and evidence](CURRENT_STATE.md).

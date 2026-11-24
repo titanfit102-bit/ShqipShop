@@ -1,5 +1,9 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-24 — R01 local checkpoint verified in GitHub Actions
+
+Synced the tree of `1d8cf5a` to Draft PR #12 as `9e040e3`. GitHub Actions verified all eight candidate reconciliation cases. The same matrix retained the pinned baseline failure. [Hosted evidence](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813).
+
 ## 2026-11-24 — Recovery and financial reconciliation on the R01 candidate
 
 Recovered the unpushed `15def9f` and seven interrupted changes. Local commits `1fe2c7d`, `1b80fcf` and `af4cd2f` corrected refund identity, concurrent order credits and mixed-batch accounting. The complete candidate backend run passed locally. Its seven reconciliation orders totaled 445 ALL on each refund ledger. A separate rehearsal reconciled the original 50/20 synthetic discrepancy on a database copy. PR #12 remained Draft at `d6cda80`. [Verification and handoff](CURRENT_STATE.md).
