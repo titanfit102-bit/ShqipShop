@@ -1,5 +1,13 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-24 — N03 Android registered checkout recovery, verification in progress
+
+The [first emulator run](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45380332836) built and installed the debug APK, then timed out before its first accessibility checkpoint. The [bundled-JavaScript retry](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45383172672) opened Home and the registered tracked cart from isolated Medusa on Android API 35. A development warning covered the Checkout button. The screenshot and logs show that the test stopped before sending the order.
+
+[source e5b5ac3](https://github.com/titanfit102-bit/ShqipShop/commit/e5b5ac3b967d02f3a258446208c818c495df7ff4) disables the warning overlay in the disposable test bundle and adds a check for rendered order items on the receipt. The [next emulator run #45385768408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45385768408) is the remaining acceptance check. Require the app's own durable pending journal after a lost response, recovery of the same committed order after app restart, zero completion replays, terminal cleanup for `no_order` and retained pending state for `unknown`.
+
+[Native source CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45383183065) passed lint, TypeScript and 120 tests, and [Medusa A/B CI](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45383183139) passed. The [pinned Medusa finance test](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45383183020) again detected invalid refund persistence. N03 is PARTIAL. R01/R02/R03 and RG-01/02/03/G3/G5 block release. PR #12 remains Draft on #11.
+
 ## 2026-11-24 — N03 native Cart recovery, development-only
 
 [source d009294](https://github.com/titanfit102-bit/ShqipShop/commit/d0092941926eb6e21063528658951ce419b4f4fc). The native Cart offers **Check order status** for registered customers in development builds with `N03_REGISTERED_RECOVERY=true`. Newly reserved registered checkout journals bind the cart to its backend URL and to the customer verified by Medusa during checkout. Legacy plain-cart markers and journals for a different principal or backend remain pending and are never sent to recovery. The Cart and the disposable client use the same TypeScript recovery action.

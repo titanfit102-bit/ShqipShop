@@ -1,5 +1,9 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-24 — N03 Android registered checkout recovery, verification in progress
+
+[Current state](CURRENT_STATE.md). [Android CI #45383172672](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45383172672) opened Home and the tracked Medusa cart in the bundled debug APK. A debug warning covered the checkout action before any order submission. [source e5b5ac3](https://github.com/titanfit102-bit/ShqipShop/commit/e5b5ac3b967d02f3a258446208c818c495df7ff4) moved that overlay out of the test flow. Resume by checking [Android CI #45385768408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45385768408) for the lost-response, restart, receipt and journal assertions. N03 remains PARTIAL. R01 remains P0 and release is blocked. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft on #11.
+
 ## 2026-11-24 — N03 native Cart recovery, development-only
 
 [Current state](CURRENT_STATE.md). [source d009294](https://github.com/titanfit102-bit/ShqipShop/commit/d0092941926eb6e21063528658951ce419b4f4fc) connected the existing native Cart screen to the shared read-only recovery action in opted-in development builds. Recovery uses buyer and backend-scoped markers, validates the receipt and fences stale sessions before cleanup and navigation. Guest and legacy journals remain pending in the native screen. [Native CI #45289026040](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45289026040) and [Medusa A/B CI #45289026050](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45289026050) passed. Next prove the tracked registered cart and cancellation flow on a debug emulator. N03 PARTIAL and release BLOCKED. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft.
