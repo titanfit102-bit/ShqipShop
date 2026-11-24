@@ -1,5 +1,13 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-24 — R01 locked ALL refund bounds in disposable CI
+
+[source 68368c3](https://github.com/titanfit102-bit/ShqipShop/commit/68368c3e6b564758c8c798fee5122768113aea18) applies an exact zero-decimal ALL check to the installed Medusa 2.22.0 Payment Module inside its existing row-lock transaction after keyed replay resolution. A matching check in the plural workflow rejects an invalid amount before that workflow can catch a module error and proceed. The two source files are verified by digest and modified only in the disposable CI candidate. The original matrix job uses the locked unpatched installation and still runs all financial assertions.
+
+**Evidence.** The [initial candidate run](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45400203268/job/138466470671) had passing direct module, singular workflow and Admin refund assertions but failed when the plural workflow returned success with an unchanged payment refund ledger. The [candidate job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082971) passed the existing financial suite after the second correction. Admin rejected refunds on uncaptured payments. Direct and workflow paths rejected an extra 1 ALL. Legitimate partial and exact-remaining refunds persisted, and keyed replay did not create a duplicate. The plural workflow left its refund and order transaction rows unchanged after rejecting the extra request. The [unpatched baseline job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082592) still reproduces R01.
+
+**Status and next step.** R01 remains P0 on the pinned runtime and release remains blocked. The candidate covers synthetic payments and the tested serial amount boundaries. Next exercise exact-bound concurrent requests across two independent API processes without the serial HTTP guard. Verify that a late module rejection cannot create an order transaction or report a successful refund in the plural workflow. Provider reconciliation, production finance authorization and R02/R03 remain open. Continue in `feat/merchant-auth-boundary-ci`, PR #12 Draft.
+
 ## 2026-11-24 — N03 registered checkout recovery on Android emulator
 
 [source e5b5ac3](https://github.com/titanfit102-bit/ShqipShop/commit/e5b5ac3b967d02f3a258446208c818c495df7ff4) adds a dedicated test on Android API 35 with the development APK, tracked registered carts, isolated Medusa/PostgreSQL and a synthetic payment provider.

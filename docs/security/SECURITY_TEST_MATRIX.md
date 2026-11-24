@@ -1,5 +1,15 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-24 — R01 locked ALL refund bounds in disposable CI
+
+| Boundary | Disposable Medusa 2.22.0 candidate evidence |
+| --- | --- |
+| Admin and singular workflow | Uncaptured refund and excessive ALL amounts rejected, payment rows preserved |
+| Native module | Exact remaining amount succeeds, extra 1 ALL rejected, same-key replay creates no duplicate |
+| Plural workflow | Partial and exact remaining refunded, extra 1 ALL rejected with unchanged payment refund and order transaction rows |
+
+[source 68368c3](https://github.com/titanfit102-bit/ShqipShop/commit/68368c3e6b564758c8c798fee5122768113aea18). [candidate job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082971). The [unpatched baseline job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082592) still fails. Exact-bound multiprocess contention, late plural bookkeeping, provider reconciliation and production finance authorization remain open.
+
 ## 2026-11-24 — N03 registered checkout recovery on Android emulator
 
 | Scenario | Result |

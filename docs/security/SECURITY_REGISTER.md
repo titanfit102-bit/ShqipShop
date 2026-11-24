@@ -1,5 +1,9 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-24 — R01 locked ALL refund bounds in disposable CI
+
+**R01 remains P0.** The [candidate job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082971) verified the synthetic ALL amount correction under the native payment writer lock and rejected an invalid plural workflow refund without changing order transactions. The [unpatched baseline job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082592) reproduced the unpatched defect. The candidate does not establish finance authorization, provider uncertainty handling or exact-bound concurrency and has no application to the pinned deployment dependency.
+
 ## 2026-11-24 — N03 registered checkout recovery on Android emulator
 
 **N03 PARTIAL.** [Android emulator CI #45385768408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45385768408) verified one synthetic registered order after a lost response and Android app process restart, with no completion replay. The scoped journal was cleared on a confirmed receipt and after a sealed pre-dispatch cancellation and retained when the result stayed unknown. Physical devices, guest/PWA, production cart provisioning and external payment reconciliation remain open. [pinned Medusa smoke #45383183020](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45383183020) reproduced invalid refund persistence and R01 remains P0.

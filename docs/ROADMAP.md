@@ -1,5 +1,9 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-24 — R01 locked ALL refund bounds in disposable CI
+
+The [candidate job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082971) verified the exact ALL refund bounds in disposable Medusa 2.22.0 across Admin, the native module and singular and plural workflows. The [unpatched baseline job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082592) still fails and R01 remains a release blocker. Next verify exact-bound contention and the plural workflow's bookkeeping after a late module rejection.
+
 ## 2026-11-24 — N03 registered checkout recovery on Android emulator
 
 [Android emulator CI #45385768408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45385768408) verified the registered Android debug flow against a disposable Medusa backend, including response loss, app process restart, receipt recovery without replay, sealed cancellation and unresolved journal retention. N03 remains PARTIAL for physical devices, guest/PWA, production cart provisioning and external payment reconciliation. R01 is the next release priority.

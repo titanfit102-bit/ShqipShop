@@ -1,5 +1,9 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-24 — R01 locked ALL refund bounds in disposable CI
+
+[source 68368c3](https://github.com/titanfit102-bit/ShqipShop/commit/68368c3e6b564758c8c798fee5122768113aea18) adds a separate CI candidate for the locked native refund amount check and plural workflow preflight. The [candidate job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082971) passed the original financial assertions and the added order transaction readback. The [unpatched baseline job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082592) retained the original R01 failure.
+
 ## 2026-11-24 — N03 registered checkout recovery on Android emulator
 
 [source e5b5ac3](https://github.com/titanfit102-bit/ShqipShop/commit/e5b5ac3b967d02f3a258446208c818c495df7ff4) and [Android emulator CI #45385768408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45385768408) verified registered checkout response loss and process-restart recovery on the Android debug emulator with a synthetic provider. The app recovered one committed order without resubmission. Sealed and unresolved attempts exercised terminal cleanup and journal retention.

@@ -1,5 +1,9 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-24 — R01 locked ALL refund bounds in disposable CI
+
+[Current state](CURRENT_STATE.md). [source 68368c3](https://github.com/titanfit102-bit/ShqipShop/commit/68368c3e6b564758c8c798fee5122768113aea18) and the [candidate job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082971) verified the exact ALL amount check in the native row-lock transaction and the plural workflow on disposable Medusa 2.22.0. The [unpatched baseline job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082592) still fails. The next scoped test is a two-process exact-bound race, including the plural workflow's order transaction behavior after a late writer rejection. Real provider reconciliation and production finance authorization remain open. R01 P0 and R02/R03 continue to block release. PR #12 remains Draft.
+
 ## 2026-11-24 — N03 registered checkout recovery on Android emulator
 
 [Current state](CURRENT_STATE.md). [source e5b5ac3](https://github.com/titanfit102-bit/ShqipShop/commit/e5b5ac3b967d02f3a258446208c818c495df7ff4) and [Android emulator CI #45385768408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45385768408) verified the registered Android debug path after Medusa committed one order and the response was dropped. Android reopened the same receipt after a process restart, cleared the journal on confirmed or sealed results and retained it on `unknown`. No checkout replay occurred. N03 remains PARTIAL. Next prioritize R01 using the current failure evidence from [pinned Medusa smoke #45383183020](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45383183020). PR #12 remains Draft on #11.
