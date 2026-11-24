@@ -85,6 +85,11 @@ export default async function verifyRefundWorkflow({container}:ExecArgs){
  assert.equal(before.refunds.length,0,
   "Independent workflow fixture must start unrefunded")
  const paymentId=before.paymentId
+ const db:any=container.resolve(ContainerRegistrationKeys.PG_CONNECTION)
+ const readOrderLedger=()=>db("order_transaction")
+  .where({order_id:order.id,reference:"refund",reference_id:paymentId})
+  .select("id","amount","currency_code","deleted_at")
+  .orderBy("id")
  await service.capturePayment({payment_id:paymentId,amount:total})
  before=await snapshot()
  assert.equal(before.captures.length,1)
@@ -135,6 +140,8 @@ export default async function verifyRefundWorkflow({container}:ExecArgs){
 
  await run(remaining)
  const bothIds=await assertPersisted([partial,remaining])
+ const orderLedgerBefore=await readOrderLedger()
+ assert(orderLedgerBefore.length>0,"Valid refund must record an order transaction")
  assert.equal(bothIds.length,2)
  assert(bothIds.includes(firstIds[0]),
   "Original valid refund must remain unchanged")
@@ -164,6 +171,8 @@ export default async function verifyRefundWorkflow({container}:ExecArgs){
   "CRITICAL: 1 ALL extra request cannot change the persisted refund IDs")
  assert.equal(totalRefunded,total,
   "CRITICAL: 1 ALL epsilon cannot exceed the captured order amount")
+ assert.deepEqual(await readOrderLedger(),orderLedgerBefore,
+  "CRITICAL: rejected refund must leave order transactions unchanged")
  assert(!oneAllRequestAccepted,
   "CRITICAL: refund workflow accepted an over-total 1 ALL refund request")
  assert.deepEqual(await assertPersisted([partial,remaining]),bothIds)
