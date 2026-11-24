@@ -21,9 +21,13 @@ concurrency:
 
 jobs:
   backend-smoke:
-    name: Migrate and start Medusa v2 API (CI only)
+    name: ${{ matrix.payment-runtime == 'baseline' && 'Migrate and start Medusa v2 API (CI only)' || 'R01 locked refund amount candidate (CI only)' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        payment-runtime: [baseline, r01-candidate]
     defaults:
       run:
         working-directory: medusa-backend-poc
@@ -86,6 +90,11 @@ jobs:
           echo "SHQIPSHOP_FX_AS_OF=$(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
       - name: Install locked Medusa backend dependencies
         run: pnpm install --frozen-lockfile --filter '@dtc/backend...'
+      - name: Apply pinned R01 refund amount candidate to the disposable install
+        if: matrix.payment-runtime == 'r01-candidate'
+        env:
+          SHQIPSHOP_R01_REFUND_CANDIDATE_CI: "true"
+        run: node apps/backend/scripts/apply-r01-refund-candidate.cjs
       - name: Run Medusa PostgreSQL migrations
         run: pnpm --filter @dtc/backend exec medusa db:migrate
       - name: F08 Stage 11L atomic refund reservation and two-connection race (CI only)
