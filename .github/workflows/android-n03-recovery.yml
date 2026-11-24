@@ -128,11 +128,6 @@ jobs:
             printf 'PUBLISHABLE_API_KEY=%s\n' "$(cat "$RUNNER_TEMP/n03-android-key.txt")"
             printf 'DEFAULT_LOCALE=sq-AL\nN03_REGISTERED_RECOVERY=true\n'
           } > .env
-          mkdir -p android/app/src/debug/assets
-          npx --no-install react-native bundle --platform android --dev true --entry-file index.js \
-            --bundle-output android/app/src/debug/assets/index.android.bundle \
-            --assets-dest android/app/src/debug/res
-          test -s android/app/src/debug/assets/index.android.bundle
           # JS remains in development mode. Launch from the packaged asset without the Metro dev menu.
           python3 - <<'PY_CONFIG'
           from pathlib import Path
@@ -141,7 +136,20 @@ jobs:
           anchor = "context = applicationContext,"
           assert text.count(anchor) == 1
           source.write_text(text.replace(anchor, anchor + "\n      useDevSupport = false,"))
+          # Keep application warnings in logs while preventing the LogBox overlay from intercepting taps.
+          entry = Path("index.js")
+          index = entry.read_text()
+          import_line = "import {AppRegistry} from 'react-native';"
+          register = "AppRegistry.registerComponent(appName, () => App);"
+          assert index.count(import_line) == index.count(register) == 1
+          index = index.replace(import_line, "import {AppRegistry, LogBox} from 'react-native';")
+          entry.write_text(index.replace(register, "LogBox.ignoreAllLogs();\n" + register))
           PY_CONFIG
+          mkdir -p android/app/src/debug/assets
+          npx --no-install react-native bundle --platform android --dev true --entry-file index.js \
+            --bundle-output android/app/src/debug/assets/index.android.bundle \
+            --assets-dest android/app/src/debug/res
+          test -s android/app/src/debug/assets/index.android.bundle
       - name: Compile emulator debug APK
         working-directory: native-medusa/android
         run: |

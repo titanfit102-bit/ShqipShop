@@ -49,6 +49,7 @@ start_app
 open_cart
 check_order
 python3 "$ui" wait "Detajet e porosisë" --exact --timeout 90
+python3 "$ui" wait "Produktet e porosisë" --exact --timeout 45
 capture confirmed
 python3 "$fixture" storage confirmed
 
