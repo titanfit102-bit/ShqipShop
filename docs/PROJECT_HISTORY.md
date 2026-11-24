@@ -1,5 +1,13 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-24 — Recovery and financial reconciliation on the R01 candidate
+
+Recovered the unpushed `15def9f` and seven interrupted changes. Local commits `1fe2c7d`, `1b80fcf` and `af4cd2f` corrected refund identity, concurrent order credits and mixed-batch accounting. The complete candidate backend run passed locally. Its seven reconciliation orders totaled 445 ALL on each refund ledger. A separate rehearsal reconciled the original 50/20 synthetic discrepancy on a database copy. PR #12 remained Draft at `d6cda80`. [Verification and handoff](CURRENT_STATE.md).
+
+## 2026-11-24 — R01 refund accounting at `15def9f`
+
+Recovered six local candidate implementation and test files based on PR #12 at `d6cda80`. Completed the interrupted in-memory verification and added the PostgreSQL assertion for the sum of successive approved refunds. [Current state](CURRENT_STATE.md).
+
 ## 2026-11-24 — R01 locked ALL refund bounds in disposable CI
 
 [source 68368c3](https://github.com/titanfit102-bit/ShqipShop/commit/68368c3e6b564758c8c798fee5122768113aea18) adds a separate CI candidate for the locked native refund amount check and plural workflow preflight. The [candidate job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082971) passed the original financial assertions and the added order transaction readback. The [unpatched baseline job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082592) retained the original R01 failure.

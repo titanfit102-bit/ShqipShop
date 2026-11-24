@@ -1,5 +1,13 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-24 — R01 P0 remains open for release
+
+**Local candidate verified with simulated payments.** The two-process Admin and plural workflows reconciled successful partials, keyed retries and refusals against captures, payment collections, individual postings and order summaries. The seven fixture orders had zero aggregate difference. The original 50/20 test fixture was reconciled on a separate copy. The candidate holds legacy payment-reference rows for explicit review. The unpatched hosted baseline still fails and the local revision has no hosted checks. Provider and production controls, R02/R03 and G3/G5 remain open. [Scope and evidence](../CURRENT_STATE.md) · [Hosted baseline](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45402855889/job/138475693312).
+
+## 2026-11-24 — R01 refund accounting at `15def9f`
+
+**R01 remains P0.** A local test with two approved partial refunds on one simulated payment found a shortfall in the order refund total. Verification of both totals in disposable PostgreSQL is pending. The candidate's earlier GitHub result covers its published serial-bound checks. [Published run](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45402855889).
+
 ## 2026-11-24 — R01 locked ALL refund bounds in disposable CI
 
 **R01 remains P0.** The [candidate job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082971) verified the synthetic ALL amount correction under the native payment writer lock and rejected an invalid plural workflow refund without changing order transactions. The [unpatched baseline job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082592) reproduced the unpatched defect. The candidate does not establish finance authorization, provider uncertainty handling or exact-bound concurrency and has no application to the pinned deployment dependency.

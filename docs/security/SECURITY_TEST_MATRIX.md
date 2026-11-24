@@ -1,5 +1,33 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-24 — R01 candidate on PostgreSQL and two independent API processes
+
+| Case | Verified result in the isolated runtime |
+| --- | --- |
+| Confirmed 20 and 30 ALL partials | Two native refund IDs, two negative order entries, totals of 50 ALL on both sides. Equal-amount distinct partials retained separate IDs. |
+| Full refusal, mixed approval, and replay alongside a new approval | A full refusal produced no financial rows. The mixed 5 + 5 ALL batch posted only the successful 5. Replaying an existing 70 alongside a new 20 moved only 20. |
+| Two independent Admin processes refund 20 + 80 from 100 ALL | HTTP 200 for both. Two matching entries and two confirmed order credits, with zero net balance and an unchanged capture. |
+| Only 1 ALL remains | Exactly one successful Admin request, one client rejection and one additional posting. |
+| Concurrent and later replays of the same key | One refund, one negative posting and one credit. Replay preserved rows, order version and summary. |
+| Concurrent plural writers | 40 and 60 ALL both posted for a single 100 ALL capture. |
+| Legacy payment-reference posting | Both the legacy posting and the complete recorded fixture state persisted unchanged when a new refund was held. |
+| Historical recovery rehearsal | Original 50/20 discrepancy preserved. On a physical copy the known fixture reconciled a 100 ALL capture and 50 ALL of refunds. A second reconciliation made no change. No payment writer was invoked. |
+| Independent seven-order PostgreSQL check | Payment collection, capture, confirmed refunds, signed order postings and summary matched for every fixture. The totals were 610 ALL captured, 445 ALL refunded and 165 ALL net. |
+
+The local trial used the locked Medusa 2.22.0 code with the candidate applied to its disposable install. The legacy rehearsal only covers a unique match in the recovered synthetic fixture. [Full validation and release status](../CURRENT_STATE.md).
+
+## 2026-11-24 — R01 refund accounting at `15def9f`
+
+| Case | Evidence |
+| --- | --- |
+| All writers decline a valid request | Candidate source simulation rejected it. Both simulated ledgers stayed empty. |
+| A batch on one payment contains an approval and a refusal | Simulated order posting matched the approved amount in both input positions. |
+| Two successive approved partials on one payment | The simulation recorded 50 ALL on the payment and 20 ALL on the order. A PostgreSQL comparison of the full totals is pending. |
+| Two independent Admin API processes, two approved partials summing to the capture | Candidate test is prepared. HTTP outcomes, capture stability and both keyed refund rows await execution. |
+| Competing approvals with insufficient remaining balance | Candidate runtime evidence pending. |
+
+The six local unit tests cover per-request correlation. The simulation uses pinned workflow and step code with an in-memory order service and payment writer. [Published parent workflow](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45402855889).
+
 ## 2026-11-24 — R01 locked ALL refund bounds in disposable CI
 
 | Boundary | Disposable Medusa 2.22.0 candidate evidence |

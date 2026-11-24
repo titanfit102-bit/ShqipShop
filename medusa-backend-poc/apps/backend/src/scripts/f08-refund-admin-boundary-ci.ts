@@ -6,6 +6,7 @@
  * refunded by Stage 11J (which currently also persists +1 ALL). Test
  * only AFTER Stage 11K/11J. No PSP, production code or Admin login.
  */
+import {assertDisposableCandidate} from "./r01-disposable-runtime"
 import assert from "node:assert/strict"
 import {randomBytes} from "node:crypto"
 import {readFileSync} from "node:fs"
@@ -607,6 +608,44 @@ export default async function testSingularAdminRefund({container}:ExecArgs){
    "CRITICAL: authenticated Admin refund of uncaptured payment must fail")
   dbSame(before,after)
   console.log("SHQIPSHOP_F08_STAGE11P_ADMIN_UNCAPTURED_REFUND_DENIED_NO_MUTATION")
+  if (process.env.SHQIPSHOP_R01_REFUND_CANDIDATE_CI === "true") {
+    await assertDisposableCandidate(container)
+    assert.equal(phase, "http-authenticated")
+    assert.equal(process.env.SHQIPSHOP_F08_STRICT_REFUND_CI, undefined)
+    const service = container.resolve(Modules.PAYMENT)
+    await service.capturePayment({ payment_id: before.id, amount: Number(orderTotal) })
+    const captured = await readDedicated()
+    assert.equal(captured.captures.length, 1)
+    assert.equal(whole(captured.captures[0].amount), orderTotal)
+    assert.equal(captured.refunds.length, 0)
+
+    // Two legitimate partial refunds add up exactly to one capture.
+    const approvals = [
+      { base, amount: 1, key: "r01-first-" + before.id },
+      { base: "http://127.0.0.1:9221", amount: Number(orderTotal - 1n), key: "r01-second-" + before.id },
+    ]
+    const replies = await Promise.all(approvals.map(approval =>
+      send(route, { amount: approval.amount, idempotency_key: approval.key },
+        adminJwt, undefined, undefined, approval.base)))
+    assert.deepEqual(replies.map(reply => reply.status), [200, 200])
+    const settled = await readDedicated()
+    assert.equal(settled.captures.length, 1)
+    assert.equal(settled.captures[0].id, captured.captures[0].id)
+    assert.equal(whole(settled.captures[0].amount), orderTotal)
+    assert.equal(settled.refunds.length, 2)
+    const pg = container.resolve(ContainerRegistrationKeys.PG_CONNECTION)
+    const rows = await pg("refund").where({ payment_id: before.id })
+      .select("id", "idempotency_key", "amount", "status", "deleted_at")
+    assert.equal(rows.length, 2)
+    for (const approval of approvals) {
+      const row = rows.find(refund => refund.idempotency_key === approval.key)
+      assert(row && row.status === "succeeded" && row.deleted_at === null)
+      assert.equal(whole(row.amount), BigInt(approval.amount))
+      assert(settled.refunds.some(refund => refund.id === row.id && refund.status === "succeeded"))
+    }
+    assert.equal(sum(settled), orderTotal)
+    console.log("SHQIPSHOP_R01_TWO_API_EXACT_CAPTURE_CONFIRMED")
+  }
   return
  }
 

@@ -6,10 +6,12 @@
  * never the Stage 11E/11F/11G payment. No card network, live PSP or PII.
  * The separate direct-module sentinel remains FAILING in the existing CI.
  */
+import {assertDisposableCandidate} from "./r01-disposable-runtime"
 import assert from "node:assert/strict"
 import {readFileSync} from "node:fs"
 import {resolve,sep} from "node:path"
 import type {ExecArgs} from "@medusajs/framework/types"
+import {asValue} from "@medusajs/framework/awilix"
 import {ContainerRegistrationKeys,Modules} from "@medusajs/framework/utils"
 import {refundPaymentsWorkflow} from "@medusajs/medusa/core-flows"
 
@@ -86,10 +88,12 @@ export default async function verifyRefundWorkflow({container}:ExecArgs){
   "Independent workflow fixture must start unrefunded")
  const paymentId=before.paymentId
  const db:any=container.resolve(ContainerRegistrationKeys.PG_CONNECTION)
- const readOrderLedger=()=>db("order_transaction")
-  .where({order_id:order.id,reference:"refund",reference_id:paymentId})
-  .select("id","amount","currency_code","deleted_at")
-  .orderBy("id")
+ const candidate = process.env.SHQIPSHOP_R01_REFUND_CANDIDATE_CI === "true"
+ const readOrderLedger=()=>{
+  const rows = db("order_transaction").where({order_id:order.id,reference:"refund"})
+  if (!candidate) rows.andWhere({reference_id:paymentId})
+  return rows.select("id","reference_id","amount","currency_code","deleted_at").orderBy("id")
+ }
  await service.capturePayment({payment_id:paymentId,amount:total})
  before=await snapshot()
  assert.equal(before.captures.length,1)
@@ -119,6 +123,36 @@ export default async function verifyRefundWorkflow({container}:ExecArgs){
  const run=async(amount:number)=>
   refundPaymentsWorkflow(container).run({input:[{payment_id:paymentId,amount}]})
 
+ if (candidate) {
+  await assertDisposableCandidate(container)
+  const ledgerBefore = await readOrderLedger()
+  assert.equal(ledgerBefore.length, 0, "Require an unused order refund ledger")
+  const declined: {payment_id:string,amount:unknown}[] = []
+  // Medusa adds registerAdd to child scopes. Awilix types createScope as its base container.
+  const scope = container.createScope() as typeof container
+  // Only the writer in this invocation declines. Reads use the captured
+  // synthetic order and both ledger checks use the original container.
+  const writer = Object.create(service)
+  Object.defineProperty(writer, "refundPayment", { configurable: true, writable: true, value: async (request: typeof declined[number]) => {
+   declined.push(request)
+   throw new Error("Synthetic writer declined")
+  } })
+  scope.register({ [Modules.PAYMENT]: asValue(writer) })
+  try {
+   await assert.rejects(() => refundPaymentsWorkflow(scope).run({
+    input: [{payment_id: paymentId, amount: 1}],
+   }), (error: {message?: string}) => error?.message === "Payment module did not confirm any requested refund")
+  } finally {
+   await scope.dispose()
+  }
+  assert.equal(declined.length, 1, "Valid request must reach the scoped writer")
+  assert.equal(declined[0].payment_id, paymentId)
+  assert.equal(Number(declined[0].amount), 1)
+  assert.deepEqual(await assertPersisted([]), [])
+  assert.deepEqual(await readOrderLedger(), ledgerBefore)
+  console.log("SHQIPSHOP_R01_LATE_DECLINE_BOTH_LEDGERS_UNCHANGED")
+ }
+
  // Negative control: exceed the 1 ALL zero-decimal tolerance by 2 ALL.
  await assert.rejects(()=>run(total+2),
   "Workflow must reject a new refund larger than captured total")
@@ -127,9 +161,18 @@ export default async function verifyRefundWorkflow({container}:ExecArgs){
 
  const partial=Math.floor(total/2)
  assert(partial>0&&partial<total)
- await run(partial)
+ const partialResult = await run(partial)
  const firstIds=await assertPersisted([partial])
  assert.equal(firstIds.length,1)
+ if (candidate) {
+  assert.deepEqual(partialResult.result.map(payment => payment.id), [paymentId])
+  const ledger = await readOrderLedger()
+  assert.equal(ledger.length, 1)
+  assert.equal(ledger[0].reference_id, firstIds[0])
+  assert.equal(Number(ledger[0].amount), -partial)
+  assert.equal(ledger[0].currency_code, "all")
+  assert.equal(ledger[0].deleted_at, null)
+ }
  console.log("SHQIPSHOP_F08_STAGE11J_WORKFLOW_PARTIAL_REFUND_PERSISTED")
 
  const remaining=total-partial
@@ -177,5 +220,25 @@ export default async function verifyRefundWorkflow({container}:ExecArgs){
   "CRITICAL: refund workflow accepted an over-total 1 ALL refund request")
  assert.deepEqual(await assertPersisted([partial,remaining]),bothIds)
  console.log("SHQIPSHOP_F08_STAGE11J_WORKFLOW_AFTER_FULL_REFUND_DENIED")
+ if (candidate) {
+  // The tracked order has exactly one payment. Count all active refund
+  // transactions on it even if a future implementation changes the reference ID.
+  const postings = await db("order_transaction")
+   .where({order_id: order.id, reference: "refund"}).whereNull("deleted_at")
+   .select("reference_id", "amount", "currency_code")
+  assert.deepEqual(postings.map(row => row.reference_id).sort(), bothIds)
+  let posted = 0n
+  for (const row of postings) {
+   const amount = Number(row.amount)
+   assert(Number.isSafeInteger(amount) && amount < 0, "Expected a negative whole ALL posting")
+   assert.equal(row.currency_code, "all")
+   const refund = afterOneAll.refunds.find(refund => refund.id === row.reference_id)
+   assert(refund && Number(refund.amount) === -amount)
+   posted -= BigInt(amount)
+  }
+  assert.equal(posted, BigInt(totalRefunded),
+   "Two confirmed partial refunds must reconcile with the order refund total")
+  console.log("SHQIPSHOP_R01_ORDER_AND_PAYMENT_REFUND_TOTALS_MATCH")
+ }
  console.log("SHQIPSHOP_F08_STAGE11J_WORKFLOW_SCOPED_POSITIVE_AND_NEGATIVE_PASSED")
 }

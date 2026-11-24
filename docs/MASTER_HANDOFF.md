@@ -1,5 +1,15 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-24 — R01 local candidate, recovery and handoff
+
+Use `local/r01-reconciliation`. Its ancestry from the Draft PR tip is `d6cda80` → `15def9f` (recovered) → `1fe2c7d` (confirmed refund ID and atomic order posting) → `1b80fcf` (per-order credit serialization) → `af4cd2f` (mixed approvals and replays). The final test and documentation commit follows those revisions. PR #12 is still Draft on #11.
+
+The complete local backend candidate checks passed with simulated payments. Seven orders reconciled 610 ALL captured, 445 ALL refunded and 165 ALL net. The formerly failing concurrent 20 + 80 ALL approvals both succeeded with matching credits. The historical 50/20 fixture was preserved and reconciled on a database copy using order entries only. A new legacy-format fixture verified the runtime hold. Release remains blocked. Resume at exact-revision hosted verification once authorized and retain the known-red baseline and remaining gates. [Current state](CURRENT_STATE.md) · [Test matrix](security/SECURITY_TEST_MATRIX.md).
+
+## 2026-11-24 — R01 refund accounting at `15def9f`
+
+Resume from the local commit containing this entry in the `ShqipShop-r01-race` worktree, based on PR #12 Draft at `d6cda80`. The candidate correlates each order posting with its original refund request and a confirmed payment result. The local simulation of two ordinary partial refunds exposed a discrepancy between the payment and order totals. Start with the new PostgreSQL total comparison in `f08-refund-workflow-ci.ts`, then verify the two candidate API processes. The earlier green candidate job belongs to the published parent commit. Required CI checks are pending and release remains blocked. [Evidence and remaining checks](CURRENT_STATE.md).
+
 ## 2026-11-24 — R01 locked ALL refund bounds in disposable CI
 
 [Current state](CURRENT_STATE.md). [source 68368c3](https://github.com/titanfit102-bit/ShqipShop/commit/68368c3e6b564758c8c798fee5122768113aea18) and the [candidate job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082971) verified the exact ALL amount check in the native row-lock transaction and the plural workflow on disposable Medusa 2.22.0. The [unpatched baseline job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082592) still fails. The next scoped test is a two-process exact-bound race, including the plural workflow's order transaction behavior after a late writer rejection. Real provider reconciliation and production finance authorization remain open. R01 P0 and R02/R03 continue to block release. PR #12 remains Draft.

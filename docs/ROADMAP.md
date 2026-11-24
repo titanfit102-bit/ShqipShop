@@ -1,5 +1,13 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-24 — R01 simulated refund candidate, local suite complete
+
+The isolated PostgreSQL and two-API reconciliation milestone passed on `local/r01-reconciliation`. The next checkpoint is hosted verification of the exact local candidate once transfer to the draft workstream is authorized. General legacy reconciliation, provider settlement, R02/R03 and the G3/G5 release decisions remain open. [Current state and evidence](CURRENT_STATE.md).
+
+## 2026-11-24 — R01 refund accounting at `15def9f`
+
+R01 remains the active blocker. Verify order and payment totals for successive approved partial refunds in PostgreSQL, then verify exact-bound concurrency across two independent Medusa API processes. The new checks await an isolated runtime. [Current evidence](CURRENT_STATE.md).
+
 ## 2026-11-24 — R01 locked ALL refund bounds in disposable CI
 
 The [candidate job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082971) verified the exact ALL refund bounds in disposable Medusa 2.22.0 across Admin, the native module and singular and plural workflows. The [unpatched baseline job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45401530422/job/138471082592) still fails and R01 remains a release blocker. Next verify exact-bound contention and the plural workflow's bookkeeping after a late module rejection.

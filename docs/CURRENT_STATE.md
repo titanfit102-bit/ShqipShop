@@ -1,5 +1,27 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-24 — R01 financial reconciliation verified on the local candidate
+
+**Status.** The published `feat/merchant-auth-boundary-ci` branch is at `d6cda80`. PR #12 is Draft on PR #11. The published candidate job passed and the pinned baseline failed. R01 remains P0 for release. Local branch `local/r01-reconciliation` contains the recovered `15def9f` and the fixes through `af4cd2f`. [PR #12](https://github.com/titanfit102-bit/ShqipShop/pull/12) · [Hosted matrix](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45402855889).
+
+**Financial evidence.** Seven fresh manual-provider orders in Medusa 2.22.0, PostgreSQL 16.16 and Redis 7.2.17 accounted for 610 ALL captured, 445 ALL refunded and 165 ALL net. A separate PostgreSQL comparison matched payment collection balances, captures, confirmed refunds, signed order transactions and the latest order summaries for every order. The two-API 20 + 80 ALL case had two approved refunds, two matching negative postings, two applied credit actions and zero final balance. Concurrent requests for the last unit produced one approval. A same-key replay left all checked records unchanged. The candidate held the legacy-format fixture before mutation. [Detailed cases](security/SECURITY_TEST_MATRIX.md).
+
+**Recovered discrepancy.** The original interrupted fixture still shows two confirmed refunds totaling 50 ALL and a single order refund posting for 20 ALL. A separate physical copy of that database was used to reconcile the known 100 ALL capture and both confirmed refunds from their native IDs. It retained the original order posting, reached 50 ALL net and a second reconciliation changed no rows. Payment, capture and refund rows were identical before and after. This rehearsal covers one fully identified synthetic fixture.
+
+**Checks.** All 21 executed local workflow steps succeeded after resuming one HTTP assertion interrupted by a development-server reload. The Stage 11 financial checks and eight R01 integration groups passed. The 7 Node unit tests, 72 Python security checks, 82 pilot tests, TypeScript for the four affected verification scripts, source finance contract and tracked-file scan passed. The explicit release check exited 1. This work has no hosted run at the local revision.
+
+**Resume.** Start from the named local branch and verify its ancestry from `15def9f`. The next external verification is the exact candidate revision in the Draft PR when transfer is authorized. The pinned runtime, legacy postings that cannot be matched to a unique refund, real provider reconciliation, R02/R03 and G3/G5 still require separate evidence or decisions. Keep publication blocked.
+
+## 2026-11-24 — R01 refund accounting at `15def9f`
+
+PR #12 Draft still points to `d6cda80`. Its previous candidate passed and its pinned baseline failed. The following changes and observations are local to the candidate worktree. [GitHub Actions at that HEAD](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45402855889).
+
+The plural refund workflow now links each order posting to the payment writer's reply for that individual request. Six local unit tests passed. A separate simulation using the pinned Medusa workflow and step bodies, an in-memory writer and an in-memory order service confirmed that a late refusal produced zero postings and that a mixed batch posted only the approved partial refund.
+
+**Open accounting discrepancy.** In the same simulation, two successive approved refunds of 20 and 30 ALL produced a payment refund total of 50 ALL and an order refund total of 20 ALL. The native order step checks the order, reference type and reference ID for an existing transaction. Both requests reference the same payment. The candidate now checks the full signed order refund total against the payment refund total in the existing PostgreSQL integration test. [Native order step at v2.22.0](https://github.com/medusajs/medusa/blob/v2.22.0/packages/core/core-flows/src/order/steps/add-order-transaction.ts).
+
+**Resume here.** Verify both totals on the disposable PostgreSQL fixture. If they differ, reconcile distinct successful partial refunds while preserving replay idempotency. The prepared two-API test exercises legitimate partial amounts that sum exactly to the capture. Competing approvals with an insufficient remainder and the late-refusal integration check still need evidence on the candidate runtime. PostgreSQL, Redis and the installed Medusa backend were unavailable in this local run. R01 remains P0 and release remains blocked.
+
 ## 2026-11-24 — R01 locked ALL refund bounds in disposable CI
 
 [source 68368c3](https://github.com/titanfit102-bit/ShqipShop/commit/68368c3e6b564758c8c798fee5122768113aea18) applies an exact zero-decimal ALL check to the installed Medusa 2.22.0 Payment Module inside its existing row-lock transaction after keyed replay resolution. A matching check in the plural workflow rejects an invalid amount before that workflow can catch a module error and proceed. The two source files are verified by digest and modified only in the disposable CI candidate. The original matrix job uses the locked unpatched installation and still runs all financial assertions.
