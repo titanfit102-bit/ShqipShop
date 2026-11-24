@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocalization } from '@fluent/react';
 import { TouchableOpacity, View } from 'react-native';
 import Text from '@components/common/text';
 import { useCartQuantity, useLoggedIn } from '@data/hooks';
@@ -65,6 +66,7 @@ const ProfileButton = () => {
 };
 
 const CartButton = () => {
+  const { l10n } = useLocalization();
   const colors = useColors();
   const navigation = useNavigation();
   const itemCount = useCartQuantity();
@@ -73,6 +75,8 @@ const CartButton = () => {
   };
   return (
     <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={l10n.getString('cart')}
       onPress={navigateToCart}
       className="w-12 h-12 justify-center items-center bg-primary rounded-full elevation-sm"
     >
