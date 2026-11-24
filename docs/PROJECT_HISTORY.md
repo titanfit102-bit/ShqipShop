@@ -1,5 +1,9 @@
 # ShqipShop — projekt / histori ndryshimesh
 
+## 2026-11-24 — N03 registered checkout recovery on Android emulator
+
+[source e5b5ac3](https://github.com/titanfit102-bit/ShqipShop/commit/e5b5ac3b967d02f3a258446208c818c495df7ff4) and [Android emulator CI #45385768408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45385768408) verified registered checkout response loss and process-restart recovery on the Android debug emulator with a synthetic provider. The app recovered one committed order without resubmission. Sealed and unresolved attempts exercised terminal cleanup and journal retention.
+
 ## 2026-11-24 — N03 native Cart recovery, development-only
 
 [source d009294](https://github.com/titanfit102-bit/ShqipShop/commit/d0092941926eb6e21063528658951ce419b4f4fc) added the development-only native Cart recovery action, scoped registered checkout journals and React screen tests. The disposable Node client now consumes the same TypeScript recovery logic. See [CURRENT_STATE](CURRENT_STATE.md).

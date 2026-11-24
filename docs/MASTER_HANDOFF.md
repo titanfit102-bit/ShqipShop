@@ -1,8 +1,8 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
-## 2026-11-24 — N03 Android registered checkout recovery, verification in progress
+## 2026-11-24 — N03 registered checkout recovery on Android emulator
 
-[Current state](CURRENT_STATE.md). [Android CI #45383172672](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45383172672) opened Home and the tracked Medusa cart in the bundled debug APK. A debug warning covered the checkout action before any order submission. [source e5b5ac3](https://github.com/titanfit102-bit/ShqipShop/commit/e5b5ac3b967d02f3a258446208c818c495df7ff4) moved that overlay out of the test flow. Resume by checking [Android CI #45385768408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45385768408) for the lost-response, restart, receipt and journal assertions. N03 remains PARTIAL. R01 remains P0 and release is blocked. Continue on `feat/merchant-auth-boundary-ci`, PR #12 Draft on #11.
+[Current state](CURRENT_STATE.md). [source e5b5ac3](https://github.com/titanfit102-bit/ShqipShop/commit/e5b5ac3b967d02f3a258446208c818c495df7ff4) and [Android emulator CI #45385768408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45385768408) verified the registered Android debug path after Medusa committed one order and the response was dropped. Android reopened the same receipt after a process restart, cleared the journal on confirmed or sealed results and retained it on `unknown`. No checkout replay occurred. N03 remains PARTIAL. Next prioritize R01 using the current failure evidence from [pinned Medusa smoke #45383183020](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45383183020). PR #12 remains Draft on #11.
 
 ## 2026-11-24 — N03 native Cart recovery, development-only
 

@@ -1,5 +1,16 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-24 — N03 registered checkout recovery on Android emulator
+
+| Scenario | Result |
+| --- | --- |
+| Medusa commits and Android loses the response | Android journal binds the original cart to the backend and verified buyer |
+| App process restart and read-only status check | Opens the original receipt and renders the order items. The journal clears, one order persists and checkout is never replayed |
+| Pre-dispatch sealed cart | The app displays the final no-order status and clears the journal |
+| Unresolved tracked cart | Medusa returns `unknown` and the native journal remains pending |
+
+[source e5b5ac3](https://github.com/titanfit102-bit/ShqipShop/commit/e5b5ac3b967d02f3a258446208c818c495df7ff4). [Android emulator CI #45385768408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45385768408). Android API 35 debug build and a synthetic provider in disposable CI.
+
 ## 2026-11-24 — N03 native Cart recovery, development-only
 
 [source d009294](https://github.com/titanfit102-bit/ShqipShop/commit/d0092941926eb6e21063528658951ce419b4f4fc) adds these native screen/provider and checkout cases.

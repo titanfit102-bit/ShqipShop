@@ -1,5 +1,9 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-24 — N03 registered checkout recovery on Android emulator
+
+**N03 PARTIAL.** [Android emulator CI #45385768408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45385768408) verified one synthetic registered order after a lost response and Android app process restart, with no completion replay. The scoped journal was cleared on a confirmed receipt and after a sealed pre-dispatch cancellation and retained when the result stayed unknown. Physical devices, guest/PWA, production cart provisioning and external payment reconciliation remain open. [pinned Medusa smoke #45383183020](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45383183020) reproduced invalid refund persistence and R01 remains P0.
+
 ## 2026-11-24 — N03 native Cart recovery, development-only
 
 [source d009294](https://github.com/titanfit102-bit/ShqipShop/commit/d0092941926eb6e21063528658951ce419b4f4fc) adds a read-only native recovery action with backend, customer and cart binding. Markers for another scope, stale identity responses and uncertain outcomes preserve the checkout lock. Tests cover refusal to navigate or clean up after an authentication change. Device behavior and production recovery remain open. R01/R02/R03 and RG-01/02/03/G3/G5 remain blockers.

@@ -1,5 +1,9 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-24 — N03 registered checkout recovery on Android emulator
+
+[Android emulator CI #45385768408](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45385768408) verified the registered Android debug flow against a disposable Medusa backend, including response loss, app process restart, receipt recovery without replay, sealed cancellation and unresolved journal retention. N03 remains PARTIAL for physical devices, guest/PWA, production cart provisioning and external payment reconciliation. R01 is the next release priority.
+
 ## 2026-11-24 — N03 native Cart recovery, development-only
 
 [source d009294](https://github.com/titanfit102-bit/ShqipShop/commit/d0092941926eb6e21063528658951ce419b4f4fc) wires native Cart recovery to the same result handling as the disposable client. Scope is registered buyer development builds, automated screen tests and disposable server contract CI. Next phase is Android emulator coverage with debug tracked-cart provisioning and exercised no-order, confirmed and pending outcomes. Live rollout remains blocked.
