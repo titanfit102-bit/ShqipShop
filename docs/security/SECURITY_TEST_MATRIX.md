@@ -1,5 +1,12 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-25 — Verified integration at 42980761
+
+Tracked Medusa backend and reference storefront dependencies now use 2.22.6 on Draft PR #12. Hosted frozen installation, PostgreSQL migrations, storefront type checking, isolated identity/browser/Redis checks and ten R01 financial groups passed on the temporary patched runtime. Both corrected jobs passed; the clean runtime failed required no-capture and over-balance financial invariants. Evidence: [corrected integration](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45614791843/job/139207282102), [corrected smoke](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45614791889/job/139207282633), [clean 2.22.6 baseline](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45614791889/job/139207283026). Native SDK/types remain at 2.21.2. Local pnpm 10.11.1 frozen install passed; peer warnings include dashboard/UI, analytics, tooling and frontend types. See SECURITY_REGISTER for unresolved dependency findings. R01 stays P0/open; RG-03, commercial sandbox proof and release remain blocked.
+
+Android checkout at the same code SHA passed both the emulator UI and independent PostgreSQL order assertions with the manual provider ([job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45614792065/job/139207283325)). Nine of ten PR workflows succeeded. The only failing workflow was the financial matrix's clean baseline. Next isolate a proxy-addr 2.0.8 lock resolution for review, then qualify the reference storefront separately before distributing it. No package changed during this triage. See SECURITY_REGISTER.
+
+
 ## 2026-11-25 — Medusa 2.22.6 R01 verified in disposable CI
 
 The [hosted job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45596160099/job/139142653672) at `61c8869` verifies ten R01 accounting groups on two independent API processes with shared PostgreSQL and Redis. The new uncaptured-payment test asserts a 4xx and zero financial writes. The simulated interruption test uses a succeeded refund with no order posting, then verifies that separate processes reconcile it to one posting and one credit and preserve balances on replay. This proof covers the persisted state at the interruption boundary. Provider transport interruption, authoritative settlement and signed callbacks still need an external sandbox.

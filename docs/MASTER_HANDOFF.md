@@ -1,5 +1,12 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-25 — Verified integration at 42980761
+
+Tracked Medusa backend and reference storefront dependencies now use 2.22.6 on Draft PR #12. Hosted frozen installation, PostgreSQL migrations, storefront type checking, isolated identity/browser/Redis checks and ten R01 financial groups passed on the temporary patched runtime. Both corrected jobs passed; the clean runtime failed required no-capture and over-balance financial invariants. Evidence: [corrected integration](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45614791843/job/139207282102), [corrected smoke](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45614791889/job/139207282633), [clean 2.22.6 baseline](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45614791889/job/139207283026). Native SDK/types remain at 2.21.2. Local pnpm 10.11.1 frozen install passed; peer warnings include dashboard/UI, analytics, tooling and frontend types. See SECURITY_REGISTER for unresolved dependency findings. R01 stays P0/open; RG-03, commercial sandbox proof and release remain blocked.
+
+Android checkout at the same code SHA passed both the emulator UI and independent PostgreSQL order assertions with the manual provider ([job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45614792065/job/139207283325)). Nine of ten PR workflows succeeded. The only failing workflow was the financial matrix's clean baseline. Next isolate a proxy-addr 2.0.8 lock resolution for review, then qualify the reference storefront separately before distributing it. No package changed during this triage. See SECURITY_REGISTER.
+
+
 ## 2026-11-25 — Tracked 2.22.6 integration, hosted checks pending
 
 The draft now pins backend and reference storefront Medusa dependencies to 2.22.6. Native SDK/types remain locked at 2.21.2. The isolated integration job consumes the committed lock without re-resolving dependencies. Smoke CI retains separate clean and patched installations. The private correction remains test-only. Upstream [release notes](https://github.com/medusajs/medusa/releases/tag/v2.22.6) and [related report](https://github.com/medusajs/medusa/issues/15306) give no evidence of a complete official R01 remedy. Compare the clean runtime with the corrected runtime and record exact-SHA client, migration, finance and security results. R01 remains open; external settlement, signed callbacks, historical scope and release acceptance remain outstanding.

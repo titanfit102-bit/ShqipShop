@@ -1,5 +1,17 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-25 — RG-05 dependency audit on tracked 2.22.6
+
+A same-day production-dependency audit with pnpm 10.11.1 reported 2 low, 17 moderate, 11 high and 3 critical advisories on the integrated lock, compared with 2/21/19/3 on the previous lock. The three critical IDs persist: GHSA-jqcg-44mw-7w3h (proxy-addr through backend CLI/Express), GHSA-2464-fhr4-w9xw and GHSA-673q-mjm6-r5xr (Next.js reference storefront). No deployment exposure or exploitation was established. Scope the shipped graph, review advisory prerequisites and resolve or explicitly disposition the applicable findings before RG-05 acceptance. A successful install or R01 result cannot clear RG-05.
+
+
+**Deployment scope.** The root Dockerfile ships the FastAPI pilot and omits these Node packages. The Medusa backend was exercised in disposable CI; the Next app is the reference storefront. Live ingress, images and externally managed deployments were not inspected. All three advisories apply to versions in the lock; runtime dispositions differ.
+
+- [GHSA-jqcg-44mw-7w3h / CVE-2026-90711](https://github.com/advisories/GHSA-jqcg-44mw-7w3h): proxy-addr 2.0.7 via Express. Misclassified IPs could undermine IP restrictions, rate limits and audit attribution. The installed Medusa 2.22.6 Express loader uses numeric one-hop trust; the affected IPv6 trust-subnet condition was not found in tracked backend configuration. Validate actual ingress and forwarded-header policy before release. Prefer a narrowly resolved 2.0.8 or a compatible upstream update; validate lock, ingress attribution, A/B isolation and finance gates. Explicit correct proxy subnets mitigate where subnet configuration is used.
+- [GHSA-2464-fhr4-w9xw / CVE-2026-96889](https://github.com/advisories/GHSA-2464-fhr4-w9xw): next 16.3.8 in the reference storefront. The server-side SVG image optimisation path on glibc Linux can permit code execution. next.config.js sets images.unoptimized=true; the Next snapshot in pnpm-lock.yaml resolves sharp 0.35.5, the upstream workaround. Preserve and verify that exact native dependency in the target image or move to a reviewed patched Next 16.x version (first fix 16.4.1). No evidence of exposure in the pilot.
+- [GHSA-673q-mjm6-r5xr](https://github.com/advisories/GHSA-673q-mjm6-r5xr): next 16.3.8 in the same storefront. App Router exists; no cacheComponents enablement or use-cache directive was found in tracked storefront source/config. The advisory requires a cached function returning multiple typed arrays and could permit server-side code execution. That prerequisite was not identified. For a shipped Next storefront qualify a patched 16.x version (first fix 16.4.1) with build, routing, image, cache and checkout tests. Alternatively exclude the reference app from the distribution. No supported workaround for an affected cached function. Reassess if features, artifact or deployment change.
+
+
 ## 2026-11-25 — R01 candidate verified on 2.22.6, P0 open
 
 The [2.22.6 isolated candidate](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45596160099/job/139142653672) passed the captured-payment invariant, concurrent refund accounting, and simulated recovery across the payment-to-order boundary. The checked-in runtime and release gate still require remediation. Sandbox PSP, settlement and signed callbacks are pending. [Evidence](../CURRENT_STATE.md).
