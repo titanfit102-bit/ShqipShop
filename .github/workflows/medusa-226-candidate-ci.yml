@@ -134,6 +134,8 @@ jobs:
           set -euo pipefail
           cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
           pnpm install --frozen-lockfile
+      - name: Verify the locked Express proxy dependency and one-hop IP attribution
+        run: node --test scripts/security/medusa_proxy_ip_probe.cjs
       - name: Stage 12AA AST unit tests and installed Medusa built-in route export inventory
         run: |
           set -euo pipefail
