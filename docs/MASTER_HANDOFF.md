@@ -1,8 +1,8 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
-## 2026-11-25 — R01 Medusa 2.22.6 isolated integration
+## 2026-11-25 — R01 isolated 2.22.6 hosted evidence
 
-Continue with hosted verification of the disposable 2.22.6 financial step. The tracked runtime and baseline gate stay in place. The owner reported no real-money history and has not selected a PSP or authorized account creation. External provider settlement, signed callbacks and recovery remain pending sandbox access. R01 remains open P0. [Current evidence](CURRENT_STATE.md).
+The authorized [2.22.6 candidate](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45596160099/job/139142653672) passed ten R01 PostgreSQL groups at `61c8869`, including denial before capture and recovery of an already-confirmed refund without an order entry. The repost used the original ID exactly once. The checked-in runtime remains 2.22.0. Keep RG-03 blocked and R01 open pending provider selection, sandbox credentials and exact release-runtime approval. [Current state](CURRENT_STATE.md).
 
 ## 2026-11-25 — R01 release verification checkpoint
 

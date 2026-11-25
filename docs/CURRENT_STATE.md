@@ -1,10 +1,12 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
-## 2026-11-25 — R01 Medusa 2.22.6 isolated integration
+## 2026-11-25 — R01 isolated Medusa 2.22.6 verified in GitHub Actions
 
-The owner authorized the 2.22.6 integration only in the disposable PR #12 workstream. The installer now verifies all seven inputs on either exact train. The 2.22.6 patch requires its own CI service database and an approved runner-local copy. The existing dependency, Query, HTTP/browser, and release-veto steps stay in place. The financial check adds independent API processes and simulated recovery of a confirmed refund missing its order posting. Hosted verification pending.
+At code commit `61c8869`, the [2.22.6 job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45596160099/job/139142653672) passed dependency train and lock validation, frozen installation, PostgreSQL migrations, Query checks and the existing identity, Redis, browser and cookie regression checks. Upstream describes 2.22.6 as superseding the incompletely packaged security-hardening release 2.22.5. The installer validated the exact package files and applied the correction within the runner-temporary copy. [Upstream release](https://github.com/medusajs/medusa/releases/tag/v2.22.6).
 
-**Financial history reviewed.** The owner reports zero real-money transactions. Repository configuration and the existing PSP design show no adopted external provider, and the GitHub repository returned zero deployment records. Existing financial evidence uses synthetic fixtures. No independent settlement statement or external production ledger was available, so this documents the supported project history within those sources. [Provider status](checkout/F07G_DURABLE_QUOTE_DESIGN.md) · [Sandbox acceptance](security/SECURITY_TEST_MATRIX.md).
+All ten R01 accounting groups passed. The authenticated Admin path rejected an uncaptured payment without a capture, refund or order posting. For simulated interruption between confirmation and posting, the test seeded one succeeded refund and no order refund transaction. An independent API replay posted and credited it once using the original refund ID. A repeat on the other process left the records identical. The same job proved exact-balance concurrency, durable replay, legacy hold and ledger agreement.
+
+The checked-in version remains 2.22.0 and its release veto is still enforced. R01 remains P0/open. The owner has not selected a provider or provisioned sandbox access. External settlement lookup, signed webhook handling and recovery with authoritative provider evidence are still blocked. The owner-reported zero real-money history is supported by repository evidence and the GitHub deployment inventory. An external ledger was unavailable. [Acceptance cases](security/SECURITY_TEST_MATRIX.md).
 
 ## 2026-11-25 — R01 release readiness and ninth workflow triage
 

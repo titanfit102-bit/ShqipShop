@@ -1,5 +1,9 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-25 — R01 candidate verified on 2.22.6, P0 open
+
+The [2.22.6 isolated candidate](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45596160099/job/139142653672) passed the captured-payment invariant, concurrent refund accounting, and simulated recovery across the payment-to-order boundary. The checked-in runtime and release gate still require remediation. Sandbox PSP, settlement and signed callbacks are pending. [Evidence](../CURRENT_STATE.md).
+
 ## 2026-11-24 — R01 hosted candidate verified, production P0 open
 
 Commit `9e040e3` passed the disposable candidate's eight PostgreSQL groups, including exact captured balance, individual refund postings and same-key replays. The pinned Medusa 2.22.0 job still failed its uncaptured-payment check. The supported runtime, provider reconciliation and ambiguous legacy entries remain open under RG-03. [Candidate](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813/job/138794780712) · [Baseline](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813/job/138794781465).

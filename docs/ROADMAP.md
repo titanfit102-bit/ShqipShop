@@ -1,5 +1,9 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-25 — R01 portable candidate verified
+
+The [isolated 2.22.6 job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45596160099/job/139142653672) verified dependencies, security regressions and all ten R01 accounting groups. The draft candidate supports the next approved release-integration review. External provider sandbox and release criteria remain open. [Acceptance details](security/SECURITY_TEST_MATRIX.md).
+
 ## 2026-11-25 — R01 exact runtime and sandbox acceptance
 
 The preserved failing baseline confirms the open invariant. Scope the release build before porting R01 because the 2.22.6 Payment and Order service files differ from the verified 2.22.0 candidate. Reuse the completed mock recovery evidence. On the selected build, verify provider acknowledgement loss and restart before order posting, and rehearse historical classification from an approved read-only export or a verified empty inventory. [Acceptance criteria](security/SECURITY_TEST_MATRIX.md).

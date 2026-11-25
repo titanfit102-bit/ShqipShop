@@ -1,5 +1,9 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-25 — Medusa 2.22.6 R01 verified in disposable CI
+
+The [hosted job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45596160099/job/139142653672) at `61c8869` verifies ten R01 accounting groups on two independent API processes with shared PostgreSQL and Redis. The new uncaptured-payment test asserts a 4xx and zero financial writes. The simulated interruption test uses a succeeded refund with no order posting, then verifies that separate processes reconcile it to one posting and one credit and preserve balances on replay. This proof covers the persisted state at the interruption boundary. Provider transport interruption, authoritative settlement and signed callbacks still need an external sandbox.
+
 ## 2026-11-25 — R01 remaining acceptance checks
 
 | Scope | Prerequisite | Evidence required |
