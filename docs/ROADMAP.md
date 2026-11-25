@@ -1,5 +1,16 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-25 — F07g/N03 registered ALL checkout
+
+[Draft code 12bac21d](https://github.com/titanfit102-bit/ShqipShop/commit/12bac21d5453e8a845ceebd887c5eef4bf4d3c15) connects the existing F07g review, acceptance and PostgreSQL claim to the existing N03 registered dispatch attempt. Both claims commit together before Medusa completion. Medusa validates the exact cart snapshot again before it creates the order. The opted-in development checkout shows the server quote total, prompts again after a change, and persists the existing N03 recovery marker before dispatch. Only a tagged pre-dispatch refusal allows it to clear that marker without a receipt. Ambiguous results use the existing recovery read.
+
+Scope is one enrolled registered cart, one ALL item line, one shipping method, zero adjustments and the manual simulated provider in disposable CI. Medusa owns all order, stock and financial writes. The stage does not certify full pricing rules, a real PSP, guest/PWA checkout or production ingress. R01 remains open. Draft PR #12 and the release veto stay in place.
+
+[Android quote/recovery](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45671113034/job/139406322901) and [Merchant A/B and PostgreSQL](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45671112767/job/139406320598) passed on the current draft code. See [CURRENT_STATE](CURRENT_STATE.md) for the finance, audit and Android retry evidence.
+
+Next F07g increment: exercise a catalogue-only price change on the enrolled cart. The stale cart must fail closed, then an existing Medusa cart refresh must produce a new offer for explicit acceptance. Require no dispatch or order on the stale offer. One explicit acceptance of the refreshed offer must produce one Medusa order, with the offer, simulated payment and receipt totals matching in ALL. An ambiguous response must recover that same order through N03 without another dispatch. Extend the same contract to multiple lines and adjustments after this proof. Guest/PWA rollout and external provider acceptance remain open.
+
+
 ## 2026-11-25 — Request dependency checkpoint and next checkout increment
 
 [Code 08b763c8](https://github.com/titanfit102-bit/ShqipShop/commit/08b763c8e687f8327d8398284ff23fa0187afee9) pins Express body-parser 1.20.9 and backend Zod 4.6.6. Frozen installs and request/schema checks preserve JSON, form data, original webhook bytes, validation behavior and the existing locked Medusa train. [Hosted audit and pilot image inspection](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45662084155/job/139374299795) passed. The report dropped from 11 to 9 high advisories. Two Next.js criticals remain in the reference workspace. The current root pilot image excludes the reference storefront, and the Android native dependency graph has no Next package. See the security register for release-scope and feature-dependent dispositions.
