@@ -33,6 +33,9 @@ curl -fsS --retry 5 --retry-connrefused http://127.0.0.1:9000/health >/dev/null
 adb reverse tcp:9003 tcp:9003
 adb logcat -c
 adb install -r "$apk"
+# Free the test window from the emulator's unrelated background launcher.
+# The app's own crashes and UI assertions still fail the job.
+adb shell am force-stop com.google.android.apps.nexuslauncher
 start_app
 python3 "$ui" wait "Shporta" --exact --timeout 180
 
