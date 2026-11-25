@@ -1,12 +1,12 @@
 name: Android N03 registered checkout recovery
 
 on:
-  push:
-    branches: [feat/merchant-auth-boundary-ci]
+  pull_request:
     paths:
       - .github/workflows/android-n03-recovery.yml
       - native-medusa/scripts/android-n03-recovery.sh
       - native-medusa/scripts/n03-android-fixture.py
+      - native-medusa/app/data/checkout-quote.ts
   workflow_dispatch:
 
 permissions:
@@ -28,6 +28,7 @@ jobs:
       SHQIPSHOP_REQUIRE_REDIS: "true"
       SHQIPSHOP_N03_RECOVERY_CI: "true"
       SHQIPSHOP_N03_ANDROID_CI: "true"
+      SHQIPSHOP_F07G_N03_CI: "true"
       STORE_CORS: http://localhost:8000
       ADMIN_CORS: http://localhost:9000
       AUTH_CORS: http://localhost:9000
@@ -97,10 +98,12 @@ jobs:
             attempt_id uuid PRIMARY KEY,
             cart_id text UNIQUE NOT NULL,
             owner_customer_id text,
+            quote_required boolean NOT NULL DEFAULT false,
             phase text NOT NULL DEFAULT 'prepared'
               CHECK (phase IN ('prepared', 'claimed_for_dispatch', 'sealed_before_dispatch'))
           );
           SQL
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-live-cart-snapshot-ci.ts init-n03
           nohup pnpm --filter @dtc/backend exec medusa develop --port 9000 > "$RUNNER_TEMP/n03-medusa.log" 2>&1 </dev/null &
           ready=false
           for i in $(seq 1 90); do
@@ -126,7 +129,7 @@ jobs:
           {
             printf 'MEDUSA_BACKEND_URL=http://127.0.0.1:9003\n'
             printf 'PUBLISHABLE_API_KEY=%s\n' "$(cat "$RUNNER_TEMP/n03-android-key.txt")"
-            printf 'DEFAULT_LOCALE=sq-AL\nN03_REGISTERED_RECOVERY=true\n'
+            printf 'DEFAULT_LOCALE=sq-AL\nN03_REGISTERED_RECOVERY=true\nF07G_QUOTE_REVIEW=true\n'
           } > .env
           # JS remains in development mode. Launch from the packaged asset without the Metro dev menu.
           python3 - <<'PY_CONFIG'

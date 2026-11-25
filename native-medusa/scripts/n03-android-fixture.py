@@ -89,10 +89,34 @@ def setup():
         {"provider_id": "pp_system_default"}, expected=(200, 201))
     for value in (cart, sealed, unknown):
         require(re.fullmatch(r"cart_[A-Za-z0-9_-]{8,}", value), "Invalid fixture cart")
+    subprocess.run(
+        ["psql", "-X", "-q", "-v", "ON_ERROR_STOP=1", "-h", "127.0.0.1",
+         "-U", "shqipshop_ci_a", "-d", "shqipshop_ci_a", "-v", f"cart={cart}"],
+        input="UPDATE shqipshop_n03_disposable_attempt SET quote_required = true WHERE cart_id = :'cart';",
+        text=True, check=True, timeout=15, env={**os.environ, "PGPASSWORD": "merchantA_disposable"},
+    )
     with os.fdopen(os.open(STATE, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), "w") as stream:
         json.dump(dict(key=key, token=token, customer=customer, region=region,
                        confirm=cart, sealed=sealed, unknown=unknown), stream)
     print("SHQIPSHOP_N03_ANDROID_TRACKED_CARTS_READY")
+
+
+def reprice():
+    fixture = load()
+    cart_path = "/store/carts/" + fixture["confirm"]
+    key, token = fixture["key"], fixture["token"]
+    before = medusa("GET", cart_path, key, token)["cart"]
+    line = before["items"][0]
+    medusa("POST", f'{cart_path}/line-items/{line["id"]}', key, token, {"quantity": 2})
+    collection = medusa("POST", "/store/payment-collections", key, token,
+                        {"cart_id": fixture["confirm"]})["payment_collection"]["id"]
+    medusa("POST", f"/store/payment-collections/{collection}/payment-sessions", key, token,
+           {"provider_id": "pp_system_default"}, expected=(200, 201))
+    after = medusa("GET", cart_path, key, token)["cart"]
+    require(after["currency_code"] == "all" and after["total"] > before["total"],
+            "Expected fixture repricing in ALL")
+    (ROOT / "n03-android-repriced-total").write_text(str(after["total"]))
+    require(not SUBMISSION.exists(), "Quote review dispatched checkout before acceptance")
 
 
 def proxy():
@@ -100,7 +124,8 @@ def proxy():
     completion_path = f'/store/carts/{fixture["confirm"]}/complete'
     unknown_path = f'{RECOVERY}?cart_id={fixture["unknown"]}'
 
-    forwarded = {"accept", "authorization", "content-type", "x-publishable-api-key"}
+    forwarded = {"accept", "authorization", "content-type", "x-publishable-api-key",
+                 "x-shqipshop-cart-id", "x-shqipshop-quote-id", "x-shqipshop-quote-fingerprint"}
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_args):
@@ -212,6 +237,10 @@ def verify_order():
     orders = medusa("GET", "/store/orders", key, token)
     require(orders["count"] == 1 and [item["id"] for item in orders["orders"]] == [order],
             "Fixture account must have exactly one order")
+    receipt = medusa("GET", f"/store/orders/{order}", key, token)["order"]
+    expected_total = (ROOT / "n03-android-repriced-total").read_text()
+    require(receipt["currency_code"] == "all" and str(receipt["total"]) == expected_total,
+            "Recovered order must match the accepted ALL quote")
     print("SHQIPSHOP_N03_ANDROID_ONE_COMMITTED_ORDER_VERIFIED")
 
 
@@ -219,7 +248,7 @@ def main():
     require(os.environ.get("CI") == "true" and os.environ.get("SHQIPSHOP_N03_ANDROID_CI") == "true",
             "Only run against the disposable CI fixture")
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("setup", "proxy", "seed", "storage", "order", "wait-unknown"))
+    parser.add_argument("action", choices=("setup", "proxy", "seed", "storage", "order", "wait-unknown", "reprice"))
     parser.add_argument("case", nargs="?", choices=("confirm", "confirmed", "sealed", "unknown", "lost"))
     args = parser.parse_args()
     if args.action == "setup":
@@ -234,6 +263,8 @@ def main():
         verify_storage(args.case)
     elif args.action == "order":
         verify_order()
+    elif args.action == "reprice":
+        reprice()
     else:
         limit = time.monotonic() + 35
         while not UNKNOWN_READ.exists() and time.monotonic() < limit:

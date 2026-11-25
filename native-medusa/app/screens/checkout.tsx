@@ -434,13 +434,13 @@ const Checkout = () => {
         </View>
         <CheckoutSteps currentStep={activeStep} onStepPress={handleStepPress} />
         <ScrollView className="flex-1 px-4" contentContainerClassName="pb-4">
-          {renderStep()}
           {nativeQuoteReviewEnabled && activeStep === 'review' && review && (
             <View className="gap-1 py-4">
               {review.changed && <Text>{l10n.getString('checkout-quote-changed')}</Text>}
               <Text>{l10n.getString('checkout-quote-total', {amount: review.quote.total})}</Text>
             </View>
           )}
+          {renderStep()}
         </ScrollView>
       </View>
       <View className="p-4 bg-background-secondary border-t border-gray-200">

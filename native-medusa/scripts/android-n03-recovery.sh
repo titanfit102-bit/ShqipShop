@@ -41,7 +41,14 @@ python3 "$fixture" seed confirm
 start_app
 open_cart
 python3 "$ui" tap "Përfundo porosinë" --exact --timeout 90
-python3 "$ui" tap "Dërgo porosinë" --exact --timeout 75
+python3 "$ui" tap "Rishiko ofertën" --exact --timeout 75
+python3 "$ui" wait "Totali i ofertës" --timeout 75
+python3 "$fixture" reprice
+python3 "$ui" tap "Pranoj ofertën dhe porosis" --exact --timeout 75
+python3 "$ui" wait "Totali i shportës ka ndryshuar" --timeout 75
+test ! -e "$RUNNER_TEMP/n03-android-submission"
+capture repriced-quote
+python3 "$ui" tap "Pranoj ofertën dhe porosis" --exact --timeout 75
 python3 "$ui" wait "Statusi i porosisë ende nuk është konfirmuar" --timeout 75
 python3 "$fixture" order
 python3 "$fixture" storage lost
@@ -78,4 +85,4 @@ if grep -Fq 'FATAL EXCEPTION' <(adb logcat -d -v brief AndroidRuntime:E '*:S'); 
   echo "::error::Android fatal exception during N03 recovery"
   exit 1
 fi
-echo "SHQIPSHOP_N03_ANDROID_NATIVE_RECOVERY_PASSED" | tee "$report/status.txt"
+echo "SHQIPSHOP_F07G_N03_ANDROID_QUOTE_AND_NATIVE_RECOVERY_PASSED" | tee "$report/status.txt"
