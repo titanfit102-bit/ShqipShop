@@ -5,6 +5,8 @@ on:
     paths:
       - .github/workflows/medusa-226-candidate-ci.yml
       - scripts/security/medusa_226_ci_candidate.py
+      - medusa-backend-poc/apps/backend/scripts/*r01*
+      - medusa-backend-poc/apps/backend/src/scripts/r01-refund-reconciliation-ci.ts
       - scripts/security/test_medusa_226_ci_candidate.py
       - scripts/security/medusa_226_query_probe.cjs
       - scripts/security/medusa_226_route_inventory.cjs
@@ -215,6 +217,35 @@ jobs:
           fi
           echo SHQIPSHOP_MEDUSA_226_DISPOSABLE_API_HEALTH_PASSED
           node "$GITHUB_WORKSPACE/scripts/security/medusa_226_http_probe.cjs"
+      - name: Verify R01 accounting on the isolated 2.22.6 runtime
+        env:
+          SHQIPSHOP_R01_REFUND_CANDIDATE_CI: "true"
+        run: |
+          set -euo pipefail
+          cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
+          node --test apps/backend/scripts/r01-confirmed-refunds.test.cjs
+          node apps/backend/scripts/apply-r01-refund-candidate.cjs
+          password="$(openssl rand -hex 24)"
+          echo "::add-mask::$password"
+          export SHQIPSHOP_F08_STAGE11P_ADMIN_PASSWORD="$password"
+          pnpm --filter @dtc/backend exec medusa user -e stage11p-admin@shqipshop.example.invalid -p "$password" >/dev/null
+          pids=()
+          cleanup() {
+            for pid in "${pids[@]}"; do kill -TERM -- "-$pid" 2>/dev/null || true; done
+          }
+          trap cleanup EXIT
+          for port in 9220 9221; do
+            setsid pnpm --filter @dtc/backend exec medusa develop --host 127.0.0.1 --port "$port" >"$RUNNER_TEMP/r01-226-$port.log" 2>&1 &
+            pids+=("$!")
+          done
+          for port in 9220 9221; do
+            for attempt in $(seq 1 90); do
+              if curl -fsS --max-time 3 "http://127.0.0.1:$port/health" >/dev/null 2>&1; then break; fi
+              sleep 2
+            done
+            curl -fsS --max-time 3 "http://127.0.0.1:$port/health" >/dev/null
+          done
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/r01-refund-reconciliation-ci.ts
       - name: Confirm checked-in 2.22.0 untouched and release still blocked
         run: |
           set -euo pipefail

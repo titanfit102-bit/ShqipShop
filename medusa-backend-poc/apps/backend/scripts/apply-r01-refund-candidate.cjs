@@ -142,11 +142,19 @@ const pinnedFiles = [
     ]],
 ];
 
-function patchedSource(relativePath, source) {
+// The five core-flows inputs are byte-identical between these trains.
+const revised226 = {
+  "dist/services/payment-module.js": "cceda513612d135d8d63a79d1367026c77d962ac6ef8ea0cebbf938a63018060",
+  "dist/services/order-module-service.js": "f240e716a083312bc97719e640f205694c02789925381aac76b4e27e8622dfcd",
+};
+
+function patchedSource(relativePath, source, version = "2.22.0") {
+  assert.ok(["2.22.0", "2.22.6"].includes(version), "Unsupported R01 candidate version");
   const pinned = pinnedFiles.find(([, path]) => path === relativePath);
   assert.ok(pinned, "Only registered R01 candidate files can be transformed");
   const [packageName, , digest, replacements] = pinned;
-  assert.equal(createHash("sha256").update(source).digest("hex"), digest, packageName);
+  const expected = version === "2.22.6" ? revised226[relativePath] ?? digest : digest;
+  assert.equal(createHash("sha256").update(source).digest("hex"), expected, packageName);
   let content = source;
   for (const [original, replacement] of replacements) {
     assert.equal(content.split(original).length, 2, relativePath);
@@ -160,7 +168,18 @@ function applyCandidate() {
   assert.equal(process.env.CI, "true");
   assert.equal(process.env.NODE_ENV, "development");
   assert.equal(process.env.SHQIPSHOP_R01_REFUND_CANDIDATE_CI, "true");
-  assert.equal(process.env.DATABASE_URL, "postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci");
+  const version = require("../package.json").dependencies["@medusajs/medusa"];
+  assert.ok(["2.22.0", "2.22.6"].includes(version), "Unsupported R01 candidate version");
+  const upgraded = version === "2.22.6";
+  const database = upgraded ? "candidate_ci" : "medusa_ci";
+  assert.equal(process.env.DATABASE_URL, `postgres://${database}:disposable_ci_password@127.0.0.1:5432/${database}`);
+  if (upgraded) {
+    assert.equal(process.env.SHQIPSHOP_MEDUSA_CANDIDATE_CI, "true");
+    const runner = fs.realpathSync(process.env.RUNNER_TEMP);
+    const workspace = fs.realpathSync(path.resolve(__dirname, "../../.."));
+    assert.ok(workspace.startsWith(runner + path.sep), "2.22.6 must be a runner-local candidate copy");
+    assert.equal(workspace, fs.realpathSync(process.env.SHQIPSHOP_MEDUSA_CANDIDATE_DIR));
+  }
   assert.equal(process.env.REDIS_URL, "redis://127.0.0.1:6379");
 
   const store = path.resolve(__dirname, "../../../node_modules/.pnpm");
@@ -168,13 +187,13 @@ function applyCandidate() {
   const packages = fs.readdirSync(localStore);
   const edits = pinnedFiles.map(([packageName, relativePath]) => {
     const candidates = packages
-      .filter((entry) => entry.startsWith(`@medusajs+${packageName}@2.22.0_`))
+      .filter((entry) => entry.startsWith(`@medusajs+${packageName}@${version}_`))
       .map((entry) => path.join(localStore, entry, "node_modules", "@medusajs", packageName, relativePath))
       .filter((entry) => fs.existsSync(entry));
-    assert.equal(candidates.length, 1, `Expected one installed @medusajs/${packageName} 2.22.0`);
+    assert.equal(candidates.length, 1, `Expected one installed @medusajs/${packageName} ${version}`);
     const target = fs.realpathSync(candidates[0]);
     assert.ok(target.startsWith(localStore + path.sep), "Module must be inside the local install");
-    return { target, content: patchedSource(relativePath, fs.readFileSync(target, "utf8")) };
+    return { target, content: patchedSource(relativePath, fs.readFileSync(target, "utf8"), version) };
   });
   // Verify all pinned inputs first. Rename replacements so pnpm's store
   // hard links to the original files are never written in place.

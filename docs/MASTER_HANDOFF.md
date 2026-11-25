@@ -1,5 +1,9 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-25 — R01 Medusa 2.22.6 isolated integration
+
+Continue with hosted verification of the disposable 2.22.6 financial step. The tracked runtime and baseline gate stay in place. The owner reported no real-money history and has not selected a PSP or authorized account creation. External provider settlement, signed callbacks and recovery remain pending sandbox access. R01 remains open P0. [Current evidence](CURRENT_STATE.md).
+
 ## 2026-11-25 — R01 release verification checkpoint
 
 Use Draft PR #12. At `d7fe1c8` the ninth workflow was the Medusa financial smoke matrix. Its synthetic candidate passed and its pinned baseline failed the authenticated Admin captured-payment invariant. Verification of npm package digests found two changed service files in 2.22.6 across the seven inputs pinned by the current candidate. Carry forward the hosted mock recovery proof and PostgreSQL legacy rehearsal. The next execution input is an approved exact runtime and a merchant-scoped PSP sandbox with documented credentials and financial lookup. R01 remains P0, with RG-03 blocked. [Decision and evidence](CURRENT_STATE.md) · [Acceptance criteria](security/SECURITY_TEST_MATRIX.md).

@@ -1,5 +1,11 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-25 — R01 Medusa 2.22.6 isolated integration
+
+The owner authorized the 2.22.6 integration only in the disposable PR #12 workstream. The installer now verifies all seven inputs on either exact train. The 2.22.6 patch requires its own CI service database and an approved runner-local copy. The existing dependency, Query, HTTP/browser, and release-veto steps stay in place. The financial check adds independent API processes and simulated recovery of a confirmed refund missing its order posting. Hosted verification pending.
+
+**Financial history reviewed.** The owner reports zero real-money transactions. Repository configuration and the existing PSP design show no adopted external provider, and the GitHub repository returned zero deployment records. Existing financial evidence uses synthetic fixtures. No independent settlement statement or external production ledger was available, so this documents the supported project history within those sources. [Provider status](checkout/F07G_DURABLE_QUOTE_DESIGN.md) · [Sandbox acceptance](security/SECURITY_TEST_MATRIX.md).
+
 ## 2026-11-25 — R01 release readiness and ninth workflow triage
 
 Draft PR #12 at `d7fe1c8` completed eight successful workflows and one failed workflow. In the [Medusa smoke matrix](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45493847608), the [R01 candidate](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45493847608/job/138798979644) passed all eight PostgreSQL verification groups. The [pinned baseline](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45493847608/job/138798980478) reached its financial assertions and failed the Admin captured-payment check. This is the expected result of preserving the mandatory check on the unpatched runtime and confirms an unresolved P0. Local release guard still returns `FIN-RELEASE-RG03-NOT-APPROVED`.

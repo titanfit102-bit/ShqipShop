@@ -17,8 +17,9 @@ export default async function verify({ container }: ExecArgs) {
   const database = new URL(process.env.DATABASE_URL!)
   assert.equal(database.protocol, "postgres:")
   assert.equal(database.hostname, "127.0.0.1")
-  assert.equal(database.pathname, "/medusa_ci")
-  assert.equal(database.username, "medusa_ci")
+  const databaseName = process.env.SHQIPSHOP_MEDUSA_CANDIDATE_CI === "true" ? "candidate_ci" : "medusa_ci"
+  assert.equal(database.pathname, "/" + databaseName)
+  assert.equal(database.username, databaseName)
   const redis = new URL(process.env.REDIS_URL!)
   assert.equal(redis.protocol, "redis:")
   assert.equal(redis.hostname, "127.0.0.1")
@@ -28,7 +29,7 @@ export default async function verify({ container }: ExecArgs) {
   const links = container.resolve(ContainerRegistrationKeys.LINK)
   const db = container.resolve(ContainerRegistrationKeys.PG_CONNECTION)
 
-  async function fixture(total: number): Promise<Fixture> {
+  async function authorize(total: number): Promise<Omit<Fixture, "captureId">> {
     const order = await orders.createOrders({
       currency_code: "all", items: [{ title: "Synthetic refund check", quantity: 1, unit_price: total }],
     })
@@ -39,11 +40,16 @@ export default async function verify({ container }: ExecArgs) {
     })
     const payment = await payments.authorizePaymentSession(session.id, {})
     assert(payment && payment.provider_id === "pp_system_default")
-    await capturePaymentWorkflow(container).run({input: {payment_id: payment.id, amount: total}})
-    const captures = await db("capture").where({payment_id: payment.id}).whereNull("deleted_at").select("id", "amount")
+    return { orderId: order.id, collectionId: collection.id, paymentId: payment.id, total }
+  }
+
+  async function fixture(total: number): Promise<Fixture> {
+    const authorized = await authorize(total)
+    await capturePaymentWorkflow(container).run({input: {payment_id: authorized.paymentId, amount: total}})
+    const captures = await db("capture").where({payment_id: authorized.paymentId}).whereNull("deleted_at").select("id", "amount")
     assert.equal(captures.length, 1)
     assert.equal(Number(captures[0].amount), total)
-    return { orderId: order.id, collectionId: collection.id, paymentId: payment.id, total, captureId: captures[0].id }
+    return { ...authorized, captureId: captures[0].id }
   }
 
   async function collectionLedger(f: Fixture, refunded: number) {
@@ -204,7 +210,7 @@ export default async function verify({ container }: ExecArgs) {
   assert.equal(login.status, 200)
   const token = (await login.json()).token
   assert.equal(typeof token, "string")
-  const refund = async (api: number, f: Fixture, key: string, amount: number) => {
+  const refund = async (api: number, f: Pick<Fixture, "paymentId">, key: string, amount: number) => {
     const response = await fetch(endpoints[api]+"/admin/payments/"+encodeURIComponent(f.paymentId)+"/refund", {
       method:"POST", headers: {authorization:"Bearer "+token,"content-type":"application/json"},
       body: JSON.stringify({idempotency_key:key,amount}), signal:AbortSignal.timeout(20000),
@@ -212,6 +218,30 @@ export default async function verify({ container }: ExecArgs) {
     await response.arrayBuffer()
     return response.status
   }
+
+  const uncaptured = await authorize(100)
+  const rejected = await refund(0, uncaptured, "requires-capture", 1)
+  assert([400,409,422].includes(rejected))
+  assert.deepEqual(await db("capture").where({payment_id:uncaptured.paymentId}).select("id"), [])
+  assert.deepEqual(await db("refund").where({payment_id:uncaptured.paymentId}).select("id"), [])
+  assert.deepEqual(await db("order_transaction").where({order_id:uncaptured.orderId}).select("id"), [])
+  console.log("R01_PG_UNCAPTURED_ADMIN_DENIED_VERIFIED")
+
+  // Seed only the confirmed payment operation, representing a stop before
+  // order posting. An independent Admin process must reconcile by the same ID.
+  const interrupted = await fixture(100)
+  const key = "confirmed-before-posting"
+  await payments.refundPayment({payment_id:interrupted.paymentId, idempotency_key:key, amount:100})
+  const confirmed = await db("refund").where({payment_id:interrupted.paymentId}).select("id","status")
+  assert.equal(confirmed.length, 1)
+  assert.equal(confirmed[0].status, "succeeded")
+  assert.deepEqual(await db("order_transaction").where({order_id:interrupted.orderId,reference:"refund"}).select("id"), [])
+  assert.equal(await refund(1, interrupted, key, 100), 200)
+  const recovered = await ledger(interrupted, {[key]:100}, [100])
+  assert.equal(recovered.refunds[0].id, confirmed[0].id)
+  assert.equal(await refund(0, interrupted, key, 100), 200)
+  assert.deepEqual(await ledger(interrupted, {[key]:100}, [100]), recovered)
+  console.log("R01_PG_CONFIRMED_REFUND_WITH_MISSING_POSTING_RECOVERED_VERIFIED")
 
   const exact = await fixture(100)
   assert.deepEqual(await Promise.all([refund(0,exact,"left",20),refund(1,exact,"right",80)]), [200,200])
