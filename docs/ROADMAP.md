@@ -1,14 +1,23 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-25 — F07g/N03 catalogue-only ALL repricing
+
+Catalogue-only price change implemented in [Draft code bc3fe2cc](https://github.com/titanfit102-bit/ShqipShop/commit/bc3fe2cc2535abd8e81f47961a950f7d9790a0d8). [Android catalogue recovery](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45709150959/job/139538758843) passed. The app displayed 1,527 ALL, required new consent and reopened the same receipt after restart. The synthetic payment ledger and the one-dispatch check passed. [Sanitized proof](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45709150959/artifacts/15068365287). The disposable ALL scenario verifies that the existing quote/acceptance and N03 mechanisms continue to use Medusa pricing, payments and orders.
+
+Next F07g increment is a registered ALL cart with two distinct lines. Change only one catalogue price and verify the updated line, unchanged line, shipping and total through the same quote and recovery contract. Use the same exact consent and one-order checks. Extend to adjustments after that proof.
+
+Release remains blocked. External provider acceptance, R01, guest/PWA and the commercial release gates remain open.
+
+
 ## 2026-11-25 — F07g/N03 registered ALL checkout
 
 [Draft code 12bac21d](https://github.com/titanfit102-bit/ShqipShop/commit/12bac21d5453e8a845ceebd887c5eef4bf4d3c15) connects the existing F07g review, acceptance and PostgreSQL claim to the existing N03 registered dispatch attempt. Both claims commit together before Medusa completion. Medusa validates the exact cart snapshot again before it creates the order. The opted-in development checkout shows the server quote total, prompts again after a change, and persists the existing N03 recovery marker before dispatch. Only a tagged pre-dispatch refusal allows it to clear that marker without a receipt. Ambiguous results use the existing recovery read.
 
 Scope is one enrolled registered cart, one ALL item line, one shipping method, zero adjustments and the manual simulated provider in disposable CI. Medusa owns all order, stock and financial writes. The stage does not certify full pricing rules, a real PSP, guest/PWA checkout or production ingress. R01 remains open. Draft PR #12 and the release veto stay in place.
 
-[Android quote/recovery](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45671113034/job/139406322901) and [Merchant A/B and PostgreSQL](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45671112767/job/139406320598) passed on the current draft code. See [CURRENT_STATE](CURRENT_STATE.md) for the finance, audit and Android retry evidence.
+[Android quote/recovery](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45671113034/job/139406322901) and [Merchant A/B and PostgreSQL](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45671112767/job/139406320598) passed on the preceding quantity-change draft code. See [CURRENT_STATE](CURRENT_STATE.md) for the finance, audit and Android retry evidence.
 
-Next F07g increment: exercise a catalogue-only price change on the enrolled cart. The stale cart must fail closed, then an existing Medusa cart refresh must produce a new offer for explicit acceptance. Require no dispatch or order on the stale offer. One explicit acceptance of the refreshed offer must produce one Medusa order, with the offer, simulated payment and receipt totals matching in ALL. An ambiguous response must recover that same order through N03 without another dispatch. Extend the same contract to multiple lines and adjustments after this proof. Guest/PWA rollout and external provider acceptance remain open.
+The catalogue-only increment described here is covered by the newer checkpoint above. This section retains the preceding quantity-change and Android retry evidence.
 
 
 ## 2026-11-25 — Request dependency checkpoint and next checkout increment
