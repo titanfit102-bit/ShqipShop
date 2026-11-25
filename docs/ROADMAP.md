@@ -1,10 +1,19 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-25 — F07g/N03 catalogue repricing with multiple ALL items
+
+[Draft code 8b270f42](https://github.com/titanfit102-bit/ShqipShop/commit/8b270f425ee26cd996a919c49b27f1baa7b8d80c) extends the registered ALL quote path to multiple lines. [Android catalogue recovery](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779257/job/139551283074) passed. The app displayed 3,027 ALL, required new consent and reopened the same receipt after restart. The simulated payment ledger and the no-replay check passed. [Sanitized proof](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779257/artifacts/15069247178).
+
+Next F07g increment is one Medusa-calculated discount adjustment on a registered ALL cart. Use the existing quote and N03 mechanisms to verify the discount, total, stale-offer rejection, explicit consent, simulated payment and one recovered order. Keep taxes, credits and external payments outside that proof.
+
+R01, the external PSP sandbox, guest/PWA and the commercial release gates remain open.
+
+
 ## 2026-11-25 — F07g/N03 catalogue-only ALL repricing
 
 Catalogue-only price change implemented in [Draft code bc3fe2cc](https://github.com/titanfit102-bit/ShqipShop/commit/bc3fe2cc2535abd8e81f47961a950f7d9790a0d8). [Android catalogue recovery](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45709150959/job/139538758843) passed. The app displayed 1,527 ALL, required new consent and reopened the same receipt after restart. The synthetic payment ledger and the one-dispatch check passed. [Sanitized proof](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45709150959/artifacts/15068365287). The disposable ALL scenario verifies that the existing quote/acceptance and N03 mechanisms continue to use Medusa pricing, payments and orders.
 
-Next F07g increment is a registered ALL cart with two distinct lines. Change only one catalogue price and verify the updated line, unchanged line, shipping and total through the same quote and recovery contract. Use the same exact consent and one-order checks. Extend to adjustments after that proof.
+This one-line checkpoint preceded the multi-line increment recorded above.
 
 Release remains blocked. External provider acceptance, R01, guest/PWA and the commercial release gates remain open.
 

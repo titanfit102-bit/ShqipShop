@@ -1,5 +1,20 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-25 — F07g/N03 catalogue repricing with multiple ALL items
+
+[Draft code 8b270f42](https://github.com/titanfit102-bit/ShqipShop/commit/8b270f425ee26cd996a919c49b27f1baa7b8d80c). [Android catalogue recovery](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779257/job/139551283074) passed. The app displayed 3,027 ALL, required new consent and reopened the same receipt after restart. The simulated payment ledger and the no-replay check passed. [Sanitized proof](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779257/artifacts/15069247178).
+
+| Check | Evidence |
+| --- | --- |
+| Catalogue-only change | The original two-line cart remains at 3,010 ALL after the catalogue update. |
+| Fail closed | Previously accepted stale quote returns 412. The refreshed cart has no order before the second consent. |
+| Accurate refresh | Affected line 1,517 ALL. Other line 1,500 ALL. Shipping 10 ALL. |
+| Exact financial result | Quote, simulated payment, order and receipt total 3,027 ALL. Both receipt lines and shipping match. |
+| Lost response | The existing N03 recovery returns the same order and the fixture counts one dispatch and one order. |
+
+This proof covers an enrolled, registered ALL cart with one shipping method and zero adjustments in disposable CI. Medusa owns all order, stock and financial writes. The quote adapter follows the existing 100-line contract limit and validates all lines and totals. The live one-line quote fixture keeps its original revision shape. R01 stays open, PR #12 stays Draft and release stays blocked.
+
+
 ## 2026-11-25 — F07g/N03 catalogue-only ALL repricing
 
 Run on the [Draft code bc3fe2cc](https://github.com/titanfit102-bit/ShqipShop/commit/bc3fe2cc2535abd8e81f47961a950f7d9790a0d8) application tree. [Android catalogue recovery](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45709150959/job/139538758843) passed. The app displayed 1,527 ALL, required new consent and reopened the same receipt after restart. The synthetic payment ledger and the one-dispatch check passed. [Sanitized proof](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45709150959/artifacts/15068365287). [Merchant A/B and PostgreSQL](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45709150797/job/139538757758) passed.

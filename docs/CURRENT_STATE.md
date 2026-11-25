@@ -1,5 +1,24 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-25 — F07g/N03 catalogue repricing with multiple ALL items
+
+[Draft code 8b270f42](https://github.com/titanfit102-bit/ShqipShop/commit/8b270f425ee26cd996a919c49b27f1baa7b8d80c) validates each cart line against its linked Medusa catalogue price and checks the line and cart arithmetic using Medusa exact-money helpers. The existing review endpoint refreshes the stale cart and the existing acceptance and dispatch paths protect the new quote.
+
+The isolated Medusa/PostgreSQL/Redis proof changed only one catalogue unit price from 1,500 to 1,517 ALL. The old cart remained at 3,010 ALL and a previously accepted stale quote returned 412 before dispatch. Medusa refreshed the affected item while preserving the other item at 1,500 ALL and shipping at 10 ALL. The fresh quote could only complete after explicit acceptance. The quote, simulated payment, order and receipt matched at 3,027 ALL. N03 recovered the same sole order after the response was deliberately lost.
+
+Ten of eleven workflows passed on the code checkpoint. The one red workflow is the unpatched R01 comparator, with the known uncaptured and over-balance refund failures.
+
+[Android catalogue recovery](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779257/job/139551283074) passed. The app displayed 3,027 ALL, required new consent and reopened the same receipt after restart. The simulated payment ledger and the no-replay check passed. [Sanitized proof](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779257/artifacts/15069247178).
+
+[Ordinary Android checkout](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779466/job/139551276990) and [merchant A/B isolation](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779212/job/139551133259) passed. [Corrected integration](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779195/job/139551133419) and [corrected smoke](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779233/job/139551261522) passed. [Unpatched comparator](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779233/job/139551262012).
+
+This proof covers an enrolled, registered ALL cart with one shipping method and zero adjustments in disposable CI. Medusa owns all order, stock and financial writes. The quote adapter follows the existing 100-line contract limit and validates all lines and totals. The live one-line quote fixture keeps its original revision shape. R01 stays open, PR #12 stays Draft and release stays blocked.
+
+The earlier cart-readiness incident remains open with its underlying trigger unconfirmed. The backend TypeScript comparison without generated development types reported the same 20 diagnostics as the preceding checkpoint. External payment-provider sandbox acceptance and guest/PWA rollout remain open.
+
+Next F07g increment is one Medusa-calculated discount adjustment on a registered ALL cart. Use the existing quote and N03 mechanisms to verify the discount, total, stale-offer rejection, explicit consent, simulated payment and one recovered order. Keep taxes, credits and external payments outside that proof.
+
+
 ## 2026-11-25 — F07g/N03 catalogue-only ALL repricing
 
 [Draft code bc3fe2cc](https://github.com/titanfit102-bit/ShqipShop/commit/bc3fe2cc2535abd8e81f47961a950f7d9790a0d8) distinguishes catalogue mismatch from other invalid snapshots. Only a new review can trigger Medusa's public cart refresh. The CI bridge re-establishes the simulated payment session through the public payment workflow. The app reconciles its cart total with the new quote before asking for a separate buyer confirmation.
@@ -12,7 +31,7 @@ Native lint, TypeScript and 121 Jest tests passed locally. A backend TypeScript 
 
 Scope remains one enrolled registered cart, one item, one shipping method, no adjustments and the manual simulated provider in isolated CI. Medusa owns all order, stock and finance writes. R01 remains open. PR #12 stays Draft and release remains blocked. The external PSP sandbox and guest/PWA rollout remain open.
 
-Next F07g increment is a registered ALL cart with two distinct lines. Change only one catalogue price and verify the updated line, unchanged line, shipping and total through the same quote and recovery contract. Use the same exact consent and one-order checks. Extend to adjustments after that proof.
+This one-line checkpoint preceded the multi-line increment recorded above.
 
 
 ## 2026-11-25 — F07g/N03 registered ALL checkout
