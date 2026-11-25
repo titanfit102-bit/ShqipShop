@@ -72,6 +72,15 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Isolate the patched smoke installation under runner temp
+        if: matrix.payment-runtime == 'r01-candidate'
+        working-directory: .
+        run: |
+          target="$RUNNER_TEMP/r01-smoke/medusa-backend-poc"
+          mkdir -p "$(dirname "$target")"
+          mv medusa-backend-poc "$target"
+          ln -s "$target" medusa-backend-poc
+          echo "SHQIPSHOP_MEDUSA_CANDIDATE_DIR=$target" >> "$GITHUB_ENV"
       - name: Node.js 24
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:

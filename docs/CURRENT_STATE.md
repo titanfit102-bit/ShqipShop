@@ -1,5 +1,9 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-25 — Tracked 2.22.6 integration, hosted checks pending
+
+The draft now pins backend and reference storefront Medusa dependencies to 2.22.6. Native SDK/types remain locked at 2.21.2. The isolated integration job consumes the committed lock without re-resolving dependencies. Smoke CI retains separate clean and patched installations. The private correction remains test-only. Upstream [release notes](https://github.com/medusajs/medusa/releases/tag/v2.22.6) and [related report](https://github.com/medusajs/medusa/issues/15306) give no evidence of a complete official R01 remedy. Compare the clean runtime with the corrected runtime and record exact-SHA client, migration, finance and security results. R01 remains open; external settlement, signed callbacks, historical scope and release acceptance remain outstanding.
+
 ## 2026-11-25 — Phase-one architecture checkpoint
 Owner approved the architectural rules and roadmap and authorized tracked 2.22.6 backend integration on draft PR #12. The starting revision is 87506a6 (tracked 2.22.0); its ten financial groups passed only with the isolated correction. R01 remains P0/open, RG-03 blocked. Verify the tracked runtime and clients before recording promotion. No external provider has been selected. See ROADMAP and SECURITY_TEST_MATRIX for remaining acceptance and historical scope.
 

@@ -8,11 +8,11 @@ from pathlib import Path
 import shutil
 import sys
 
-BASELINE = "2.22.0"
+
 CANDIDATE = "2.22.6"
 MANIFESTS = ("package.json", "apps/backend/package.json", "apps/storefront/package.json")
 REQUIRED = {
-    "package.json": ("@medusajs/eslint-plugin",),
+    "package.json": ("@medusajs/eslint-plugin", "@medusajs/utils"),
     "apps/backend/package.json": ("@medusajs/framework", "@medusajs/medusa"),
     "apps/storefront/package.json": ("@medusajs/js-sdk",),
 }
@@ -29,9 +29,8 @@ def candidate_manifest(doc: dict, filename: str) -> tuple[dict, int]:
         for name, version in dependencies.items():
             if not name.startswith("@medusajs/") or name == "@medusajs/ui":
                 continue
-            if version != BASELINE:
+            if version != CANDIDATE:
                 raise ValueError("Unexpected Medusa source version")
-            dependencies[name] = CANDIDATE
             changed += 1
     scope = "devDependencies" if filename == "package.json" else "dependencies"
     for name in REQUIRED[filename]:
@@ -51,32 +50,19 @@ def prepare(source: Path, destination: Path, runner_temp: Path) -> int:
         raise ValueError("Must use a new RUNNER_TEMP destination")
     if not (source / "pnpm-lock.yaml").is_file():
         raise ValueError("Missing original pnpm lockfile")
-    revisions = {}
-    count = 0
-    for filename in MANIFESTS:
-        doc = json.loads((source / filename).read_text(encoding="utf-8"))
-        revisions[filename], n = candidate_manifest(doc, filename)
-        count += n
+    count = sum(candidate_manifest(json.loads((source / name).read_text()), name)[1] for name in MANIFESTS)
     shutil.copytree(
         source, destination,
         ignore=shutil.ignore_patterns("node_modules", ".medusa", ".next", "dist", "coverage"),
     )
-    for filename, doc in revisions.items():
-        (destination / filename).write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
-    # Test utility only; this extra direct dependency exists only in the CI copy.
-    root = destination / "package.json"
-    doc = json.loads(root.read_text(encoding="utf-8"))
-    doc["devDependencies"]["@medusajs/utils"] = CANDIDATE
-    root.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
-    print("SHQIPSHOP_MEDUSA_226_DISPOSABLE_MANIFESTS_PREPARED")
-    print("SHQIPSHOP_MEDUSA_226_DIRECT_PACKAGES_STAGED=" + str(count))
+    print("SHQIPSHOP_226_LOCKED_WORKSPACE_COPIED")
     return count
 
 def verify_original(source: Path) -> bool:
     for filename in MANIFESTS:
         doc = json.loads((source / filename).read_text(encoding="utf-8"))
         candidate_manifest(doc, filename)
-    print("SHQIPSHOP_MEDUSA_220_SOURCE_MANIFESTS_UNCHANGED")
+    print("SHQIPSHOP_MEDUSA_226_SOURCE_MANIFESTS_VERIFIED")
     return True
 
 def main() -> int:

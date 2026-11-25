@@ -10,6 +10,11 @@ on:
       - native-medusa/app/**
       - native-medusa/android/**
       - medusa-backend-poc/apps/backend/src/**
+  pull_request:
+    paths:
+      - medusa-backend-poc/apps/backend/package.json
+      - medusa-backend-poc/pnpm-lock.yaml
+      - .github/workflows/android-native-checkout-e2e.yml
   workflow_dispatch:
 
 permissions:

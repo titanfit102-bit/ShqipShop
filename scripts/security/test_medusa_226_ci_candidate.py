@@ -5,12 +5,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
-from medusa_226_ci_candidate import BASELINE, CANDIDATE, MANIFESTS, REQUIRED, candidate_manifest, prepare, verify_original
+from medusa_226_ci_candidate import CANDIDATE, MANIFESTS, REQUIRED, candidate_manifest, prepare, verify_original
 
 class CandidatePreparationTest(unittest.TestCase):
     def manifest(self, filename):
         scope = "devDependencies" if filename == "package.json" else "dependencies"
-        return {scope: {name: BASELINE for name in REQUIRED[filename]}, "name": "fixture"}
+        return {scope: {name: CANDIDATE for name in REQUIRED[filename]}, "name": "fixture"}
 
     def fixture(self, source):
         source.mkdir()
@@ -31,6 +31,7 @@ class CandidatePreparationTest(unittest.TestCase):
                 count = prepare(source, dest, dest.parent)
             self.assertGreaterEqual(count, 4)
             self.assertTrue(verify_original(source))
+            self.assertEqual((dest / "pnpm-lock.yaml").read_bytes(), (source / "pnpm-lock.yaml").read_bytes())
             staged = json.loads((dest / "package.json").read_text())
             self.assertEqual(staged["devDependencies"]["@medusajs/utils"], CANDIDATE)
             self.assertEqual(json.loads((source / "package.json").read_text()), self.manifest("package.json"))

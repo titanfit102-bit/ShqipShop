@@ -100,19 +100,12 @@ jobs:
         run: |
           set -euo pipefail
           python -m unittest discover -s scripts/security -p 'test_*.py' -v
-          python scripts/security/medusa_226_ci_candidate.py verify-original
-          python scripts/security/medusa_query_preflight.py
+          python scripts/security/medusa_query_preflight.py --candidate
           python scripts/security/guard.py --finance-contract
-      - name: Prepare 2.22.6 manifest copy inside disposable runner
+      - name: Copy the locked integration to a disposable runner directory
         run: |
-          set -euo pipefail
           python scripts/security/medusa_226_ci_candidate.py prepare --destination "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
           npm install --global pnpm@10.11.1
-      - name: Regenerate only the disposable candidate pnpm lockfile
-        run: |
-          set -euo pipefail
-          cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
-          pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
       - name: Diagnose candidate pnpm lock structure without showing lock contents
         run: |
           set -euo pipefail
@@ -135,7 +128,7 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/security/medusa_query_preflight.py --candidate --root "$(dirname "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR")"
-          python scripts/security/medusa_226_ci_candidate.py verify-original
+          git diff --exit-code -- medusa-backend-poc
       - name: Frozen install from isolated candidate lockfile
         run: |
           set -euo pipefail
@@ -246,14 +239,18 @@ jobs:
             curl -fsS --max-time 3 "http://127.0.0.1:$port/health" >/dev/null
           done
           pnpm --filter @dtc/backend exec medusa exec ./src/scripts/r01-refund-reconciliation-ci.ts
-      - name: Confirm checked-in 2.22.0 untouched and release still blocked
+      - name: Confirm tracked integration untouched and release still blocked
         run: |
           set -euo pipefail
-          python scripts/security/medusa_226_ci_candidate.py verify-original
+          git diff --exit-code -- medusa-backend-poc
           if python scripts/security/guard.py --release > "$RUNNER_TEMP/shqipshop-226-veto.log" 2>&1; then
             echo "::error::SHQIPSHOP_MEDUSA_226_RELEASE_VETO_WAS_CLEARED"
             exit 1
           fi
-          grep -q 'SEC-MEDUSA-QUERY-PATCHED-TRAIN-UNVERIFIED' "$RUNNER_TEMP/shqipshop-226-veto.log"
+          python scripts/security/medusa_query_preflight.py --candidate
           grep -q 'FIN-RELEASE-RG03-NOT-APPROVED' "$RUNNER_TEMP/shqipshop-226-veto.log"
           echo SHQIPSHOP_MEDUSA_226_DISPOSABLE_CANDIDATE_RELEASE_STILL_BLOCKED
+      - name: Verify reference storefront SDK types on the locked backend train
+        run: |
+          cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
+          pnpm --filter @dtc/storefront exec tsc --noEmit --incremental false

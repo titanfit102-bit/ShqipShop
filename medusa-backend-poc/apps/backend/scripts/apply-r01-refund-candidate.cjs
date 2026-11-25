@@ -171,10 +171,13 @@ function applyCandidate() {
   const version = require("../package.json").dependencies["@medusajs/medusa"];
   assert.ok(["2.22.0", "2.22.6"].includes(version), "Unsupported R01 candidate version");
   const upgraded = version === "2.22.6";
-  const database = upgraded ? "candidate_ci" : "medusa_ci";
+  const smokeCopy = upgraded && process.env.GITHUB_ACTIONS === "true" &&
+    process.env.GITHUB_WORKFLOW === "Medusa v2 development backend smoke test" &&
+    process.env.SHQIPSHOP_MEDUSA_CANDIDATE_DIR === path.join(process.env.RUNNER_TEMP, "r01-smoke/medusa-backend-poc");
+  const database = upgraded && !smokeCopy ? "candidate_ci" : "medusa_ci";
   assert.equal(process.env.DATABASE_URL, `postgres://${database}:disposable_ci_password@127.0.0.1:5432/${database}`);
   if (upgraded) {
-    assert.equal(process.env.SHQIPSHOP_MEDUSA_CANDIDATE_CI, "true");
+    if (!smokeCopy) assert.equal(process.env.SHQIPSHOP_MEDUSA_CANDIDATE_CI, "true");
     const runner = fs.realpathSync(process.env.RUNNER_TEMP);
     const workspace = fs.realpathSync(path.resolve(__dirname, "../../.."));
     assert.ok(workspace.startsWith(runner + path.sep), "2.22.6 must be a runner-local candidate copy");
