@@ -11,7 +11,7 @@ const authenticateBuyer = authenticate("customer", ["bearer"])
 
 /** Commit one dispatch claim before allowing the built-in Medusa checkout to run. */
 export async function claimN03CheckoutCi(
-  req: AuthenticatedMedusaRequest & MedusaStoreRequest,
+  req: AuthenticatedMedusaRequest,
   res: MedusaResponse,
   next: MedusaNextFunction,
 ) {
@@ -29,15 +29,13 @@ export async function claimN03CheckoutCi(
       const attempt = await db(ATTEMPT_TABLE).where({ cart_id: cartId }).first("owner_customer_id")
       if (attempt?.owner_customer_id != null) {
         res.setHeader("Cache-Control", "private, no-store")
-        return authenticateBuyer(req, res, async (error?: Error) => {
+        return authenticateBuyer(req, res, (error?: Error) => {
           if (error) return next(error)
-          try {
-            const status = await transitionN03RegisteredAttempt(req, cartId, DISPATCH_CLAIMED)
-            if (status !== 200) return res.sendStatus(status)
-            return next()
-          } catch {
-            return res.sendStatus(503)
-          }
+          void transitionN03RegisteredAttempt(req, cartId, DISPATCH_CLAIMED).then(status => {
+            if (status === 412) res.status(412).json({message:"F07G_QUOTE_REVIEW_REQUIRED"})
+            else if (status !== 200) res.sendStatus(status)
+            else next()
+          }, () => res.sendStatus(503))
         })
       }
     }
@@ -50,7 +48,7 @@ export async function claimN03CheckoutCi(
     if (forbiddenCredentialMode(req) || typeof token !== "string" || !proofPattern.test(token)) {
       return res.sendStatus(404)
     }
-    if (!await getN03GuestCheckoutCart(req, cartId)) return res.sendStatus(404)
+    if (!await getN03GuestCheckoutCart(req as MedusaStoreRequest, cartId)) return res.sendStatus(404)
     const status = await transitionN03Attempt(db, cartId, token, DISPATCH_CLAIMED)
     if (status !== 200) return res.sendStatus(status)
   } catch {

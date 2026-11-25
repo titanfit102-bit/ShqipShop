@@ -32,7 +32,7 @@ export async function isN03RegisteredCustomer(req: AuthenticatedMedusaRequest, a
 }
 
 export async function transitionN03RegisteredAttempt(
-  req: AuthenticatedMedusaRequest & MedusaStoreRequest,
+  req: AuthenticatedMedusaRequest,
   cartId: string,
   phase: typeof DISPATCH_CLAIMED | typeof SEALED_BEFORE_DISPATCH,
 ) {
@@ -45,7 +45,7 @@ export async function transitionN03RegisteredAttempt(
     // A change to current Medusa cart ownership must serialize with this transition.
     const cart = await trx("cart").where({ id: cartId, customer_id: actor })
       .whereNull("deleted_at").forUpdate().first("sales_channel_id", "completed_at")
-    if (!cart || !hasN03CartChannel(req, cart.sales_channel_id)) return 404
+    if (!cart || !hasN03CartChannel(req as MedusaStoreRequest, cart.sales_channel_id)) return 404
     if (cart.completed_at != null) return 409
     if (phase === DISPATCH_CLAIMED && isF07gN03Ci()) {
       const attempt = await trx(ATTEMPT_TABLE).where({cart_id:cartId}).first("phase", "quote_required")

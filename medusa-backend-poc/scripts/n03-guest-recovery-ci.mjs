@@ -7,6 +7,7 @@ import { createInterface } from "node:readline"
 import { setTimeout as delay } from "node:timers/promises"
 import { join } from "node:path"
 import { request } from "./boundary-http.mjs"
+import { readCheckoutQuote } from "../../native-medusa/app/data/checkout-quote.ts"
 import {
   createCheckoutRecoveryClient,
   ORDER_COMPLETION_PENDING_KEY,
@@ -413,7 +414,7 @@ async function verifyRepricedRegisteredCheckout(merchant, clone) {
     const result = await request(merchant, "POST", quotePath, {...buyer, body:{review:true}})
     assert.equal(result.status, 200, "Expected authoritative ALL quote")
     assert.equal(result.data.currency, "all")
-    assert.match(result.data.total, /^\d+$/)
+    assert.equal(readCheckoutQuote(result.data).total, result.data.total)
     return result.data
   }
   const accept = quote => request(merchant, "POST", quotePath, {
@@ -424,6 +425,11 @@ async function verifyRepricedRegisteredCheckout(merchant, clone) {
       "x-shqipshop-quote-id":quote.quote_id, "x-shqipshop-quote-fingerprint":quote.fingerprint,
     } : {},
   })
+  const otherBuyer = await loginMerchantA(merchant)
+  denied(await request(merchant, "POST", quotePath, {...buyer, token:otherBuyer, body:{review:true}}),
+    "Only the enrolled buyer may see the quote")
+  denied(await request(guests[1], "POST", quotePath, {...buyer, body:{review:true}}),
+    "A merchant A quote is unavailable in merchant B")
   const old = await review()
   assert.equal((await complete(merchant, old)).status, 412, "Displayed quote needs explicit acceptance")
   assert.equal((await accept(old)).status, 200)
@@ -437,7 +443,9 @@ async function verifyRepricedRegisteredCheckout(merchant, clone) {
   assert.equal(changed.status, 200)
   await prepareManualPayment(merchant, cart, token)
 
-  assert.equal((await complete(merchant, old)).status, 412)
+  const stale = await complete(merchant, old)
+  assert.equal(stale.status, 412)
+  assert.equal(stale.data.message, "F07G_QUOTE_REVIEW_REQUIRED")
   assert.equal((await complete(merchant)).status, 412)
   assertPhase(merchant, cart, "prepared")
   assert.equal(persistedGuestOrders(merchant, cart), "")

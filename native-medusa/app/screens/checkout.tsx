@@ -3,13 +3,15 @@ import { View, ScrollView, Alert } from 'react-native';
 import { useLocalization } from '@fluent/react';
 import { useCart } from '@data/cart-context';
 import { CommonActions, useNavigation } from '@react-navigation/native';
+import Text from '@components/common/text';
 import Button from '@components/common/button';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Navbar from '@components/common/navbar';
 import apiClient from '@api/client';
 import { authTokenStorage, AUTH_TOKEN_KEY, getNativeAuthVersion, isCurrentAuthAttempt } from '@api/auth-token-storage';
-import { nativeCheckoutRecoveryEnabled, nativeCheckoutRecoveryScope } from '@data/native-checkout-recovery';
+import { nativeCheckoutRecoveryEnabled, nativeCheckoutRecoveryScope, nativeQuoteReviewEnabled } from '@data/native-checkout-recovery';
+import { readCheckoutQuote, type CheckoutQuote } from '@data/checkout-quote';
 import type { CheckoutRecoveryScope } from '@data/order-completion-recovery';
 import {
   CheckoutFormData,
@@ -42,6 +44,10 @@ import {
   ORDER_COMPLETION_PENDING_MESSAGE,
 } from '@data/order-completion-recovery';
 
+const quoteEndpoint = '/store/shqipshop/quote-review-accept-ci';
+const responseStatus = (error: unknown) =>
+  (error as {status?: number} | null)?.status;
+
 const Checkout = () => {
   const { l10n } = useLocalization();
   const {
@@ -58,6 +64,26 @@ const Checkout = () => {
   );
 
   const [activeStep, setActiveStep] = useState(currentStep);
+  const [reviewed, setReviewed] = useState<{
+    cartId: string; authVersion: number; quote: CheckoutQuote; changed: boolean;
+  }>();
+  const review = reviewed?.cartId === cart?.id && reviewed &&
+    isCurrentAuthAttempt(reviewed.authVersion) ? reviewed : undefined;
+
+  const requestQuoteReview = async (changed = false) => {
+    const authVersion = getNativeAuthVersion();
+    const cartId = cart?.id;
+    if (!cartId) return;
+    const priced = readCheckoutQuote(await apiClient.client.fetch(quoteEndpoint, {
+      method: 'POST',
+      headers: {'x-shqipshop-cart-id': cartId},
+      body: {review: true},
+    }));
+    if (isCurrentAuthAttempt(authVersion)) {
+      setReviewed({cartId, authVersion, quote: priced,
+        changed: changed || String(cart?.total) !== priced.total});
+    }
+  };
 
   // An expired/changed cart cannot keep the old Review screen active.
   useEffect(() => {
@@ -142,6 +168,7 @@ const Checkout = () => {
     const targetStepIndex = CHECKOUT_STEPS.findIndex(s => s.id === step);
 
     if (targetStepIndex < currentStepIndex) {
+      setReviewed(undefined);
       setActiveStep(step);
     }
   };
@@ -212,7 +239,7 @@ const Checkout = () => {
     setActiveStep('review');
   };
 
-  const handleOrderComplete = async () => {
+  const handleOrderComplete = async (quote?: CheckoutQuote) => {
     if (!cart?.id) {
       throw new Error(l10n.getString('no-cart-found'));
     }
@@ -255,14 +282,41 @@ const Checkout = () => {
         if (nativeCheckoutRecoveryEnabled && !isCurrentAuthAttempt(authVersion)) {
           throw new Error(ORDER_COMPLETION_PENDING_MESSAGE);
         }
+        if (quote) {
+          if (!recoveryScope || activeCart.id !== review?.cartId ||
+              !isCurrentAuthAttempt(review.authVersion)) {
+            throw new Error(l10n.getString('review-current-quote'));
+          }
+          const accepted = await apiClient.client.fetch<{accepted: boolean; quote_id: string}>(
+            quoteEndpoint, {
+              method: 'POST',
+              headers: {'x-shqipshop-cart-id': activeCart.id},
+              body: {quote_id: quote.id, fingerprint: quote.fingerprint},
+            },
+          );
+          if (accepted.accepted !== true || accepted.quote_id !== quote.id ||
+              !isCurrentAuthAttempt(authVersion)) {
+            throw new Error(l10n.getString('review-current-quote'));
+          }
+        }
         await reserveOrderCompletion(activeCart.id, AsyncStorage, recoveryScope);
         if (nativeCheckoutRecoveryEnabled && !isCurrentAuthAttempt(authVersion)) {
           throw new Error(ORDER_COMPLETION_PENDING_MESSAGE);
         }
         let response: Awaited<ReturnType<typeof apiClient.store.cart.complete>>;
         try {
-          response = await apiClient.store.cart.complete(activeCart.id);
-        } catch {
+          response = quote ? await apiClient.store.cart.complete(activeCart.id, {}, {
+            'x-shqipshop-quote-id': quote.id,
+            'x-shqipshop-quote-fingerprint': quote.fingerprint,
+          }) : await apiClient.store.cart.complete(activeCart.id);
+        } catch (error) {
+          // 412 is the quote precondition refusal before the N03 dispatch claim.
+          if (quote && recoveryScope && responseStatus(error) === 412 &&
+              error instanceof Error && error.message === 'F07G_QUOTE_REVIEW_REQUIRED') {
+            await clearKnownOrderCompletion(activeCart.id, AsyncStorage, recoveryScope,
+              () => isCurrentAuthAttempt(authVersion));
+            throw error;
+          }
           throw new Error(ORDER_COMPLETION_PENDING_MESSAGE);
         }
         if (response.type === 'cart') {
@@ -299,6 +353,7 @@ const Checkout = () => {
 
   const handleContinue = async () => {
     setIsLoading(true);
+    if (activeStep !== 'review') setReviewed(undefined);
     try {
       switch (activeStep) {
         case 'address':
@@ -311,7 +366,19 @@ const Checkout = () => {
           await handlePaymentSubmit();
           break;
         case 'review':
-          await handleOrderComplete();
+          if (!nativeQuoteReviewEnabled) {
+            await handleOrderComplete();
+          } else if (!review) {
+            await requestQuoteReview();
+          } else {
+            try {
+              await handleOrderComplete(review.quote);
+            } catch (error) {
+              if (![409, 412].includes(responseStatus(error) ?? 0)) throw error;
+              setReviewed(undefined);
+              await requestQuoteReview(true);
+            }
+          }
           break;
       }
     } catch (error) {
@@ -350,6 +417,9 @@ const Checkout = () => {
       case 'payment':
         return l10n.getString('review-order');
       case 'review':
+        if (nativeQuoteReviewEnabled) {
+          return l10n.getString(review ? 'accept-quote-and-order' : 'review-current-quote');
+        }
         return getReviewStepCtaText();
       default:
         return l10n.getString('continue');
@@ -365,6 +435,12 @@ const Checkout = () => {
         <CheckoutSteps currentStep={activeStep} onStepPress={handleStepPress} />
         <ScrollView className="flex-1 px-4" contentContainerClassName="pb-4">
           {renderStep()}
+          {nativeQuoteReviewEnabled && activeStep === 'review' && review && (
+            <View className="gap-1 py-4">
+              {review.changed && <Text>{l10n.getString('checkout-quote-changed')}</Text>}
+              <Text>{l10n.getString('checkout-quote-total', {amount: review.quote.total})}</Text>
+            </View>
+          )}
         </ScrollView>
       </View>
       <View className="p-4 bg-background-secondary border-t border-gray-200">

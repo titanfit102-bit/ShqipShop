@@ -77,6 +77,10 @@ export interface FluentTemplate {
   'please-select-a-payment-method': string;
   'no-cart-found': string;
   'payment-provider-not-supported': string;
+  'review-current-quote': string;
+  'accept-quote-and-order': string;
+  'checkout-quote-changed': string;
+  'checkout-quote-total': string;
   'failed-to-complete-order': string;
   error: string;
   'an-error-occurred': string;
