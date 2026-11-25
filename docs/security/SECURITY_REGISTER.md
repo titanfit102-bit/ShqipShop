@@ -1,5 +1,40 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-25 — RG-05 scoped proxy upgrade and production dependency triage
+
+The draft code at [23e6a62a](https://github.com/titanfit102-bit/ShqipShop/commit/23e6a62a85d52f12cf3eb41d190ffe3e6a1e4089) pins `express>proxy-addr` to 2.0.8 through pnpm. The package and snapshot use registry metadata resolved with pnpm 10.11.1. The frozen install passed, and the loopback HTTP probe confirmed correct IP attribution with one trusted proxy replacing forwarded metadata. The paired `pnpm audit --prod` reports count 3 → 2 critical, 11 → 11 high, 17 → 17 moderate and 2 → 2 low. GHSA-jqcg-44mw-7w3h was the sole removed advisory. Actual ingress configuration and reachability remain unverified. Production ingress must enforce the expected hop topology and normalize forwarding headers.
+
+### Reference storefront decision
+
+Keep Next 16.3.8 in the reference-only scope for this increment. Validate exclusion of the reference app from any release artifact until its release role is approved. If the storefront is selected, qualify a patched 16.x release (minimum 16.4.1 for these three advisories) separately with production build, images/cache, routing, Server Actions and checkout regression checks.
+
+- [GHSA-2464-fhr4-w9xw](https://github.com/advisories/GHSA-2464-fhr4-w9xw) falls in the Next version range. The reference config sets `images.unoptimized` and the installed Next runtime resolved native Sharp 0.35.5, the advisory workaround. Recheck Sharp in the exact built image if this app is selected.
+- [GHSA-673q-mjm6-r5xr](https://github.com/advisories/GHSA-673q-mjm6-r5xr) falls in the Next version range. No Cache Components activation or affected `use cache` functions were found in tracked reference configuration or source. Review again if its scope or configuration changes.
+- [GHSA-p3m5-59mp-jv5r](https://github.com/advisories/GHSA-p3m5-59mp-jv5r) differs in reachability: tracked reference code uses App Router and Server Actions, including order placement. If that server is exposed, prioritize the patched release for this denial-of-service risk.
+
+### Eleven high-severity advisories in the workspace production dependency report
+
+The report includes the Medusa backend and reference storefront production dependency graphs. Tooling and optional features may occur in a production dependency graph without receiving public requests. The root FastAPI image contains neither graph. The ranking below uses tracked code and installed dependency evidence. Exposure in an external deployment remains unknown.
+
+| Advisory and installed version | ShqipShop exposure and disposition |
+|---|---|
+| [GHSA-27r3-jxmh-p828](https://github.com/advisories/GHSA-27r3-jxmh-p828) · body-parser 1.20.6 | **First backend follow-up.** The installed Medusa router uses Express parsers on API traffic with decompression enabled by default. Compressed request reachability depends on actual ingress. Evaluate a compatible Express update or scoped body-parser 1.20.9 resolution. At ingress, reject compressed requests if the approved clients and providers do not require them. Verify JSON, form, raw webhook body/signatures, proxy, A/B and financial behavior. |
+| [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) · zod 4.2.0 | **Backend validation.** The backend directly pins this version. Large untrusted arrays reaching affected validation can consume memory. Use request size and collection bounds, and evaluate 4.6.6 with request, pricing and checkout validation regressions. Establish which actual routes resolve each installed Zod copy before claiming a fix. |
+| [GHSA-p3m5-59mp-jv5r](https://github.com/advisories/GHSA-p3m5-59mp-jv5r) · Next 16.3.8 | **Reference storefront.** Code meets App Router and Server Action prerequisites. Keep outside the shipped server scope or qualify Next >=16.4.1 before exposure. |
+| [GHSA-qhr7-859c-m2p7](https://github.com/advisories/GHSA-qhr7-859c-m2p7) · brace-expansion 1.1.18 | **Tooling.** yalc → glob → minimatch. Denial of service if untrusted patterns reach recursive expansion. No backend HTTP consumer of this yalc path was identified. Evaluate a parent bump or 1.1.20 for both brace advisories. |
+| [GHSA-6j4f-fj2g-mc7p](https://github.com/advisories/GHSA-6j4f-fj2g-mc7p) · brace-expansion 1.1.18 | **Tooling.** Same yalc path, different parsing defect. First fix on this line is 1.1.19. Use the 1.1.20 minimum covering both and verify builds. |
+| [GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q) · source-map-js 1.2.1 | **Build and transformation.** Reported through Vite/PostCSS. Risk requires processing an untrusted indexed source map. No merchant-facing input path was identified. Qualify 1.2.2 or updated parent packages with Admin build checks. |
+| [GHSA-587h-7wmj-h5pm](https://github.com/advisories/GHSA-587h-7wmj-h5pm) · Vite 7.3.6 | **Windows developer mode.** The affected editor integration has no identified role in the Linux CI runtime. Keep development endpoints private and update this Vite 7 line to >=7.3.7 or upgrade the supported parent package. |
+| [GHSA-m9gg-hp2v-232j](https://github.com/advisories/GHSA-m9gg-hp2v-232j) · @grpc/grpc-js 1.14.4 | **Conditional telemetry.** Reported through the OpenTelemetry outbound exporter. The vulnerable condition is a gRPC server using the affected certificate authorization mode/context. No such authorization path was identified in ShqipShop. Evaluate 1.14.5 if the package is shipped or server-side gRPC is introduced. |
+| [GHSA-q3jh-wrc6-jgq8](https://github.com/advisories/GHSA-q3jh-wrc6-jgq8) · follow-redirects 1.16.0 | **Conditional outbound telemetry.** Credential forwarding requires affected array-form headers and redirects. No checkout or PSP caller was identified on this CLI telemetry path. Prefer a compatible Axios/telemetry update or follow-redirects 1.16.2 covering all three advisories. |
+| [GHSA-8r9p-f939-6h3c](https://github.com/advisories/GHSA-8r9p-f939-6h3c) · follow-redirects 1.16.0 | **Conditional outbound telemetry.** Requires affected custom sensitive header naming and redirects. No configured caller identified. Use the same 1.16.2 minimum and review permitted outbound destinations. |
+| [GHSA-mrwp-f3q8-3g9p](https://github.com/advisories/GHSA-mrwp-f3q8-3g9p) · follow-redirects 1.16.0 | **Conditional outbound telemetry.** Requires custom header protection configured via an array from a different JavaScript realm. No configured caller identified. Fix at 1.16.2 or through the supported parent update. |
+
+### Audit automation
+
+The existing root workflow reports native npm advisories on native manifest/lock changes. The nested native Dependabot configuration is starter content outside GitHub's root configuration location. The Medusa preflight checks lock and version coherence. The secret baseline scans tracked text. Neither runs a Medusa advisory lookup. The smallest follow-up is a report-only pnpm 10.11.1 audit on workspace manifest/lock changes and manual dispatch, with periodic lookup once the workspace is on the default branch, with stable advisory IDs and backend/storefront paths in the report. Record scanner-service failures distinctly. Keep risk acceptance and release blocking in RG-05, and review each dependency change before adoption.
+
+
 ## 2026-11-25 — RG-05 dependency audit on tracked 2.22.6
 
 A same-day production-dependency audit with pnpm 10.11.1 reported 2 low, 17 moderate, 11 high and 3 critical advisories on the integrated lock, compared with 2/21/19/3 on the previous lock. The three critical IDs persist: GHSA-jqcg-44mw-7w3h (proxy-addr through backend CLI/Express), GHSA-2464-fhr4-w9xw and GHSA-673q-mjm6-r5xr (Next.js reference storefront). No deployment exposure or exploitation was established. Scope the shipped graph, review advisory prerequisites and resolve or explicitly disposition the applicable findings before RG-05 acceptance. A successful install or R01 result cannot clear RG-05.

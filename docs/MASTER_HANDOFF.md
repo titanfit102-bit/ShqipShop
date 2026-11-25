@@ -1,5 +1,14 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-25 — Scoped Express proxy upgrade on Draft PR #12
+
+Code [23e6a62a](https://github.com/titanfit102-bit/ShqipShop/commit/23e6a62a85d52f12cf3eb41d190ffe3e6a1e4089) pins only Express's proxy-addr resolution to 2.0.8 with pnpm. Local and hosted frozen installs passed. The one-hop fixture verified IP attribution across a proxy that replaces forwarded metadata. Production ingress remains a separate RG-06 check. [Candidate, proxy and security checks](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45656326915/job/139353892297) · [Parallel merchant A/B](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45656327080/job/139353892830).
+
+Nine of ten PR workflows passed. The Android emulator completed simulated manual checkout and the independent PostgreSQL assertion confirmed the saved order ([job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45656327158/job/139353892703)). Both corrected installs passed all ten R01 PostgreSQL groups. The clean Medusa baseline still failed the required no-capture and exact-balance invariants. R01 stays P0/open. RG-03, RG-05 and publication remain blocked. [Corrected smoke](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45656326983/job/139353892647) · [Clean baseline](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45656326983/job/139353893106).
+
+The workspace audit dropped from 3 to 2 critical advisories, with 11 high advisories still present. The two critical Next.js entries belong to the reference storefront. The security register records runtime reachability, release scope and available fixes for all eleven high advisories. Next evaluate a scoped body-parser 1.20.9 resolution or compatible Express release, starting with request-body, raw webhook-body and finance regressions. An external payment provider sandbox remains outstanding.
+
+
 ## 2026-11-25 — Verified integration at 42980761
 
 Tracked Medusa backend and reference storefront dependencies now use 2.22.6 on Draft PR #12. Hosted frozen installation, PostgreSQL migrations, storefront type checking, isolated identity/browser/Redis checks and ten R01 financial groups passed on the temporary patched runtime. Both corrected jobs passed; the clean runtime failed required no-capture and over-balance financial invariants. Evidence: [corrected integration](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45614791843/job/139207282102), [corrected smoke](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45614791889/job/139207282633), [clean 2.22.6 baseline](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45614791889/job/139207283026). Native SDK/types remain at 2.21.2. Local pnpm 10.11.1 frozen install passed; peer warnings include dashboard/UI, analytics, tooling and frontend types. See SECURITY_REGISTER for unresolved dependency findings. R01 stays P0/open; RG-03, commercial sandbox proof and release remain blocked.
