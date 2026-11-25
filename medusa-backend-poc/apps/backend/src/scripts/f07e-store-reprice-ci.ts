@@ -9,12 +9,18 @@ import type { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { upsertVariantPricesWorkflow } from "@medusajs/medusa/core-flows"
 
+import { isF07gN03Ci } from "../lib/checkout/quote-cart-ci"
+
 export default async function reprice({ container }: ExecArgs) {
   assert.equal(process.env.CI, "true")
   assert.equal(process.env.NODE_ENV, "development")
   assert.equal(process.env.SHQIPSHOP_REQUIRE_REDIS, "true")
   assert.equal(process.env.SHQIPSHOP_F07E_REPRICE_PROBE, "true")
-  assert.equal(process.env.DATABASE_URL, "postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci")
+  assert(
+    process.env.DATABASE_URL === "postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci" ||
+    (process.env.SHQIPSHOP_N03_ANDROID_CI === "true" && isF07gN03Ci()),
+    "Only the disposable repricing and Android proof databases are accepted",
+  )
   assert.equal(process.env.REDIS_URL, "redis://127.0.0.1:6379")
   const file = process.env.SHQIPSHOP_F07E_REPRICE_PROOF_FILE
   const temp = process.env.RUNNER_TEMP

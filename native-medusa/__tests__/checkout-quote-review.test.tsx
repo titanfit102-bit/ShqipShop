@@ -19,7 +19,7 @@ jest.mock('../app/data/hooks', () => ({
 jest.mock('../app/api/client', () => ({
   __esModule: true, default: {
     client: {fetch: jest.fn()},
-    store: {cart: {complete: jest.fn()}, customer: {retrieve: jest.fn()}},
+    store: {cart: {complete: jest.fn(), retrieve: jest.fn()}, customer: {retrieve: jest.fn()}},
   },
 }));
 jest.mock('../app/data/native-checkout-recovery', () => ({
@@ -44,13 +44,15 @@ jest.mock('@react-navigation/native', () => ({useNavigation: () => ({})}));
 
 test('a stale approval displays the new total and requests fresh consent without dispatch', async () => {
   const cart = {
-    id: 'cart_test', customer_id: 'cus_test', total: 500, items: [{id: 'item_test'}],
+    id: 'cart_test', customer_id: 'cus_test', total: 500, currency_code: 'all', items: [{id: 'item_test'}],
     payment_collection: {payment_sessions: [{provider_id:'pp_system_default', status:'pending'}]},
   };
   jest.mocked(useCart).mockReturnValue({
-    cart, runCurrentCartCompletion: async (task: (activeCart: typeof cart) => Promise<string>) => task(cart),
+    cart, runCurrentCartTask: async (task: (activeCart: typeof cart) => Promise<typeof cart>) => task(cart),
+    runCurrentCartCompletion: async (task: (activeCart: typeof cart) => Promise<string>) => task(cart),
   } as unknown as ReturnType<typeof useCart>);
   jest.mocked(apiClient.store.customer.retrieve).mockResolvedValue({customer:{id:'cus_test'}} as never);
+  jest.mocked(apiClient.store.cart.retrieve).mockResolvedValue({cart: {...cart, total: 700}} as never);
   const fetchQuote = jest.mocked(apiClient.client.fetch);
   fetchQuote.mockResolvedValueOnce({
     quote_id:'quote_12345678-1234-1234-1234-123456789abc', fingerprint:'sha256:' + '1'.repeat(64),
@@ -72,6 +74,7 @@ test('a stale approval displays the new total and requests fresh consent without
     const displayed = renderer.root.findAllByType(Text).map(node => node.props.children);
     expect(displayed).toContain('checkout-quote-changed');
     expect(displayed).toContain('checkout-quote-total 700');
+    expect(apiClient.store.cart.retrieve).toHaveBeenCalledWith(cart.id, expect.anything());
     expect(apiClient.store.cart.complete).not.toHaveBeenCalled();
   } finally {
     await ReactTestRenderer.act(async () => renderer.unmount());

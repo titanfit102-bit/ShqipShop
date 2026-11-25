@@ -14,6 +14,10 @@ export const quoteIdPattern = /^quote_[a-f0-9-]{36}$/
 export const quoteFingerprintPattern = /^sha256:[a-f0-9]{64}$/
 const digest = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex")
 const denied = (status: number): never => { throw { status } }
+export class CataloguePriceChanged extends Error {
+  readonly status = 409
+}
+
 const money = (v: unknown): string => {
   if (v === null || v === undefined) return denied(409)
   const s = MathBN.convert(v as number).toString()
@@ -76,7 +80,7 @@ export async function freshQuoteSnapshot(
     taxTotal,discountTotal,creditTotal,
   }
   // Never assume a stale Medusa cart unit was automatically repriced.
-  if (money(price.amount) !== unitPrice) denied(409)
+  if (money(price.amount) !== unitPrice) throw new CataloguePriceChanged()
   if (withShipping && (taxTotal !== "0" || discountTotal !== "0" || creditTotal !== "0" ||
       !MathBN.mult(unitPrice, Number(line.quantity)).eq(lineTotal) ||
       !MathBN.add(lineTotal, shipping[0].amount).eq(total))) denied(409)

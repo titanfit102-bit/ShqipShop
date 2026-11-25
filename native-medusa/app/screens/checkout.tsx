@@ -79,9 +79,20 @@ const Checkout = () => {
       headers: {'x-shqipshop-cart-id': cartId},
       body: {review: true},
     }));
+    if (!isCurrentAuthAttempt(authVersion)) return;
+    const totalChanged = String(cart?.total) !== priced.total;
+    if (totalChanged) {
+      await runCurrentCartTask(async activeCart => {
+        const {cart: refreshed} = await apiClient.store.cart.retrieve(activeCart.id, {fields: CART_FIELDS});
+        if (String(refreshed.total) !== priced.total || refreshed.currency_code !== priced.currency) {
+          throw new Error('Cart changed while reviewing the checkout quote');
+        }
+        return refreshed;
+      });
+    }
     if (isCurrentAuthAttempt(authVersion)) {
       setReviewed({cartId, authVersion, quote: priced,
-        changed: changed || String(cart?.total) !== priced.total});
+        changed: changed || totalChanged});
     }
   };
 

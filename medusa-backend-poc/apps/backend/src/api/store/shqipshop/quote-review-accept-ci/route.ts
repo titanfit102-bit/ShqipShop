@@ -1,10 +1,11 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse, MedusaStoreRequest } from "@medusajs/framework/http"
-import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import { createPaymentSessionsWorkflow, refreshCartItemsWorkflow } from "@medusajs/medusa/core-flows"
+import { ContainerRegistrationKeys, MathBN } from "@medusajs/framework/utils"
 import {
   acceptCheckoutQuote, canonicalQuoteSnapshot, fingerprintQuoteSnapshot, issueCheckoutQuote,
   type CheckoutQuote, type QuoteSnapshot,
 } from "../../../../lib/checkout/quote-contract"
-import { freshQuoteSnapshot, f07gN03Scope, isF07gN03Ci, QUOTE_TABLE as TABLE,
+import { CataloguePriceChanged, freshQuoteSnapshot, f07gN03Scope, isF07gN03Ci, QUOTE_TABLE as TABLE,
   quoteCartFields, quoteFingerprintPattern as fpPattern, quoteIdPattern } from "../../../../lib/checkout/quote-cart-ci"
 import { ATTEMPT_TABLE, hasN03CartChannel } from "../../../middlewares/n03-guest-ci"
 import { registeredActor, isN03RegisteredCustomer } from "../../../middlewares/n03-registered-ci"
@@ -46,6 +47,64 @@ type Context = {
   fresh: QuoteSnapshot
 }
 
+const jointCartFields = [
+  ...quoteCartFields, "shipping_methods.id", "shipping_methods.amount",
+  "payment_collection.id", "payment_collection.payment_sessions.id",
+  "payment_collection.payment_sessions.status", "payment_collection.payment_sessions.provider_id",
+  "payment_collection.payment_sessions.amount", "payment_collection.payment_sessions.currency_code",
+]
+
+const isManualPending = (session: any) =>
+  session?.provider_id === "pp_system_default" && session.status === "pending" && session.currency_code === "all"
+
+async function reviewJointCart(
+  req: MedusaStoreRequest, query: any, cart: any, scope: Context["scope"],
+): Promise<QuoteSnapshot> {
+  try {
+    return await freshQuoteSnapshot(query, cart, scope, true)
+  } catch (error) {
+    // Only a newly requested review may update a stale cart. Acceptance and
+    // completion must continue to reject stale snapshots without repricing.
+    if (!(error instanceof CataloguePriceChanged)) throw error
+  }
+
+  const before = cart.payment_collection
+  if (!before?.id || before.payment_sessions?.length !== 1 ||
+      !isManualPending(before.payment_sessions[0])) return denied(409)
+
+  const readCart = async () => {
+    const {data} = await query.graph({
+      entity: "cart", fields: jointCartFields, filters: {id: scope.cartId},
+    })
+    const current = data[0]
+    if (data.length !== 1 || current.customer_id !== cart.customer_id ||
+        current.sales_channel_id !== cart.sales_channel_id ||
+        current.payment_collection?.id !== before.id) return denied(409)
+    return current
+  }
+
+  await refreshCartItemsWorkflow(req.scope).run({
+    input: {cart_id: scope.cartId, force_refresh: true},
+  })
+
+  let refreshed = await readCart()
+  // Medusa clears existing sessions when the collection amount changes.
+  // Re-establish only the enrolled, simulated provider via its public workflow.
+  if (refreshed.payment_collection.payment_sessions?.length === 0) {
+    await createPaymentSessionsWorkflow(req.scope).run({
+      input: {payment_collection_id: before.id, provider_id: "pp_system_default",
+        customer_id: cart.customer_id},
+    })
+    refreshed = await readCart()
+  }
+
+  const fresh = await freshQuoteSnapshot(query, refreshed, scope, true)
+  const sessions = refreshed.payment_collection.payment_sessions
+  if (sessions?.length !== 1 || !isManualPending(sessions[0]) ||
+      !MathBN.convert(sessions[0].amount).eq(fresh.total)) return denied(409)
+  return fresh
+}
+
 async function verifyRequest(req: AuthenticatedMedusaRequest & MedusaStoreRequest, post: boolean): Promise<Context> {
   // This disposable route deliberately does NOT support cookie auth. Any
   // eventual production cookie POST must get an independently reviewed CSRF
@@ -75,7 +134,7 @@ async function verifyRequest(req: AuthenticatedMedusaRequest & MedusaStoreReques
   const db: any = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION)
   const { data: carts } = await query.graph({
     entity: "cart",
-    fields: [...quoteCartFields, ...(joint ? ["shipping_methods.id","shipping_methods.amount"] : [])],
+    fields: joint ? jointCartFields : [...quoteCartFields],
     filters: {id: cartId},
   })
   if (carts.length !== 1) denied(404)
@@ -105,7 +164,7 @@ async function verifyRequest(req: AuthenticatedMedusaRequest & MedusaStoreReques
     } catch { return denied(404) }
     scope = {tenantId:principal.tenantId,cartId:principal.cartId,buyerBinding:principal.buyerBinding}
   }
-  if (issue) return {db, scope, fresh: await freshQuoteSnapshot(query, cart, scope, true)}
+  if (issue) return {db, scope, fresh: await reviewJointCart(req, query, cart, scope)}
   const row = await db(TABLE).where({
     quote_id:quoteId, tenant_id:scope.tenantId,
     cart_id:scope.cartId,buyer_binding:scope.buyerBinding,

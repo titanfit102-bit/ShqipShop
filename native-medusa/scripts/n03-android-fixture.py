@@ -20,6 +20,8 @@ SUBMISSION = ROOT / "n03-android-submission"
 UNKNOWN_READ = ROOT / "n03-android-unknown-read"
 BACKEND = "http://127.0.0.1:9003"
 RECOVERY = "/store/shqipshop/order-recovery-ci"
+QUOTE_REVIEW = "/store/shqipshop/quote-review-accept-ci"
+MEDUSA_WORKSPACE = Path(__file__).resolve().parents[2] / "medusa-backend-poc"
 APP = "com.rnstartermedusa"
 DATABASE = "databases/AsyncStorage"
 PENDING = "shqipshop:order-completion-pending"
@@ -34,8 +36,8 @@ def load():
     return json.loads(STATE.read_text())
 
 
-def medusa(method, path, key=None, token=None, body=None, expected=200):
-    headers = {"Accept": "application/json"}
+def medusa(method, path, key=None, token=None, body=None, expected=200, extra_headers=None):
+    headers = {"Accept": "application/json", **(extra_headers or {})}
     if key:
         headers["x-publishable-api-key"] = key
     if token:
@@ -97,25 +99,64 @@ def setup():
     )
     with os.fdopen(os.open(STATE, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), "w") as stream:
         json.dump(dict(key=key, token=token, customer=customer, region=region,
-                       confirm=cart, sealed=sealed, unknown=unknown), stream)
+                       confirm=cart, sealed=sealed, unknown=unknown,
+                       product=product["id"], variant=product["variants"][0]["id"]), stream)
     print("SHQIPSHOP_N03_ANDROID_TRACKED_CARTS_READY")
+
+
+def medusa_script(name, *args, env=None):
+    subprocess.run(
+        ["pnpm", "--filter", "@dtc/backend", "exec", "medusa", "exec", f"./src/scripts/{name}", *args],
+        cwd=MEDUSA_WORKSPACE, check=True, timeout=120,
+        env={**os.environ, "JWT_SECRET": os.urandom(32).hex(),
+             "COOKIE_SECRET": os.urandom(32).hex(), **(env or {})},
+    )
 
 
 def reprice():
     fixture = load()
-    cart_path = "/store/carts/" + fixture["confirm"]
+    cart_id = fixture["confirm"]
+    cart_path = "/store/carts/" + cart_id
     key, token = fixture["key"], fixture["token"]
     before = medusa("GET", cart_path, key, token)["cart"]
-    line = before["items"][0]
-    medusa("POST", f'{cart_path}/line-items/{line["id"]}', key, token, {"quantity": 2})
-    collection = medusa("POST", "/store/payment-collections", key, token,
-                        {"cart_id": fixture["confirm"]})["payment_collection"]["id"]
-    medusa("POST", f"/store/payment-collections/{collection}/payment-sessions", key, token,
-           {"provider_id": "pp_system_default"}, expected=(200, 201))
+    line, = before["items"]
+    require(before["currency_code"] == "all" and line["quantity"] == 1 and
+            line["variant_id"] == fixture["variant"], "Expected one ALL fixture line")
+
+    # Pre-accept a separate copy of the old offer to exercise the direct
+    # completion guard while Android still holds its own unaccepted offer.
+    binding = {"x-shqipshop-cart-id": cart_id}
+    old = medusa("POST", QUOTE_REVIEW, key, token, {"review": True}, extra_headers=binding)
+    require(old["currency"] == "all" and old["total"] == str(before["total"]), "Old offer total mismatch")
+    accepted = medusa("POST", QUOTE_REVIEW, key, token,
+                      {"quote_id": old["quote_id"], "fingerprint": old["fingerprint"]},
+                      extra_headers=binding)
+    require(accepted == {"accepted": True, "quote_id": old["quote_id"]}, "Old baseline acceptance failed")
+
+    proof = ROOT / "n03-android-catalogue-input.json"
+    original = int(line["unit_price"])
+    proof.write_text(json.dumps({"productId": fixture["product"], "variantId": fixture["variant"],
+                                "originalAmount": original, "expectedAmount": original + 17}))
+    medusa_script("f07e-store-reprice-ci.ts", env={
+        "SHQIPSHOP_F07E_REPRICE_PROBE": "true", "SHQIPSHOP_F07E_REPRICE_PROOF_FILE": str(proof),
+    })
     after = medusa("GET", cart_path, key, token)["cart"]
-    require(after["currency_code"] == "all" and after["total"] > before["total"],
-            "Expected fixture repricing in ALL")
-    (ROOT / "n03-android-repriced-total").write_text(str(after["total"]))
+    stale_line, = after["items"]
+    require(after["total"] == before["total"] and
+            all(stale_line[field] == line[field] for field in ("id", "quantity", "unit_price")),
+            "Catalogue change must leave the cart stale")
+    print("SHQIPSHOP_F07G_N03_CATALOGUE_CHANGED_CART_REMAINED_STALE")
+
+    rejected = medusa("POST", cart_path + "/complete", key, token, expected=412, extra_headers={
+        "x-shqipshop-quote-id": old["quote_id"], "x-shqipshop-quote-fingerprint": old["fingerprint"],
+    })
+    require(rejected == {"message": "F07G_QUOTE_REVIEW_REQUIRED"} and
+            medusa("GET", f"{RECOVERY}?cart_id={cart_id}", key, token) == {"state": "unknown"} and
+            medusa("GET", "/store/orders", key, token)["count"] == 0,
+            "Old accepted quote must be refused before order creation")
+    print("SHQIPSHOP_F07G_N03_CATALOGUE_STALE_ACCEPTED_QUOTE_BLOCKED")
+
+    (ROOT / "n03-android-repriced-total").write_text(str(int(before["total"]) + 17))
     require(not SUBMISSION.exists(), "Quote review dispatched checkout before acceptance")
 
 
@@ -159,6 +200,9 @@ def proxy():
                     if order.get("type") == "order":
                         with DROPPED.open("x") as stream:
                             stream.write(order["order"]["id"])
+                        (ROOT / "n03-android-dispatched-order").write_text(json.dumps({
+                            "currency": order["order"]["currency_code"], "total": order["order"]["total"],
+                        }))
                         # Medusa already committed. Do not acknowledge the POST to Android.
                         self.connection.shutdown(socket.SHUT_RDWR)
                         self.close_connection = True
@@ -239,20 +283,34 @@ def verify_order():
             "Fixture account must have exactly one order")
     receipt = medusa("GET", f"/store/orders/{order}", key, token)["order"]
     expected_total = (ROOT / "n03-android-repriced-total").read_text()
+    dispatched = json.loads((ROOT / "n03-android-dispatched-order").read_text())
+    require(dispatched["currency"] == "all" and str(dispatched["total"]) == expected_total,
+            "Completed order must match the refreshed ALL quote")
     require(receipt["currency_code"] == "all" and str(receipt["total"]) == expected_total,
             "Recovered order must match the accepted ALL quote")
     print("SHQIPSHOP_N03_ANDROID_ONE_COMMITTED_ORDER_VERIFIED")
+
+
+def verify_payment():
+    fixture = load()
+    (ROOT / "n03-android-ledger-input.json").write_text(json.dumps({
+        "cartId": fixture["confirm"], "customerId": fixture["customer"], "orderId": DROPPED.read_text(),
+        "total": int((ROOT / "n03-android-repriced-total").read_text()),
+    }))
+    medusa_script("f08-payment-ledger-ci.ts", "n03-catalogue")
 
 
 def main():
     require(os.environ.get("CI") == "true" and os.environ.get("SHQIPSHOP_N03_ANDROID_CI") == "true",
             "Only run against the disposable CI fixture")
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("setup", "proxy", "seed", "storage", "order", "wait-unknown", "reprice"))
+    parser.add_argument("action", choices=("setup", "proxy", "seed", "storage", "order", "wait-unknown", "reprice", "payment"))
     parser.add_argument("case", nargs="?", choices=("confirm", "confirmed", "sealed", "unknown", "lost"))
     args = parser.parse_args()
     if args.action == "setup":
         setup()
+    elif args.action == "payment":
+        verify_payment()
     elif args.action == "proxy":
         proxy()
     elif args.action == "seed":

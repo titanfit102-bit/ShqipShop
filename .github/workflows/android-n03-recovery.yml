@@ -7,6 +7,11 @@ on:
       - native-medusa/scripts/android-n03-recovery.sh
       - native-medusa/scripts/n03-android-fixture.py
       - native-medusa/app/data/checkout-quote.ts
+      - native-medusa/app/screens/checkout.tsx
+      - medusa-backend-poc/apps/backend/src/api/store/shqipshop/quote-review-accept-ci/route.ts
+      - medusa-backend-poc/apps/backend/src/lib/checkout/quote-cart-ci.ts
+      - medusa-backend-poc/apps/backend/src/scripts/f07e-store-reprice-ci.ts
+      - medusa-backend-poc/apps/backend/src/scripts/f08-payment-ledger-ci.ts
   workflow_dispatch:
 
 permissions:
@@ -184,4 +189,4 @@ jobs:
           retention-days: 4
       - name: Remove temporary credentials
         if: always()
-        run: rm -f native-medusa/.env "$RUNNER_TEMP"/n03-android-*.txt "$RUNNER_TEMP/n03-android-private.json"
+        run: rm -f native-medusa/.env "$RUNNER_TEMP"/n03-android-*.txt "$RUNNER_TEMP"/n03-android-*.json

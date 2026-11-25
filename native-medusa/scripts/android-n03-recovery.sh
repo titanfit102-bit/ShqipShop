@@ -49,6 +49,9 @@ python3 "$ui" wait "Totali i ofertës" --timeout 75
 python3 "$fixture" reprice
 python3 "$ui" tap "Pranoj ofertën dhe porosis" --exact --timeout 75
 python3 "$ui" wait "Totali i shportës ka ndryshuar" --timeout 75
+# Fluent isolates interpolation with FSI/PDI in the accessibility tree.
+total=$(cat "$RUNNER_TEMP/n03-android-repriced-total")
+python3 "$ui" wait "Totali i ofertës: "$'\u2068'"${total}"$'\u2069'" ALL" --exact --timeout 75
 test ! -e "$RUNNER_TEMP/n03-android-submission"
 capture repriced-quote
 python3 "$ui" tap "Pranoj ofertën dhe porosis" --exact --timeout 75
@@ -83,6 +86,7 @@ python3 "$ui" wait "Statusi i porosisë ende nuk është konfirmuar" --timeout 7
 capture unknown
 python3 "$fixture" storage unknown
 python3 "$fixture" order
+python3 "$fixture" payment
 
 if grep -Fq 'FATAL EXCEPTION' <(adb logcat -d -v brief AndroidRuntime:E '*:S'); then
   echo "::error::Android fatal exception during N03 recovery"
