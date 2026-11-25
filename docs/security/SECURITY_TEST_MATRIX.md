@@ -1,5 +1,16 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-25 — R01 remaining acceptance checks
+
+| Scope | Prerequisite | Evidence required |
+| --- | --- | --- |
+| Release runtime | Owner confirms exact Medusa release train and scoped integration in the draft workstream. Record the package manifest and lockfile and review the changed Payment and Order service implementations. | Ordinary Admin and direct/workflow entry points on the exact locked build preserve all existing financial assertions. Require exact captured limits, stable refund identity, one signed order posting per confirmed refund, correct credits and no duplicate on retry. |
+| Provider sandbox | Identify the provider, test merchant/account, test API and scope, enabled currencies and provider documentation. Provision test-only auth and webhook verification material through an approved secret store. Bind an isolated callback and provide synthetic test instruments. | Run the refund-related [P03–P06 and P09–P14 cases](../checkout/F07G_DURABLE_QUOTE_DESIGN.md#p01p14-acceptance-cases-all-unexecuted-with-a-real-psp) as applicable under RG-03. Use the original provider operation identity and lookup plus redacted settlement and webhook evidence. Reconcile capture, refund, signed postings, credits and summary per merchant, payment and currency. |
+| Recovery after interruption | Selected runtime, test merchant, and a controlled pause between provider acknowledgement and order posting. | After a lost acknowledgement, resolve the existing operation before submission of another. After provider confirmation and process restart, complete the local posting once from the same identity. A pending provider result retains the reservation. Duplicate callbacks and concurrent workers leave one applied refund, one posting and one eligible credit. |
+| Historical postings | Scope a read-only merchant export of linked payments, captures, confirmed provider operations, signed order entries and current summaries, or document a verified empty inventory. | Compare using stable provider/local identities and merchant, order, payment, currency and amount. Equal amounts and aggregate balances alone cannot identify a refund. Hold missing, conflicting or multiple matches for review. Rehearse unique matches on a copy, preserve prior references in audit evidence, compare both ledgers and summaries before/after, and confirm a second pass makes no changes. |
+
+**Existing evidence to retain.** Stage 11M and the eight R01 PostgreSQL groups passed in the disposable candidate. The historical 50/50 copy rehearsal and hosted legacy hold are complete for their synthetic fixtures. The exact release runtime, PSP sandbox and historical merchant scope remain unverified. [Hosted jobs](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45493847608).
+
 ## 2026-11-24 — Hosted R01 reconciliation evidence
 
 The [candidate job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813/job/138794780712) confirmed all eight R01 PostgreSQL groups on `9e040e3`. The exact-capture Admin case and signed order/payment conservation checks also passed. The [pinned baseline](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813/job/138794781465) failed the mandatory uncaptured-payment assertion.

@@ -1,5 +1,13 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-25 — R01 release readiness and ninth workflow triage
+
+Draft PR #12 at `d7fe1c8` completed eight successful workflows and one failed workflow. In the [Medusa smoke matrix](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45493847608), the [R01 candidate](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45493847608/job/138798979644) passed all eight PostgreSQL verification groups. The [pinned baseline](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45493847608/job/138798980478) reached its financial assertions and failed the Admin captured-payment check. This is the expected result of preserving the mandatory check on the unpatched runtime and confirms an unresolved P0. Local release guard still returns `FIN-RELEASE-RG03-NOT-APPROVED`.
+
+**Release target.** The tracked version is 2.22.0. The separate [2.22.6 disposable run](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45493847374) covers dependency coherence, Query checks and API startup. I checked the registry SHA-512 for the exact 2.22.6 payment, core-flows and order archives and compared the seven R01 input files against their pinned SHA-256 digests. Five matched. The native Payment and Order service files changed. The 2.22.0 installer requires its own version and file hashes. A confirmed target and a reviewed integration on that target are required before full financial verification.
+
+**Recovery and history.** The hosted Stage 11M mock provider proof already covers lost acknowledgement, a new process using the original operation key, two reconcilers confirming once, and retention of the reservation for an unknown outcome. The earlier physical-copy rehearsal preserved the original 50/20 ALL difference and independently verified 50/50 after reconciliation, with no payment mutations and no change on replay. The hosted candidate holds legacy payment-reference postings for review. The remaining tests must use the selected runtime and the chosen provider's sandbox. [Execution criteria and prerequisites](security/SECURITY_TEST_MATRIX.md).
+
 ## 2026-11-24 — R01 GitHub verification and release decision
 
 Draft PR #12 ran the same tracked tree as local `1d8cf5a` at GitHub commit [9e040e3](https://github.com/titanfit102-bit/ShqipShop/commit/9e040e38795e6437c67cd0c66ae8497140c36310). The local branch and its five commits remain available. The repository connector used a single fast-forward commit with the identical Git tree because the shell had read-only Git access.

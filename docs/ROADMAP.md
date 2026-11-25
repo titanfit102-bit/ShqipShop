@@ -1,5 +1,9 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-25 — R01 exact runtime and sandbox acceptance
+
+The preserved failing baseline confirms the open invariant. Scope the release build before porting R01 because the 2.22.6 Payment and Order service files differ from the verified 2.22.0 candidate. Reuse the completed mock recovery evidence. On the selected build, verify provider acknowledgement loss and restart before order posting, and rehearse historical classification from an approved read-only export or a verified empty inventory. [Acceptance criteria](security/SECURITY_TEST_MATRIX.md).
+
 ## 2026-11-24 — R01 hosted candidate milestone verified
 
 The [disposable candidate](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813/job/138794780712) passed on the exact tracked tree of local `1d8cf5a`. The [pinned runtime](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813/job/138794781465) still fails the captured-payment check. Next confirm the supported runtime integration within an approved scope, then obtain provider-sandbox settlement and restart/retry evidence before considering R01 closure. See the [test matrix](security/SECURITY_TEST_MATRIX.md).

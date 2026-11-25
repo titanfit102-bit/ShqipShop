@@ -1,5 +1,9 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-25 — R01 release verification checkpoint
+
+Use Draft PR #12. At `d7fe1c8` the ninth workflow was the Medusa financial smoke matrix. Its synthetic candidate passed and its pinned baseline failed the authenticated Admin captured-payment invariant. Verification of npm package digests found two changed service files in 2.22.6 across the seven inputs pinned by the current candidate. Carry forward the hosted mock recovery proof and PostgreSQL legacy rehearsal. The next execution input is an approved exact runtime and a merchant-scoped PSP sandbox with documented credentials and financial lookup. R01 remains P0, with RG-03 blocked. [Decision and evidence](CURRENT_STATE.md) · [Acceptance criteria](security/SECURITY_TEST_MATRIX.md).
+
 ## 2026-11-24 — Hosted R01 decision
 
 Draft PR #12 received `9e040e3`, with the exact tree from local `1d8cf5a`. [Hosted Medusa matrix](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45492663813) verified the disposable candidate and kept the pinned baseline failure visible. The PR had eight successful workflows and one failure. The extra parallel isolation push run also passed. R01 is verified for simulated payments and remains open P0 for release. Start the next authorized phase from the existing [roadmap](ROADMAP.md) and [current state](CURRENT_STATE.md).
