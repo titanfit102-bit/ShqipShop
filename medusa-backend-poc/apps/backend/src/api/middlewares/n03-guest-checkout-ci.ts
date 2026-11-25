@@ -1,4 +1,4 @@
-import type { AuthenticatedMedusaRequest, MedusaNextFunction, MedusaResponse } from "@medusajs/framework/http"
+import type { AuthenticatedMedusaRequest, MedusaNextFunction, MedusaResponse, MedusaStoreRequest } from "@medusajs/framework/http"
 import { authenticate } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import {
@@ -11,7 +11,7 @@ const authenticateBuyer = authenticate("customer", ["bearer"])
 
 /** Commit one dispatch claim before allowing the built-in Medusa checkout to run. */
 export async function claimN03CheckoutCi(
-  req: AuthenticatedMedusaRequest,
+  req: AuthenticatedMedusaRequest & MedusaStoreRequest,
   res: MedusaResponse,
   next: MedusaNextFunction,
 ) {

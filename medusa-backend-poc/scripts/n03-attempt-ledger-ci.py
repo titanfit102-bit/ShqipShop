@@ -115,6 +115,7 @@ def main():
             attempt_id uuid PRIMARY KEY,
             cart_id text UNIQUE NOT NULL,
             owner_customer_id text,
+            quote_required boolean NOT NULL DEFAULT false,
             phase text NOT NULL DEFAULT 'prepared'
               CHECK (phase IN ('prepared', 'claimed_for_dispatch', 'sealed_before_dispatch'))
           );

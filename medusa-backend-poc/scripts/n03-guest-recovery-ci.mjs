@@ -79,7 +79,7 @@ function onlyPersistedOrder(merchant, cart) {
 
 const localCartKey = "cart_id"
 const recoveryScenarios = new Set([
-  "guest-confirmed", "guest-sealed", "guest-interrupted", "registered-confirmed", "registered-sealed",
+  "guest-confirmed", "guest-sealed", "guest-interrupted", "registered-confirmed", "registered-sealed", "registered-repriced",
 ])
 
 function recoveryStorage(scenario) {
@@ -260,19 +260,19 @@ async function loginBuyer(merchant, email, password = process.env.SHQIPSHOP_A_CU
 
 const loginMerchantA = merchant => loginBuyer(merchant, shopperEmail)
 
-async function createRegisteredTestOwner(merchant) {
+async function createRegisteredTestOwner(merchant, email = registeredEmail) {
   const password = process.env.SHQIPSHOP_A_CUSTOMER_PASSWORD
   const identity = await request(merchant, "POST", "/auth/customer/emailpass/register", {
-    body:{email:registeredEmail, password},
+    body:{email, password},
   })
   assert([200, 201].includes(identity.status))
   assert(identity.data.token?.length > 20)
   const customer = await request(merchant, "POST", "/store/customers", {
     key:true, token:identity.data.token,
-    body:{email:registeredEmail, first_name:"Synthetic", last_name:"Owner"},
+    body:{email, first_name:"Synthetic", last_name:"Owner"},
   })
   assert([200, 201].includes(customer.status))
-  return loginBuyer(merchant, registeredEmail)
+  return loginBuyer(merchant, email)
 }
 
 async function mintRegisteredCart(merchant, token) {
@@ -382,8 +382,12 @@ async function prepareCheckout(merchant, fixture, email, token) {
   assert(options.data.shipping_options?.length)
   await write("POST","/store/carts/"+fixture.cart+"/shipping-methods",
     {option_id:options.data.shipping_options[0].id})
+  await prepareManualPayment(merchant, fixture.cart, token)
+}
+
+async function prepareManualPayment(merchant, cart, token) {
   const payCollection=await request(merchant,"POST","/store/payment-collections",{
-    key:true,token,body:{cart_id:fixture.cart},
+    key:true,token,body:{cart_id:cart},
   })
   assert.equal(payCollection.status,200)
   const collectionId=payCollection.data.payment_collection?.id
@@ -392,6 +396,73 @@ async function prepareCheckout(merchant, fixture, email, token) {
     key:true,token,body:{provider_id:"pp_system_default"},
   })
   assert([200,201].includes(session.status))
+}
+
+async function verifyRepricedRegisteredCheckout(merchant, clone) {
+  const email = "n03-quote-buyer@example.invalid"
+  const token = await createRegisteredTestOwner(merchant, email)
+  const cart = await mintRegisteredCart(merchant, token)
+  fixtureQuery(merchant, cart, `
+    UPDATE shqipshop_n03_disposable_attempt SET quote_required = true WHERE cart_id = :'cart';
+  `)
+  await prepareCheckout(merchant, {cart}, email, token)
+
+  const quotePath = "/store/shqipshop/quote-review-accept-ci"
+  const buyer = {key:true, token, headers:{"x-shqipshop-cart-id":cart}}
+  const review = async () => {
+    const result = await request(merchant, "POST", quotePath, {...buyer, body:{review:true}})
+    assert.equal(result.status, 200, "Expected authoritative ALL quote")
+    assert.equal(result.data.currency, "all")
+    assert.match(result.data.total, /^\d+$/)
+    return result.data
+  }
+  const accept = quote => request(merchant, "POST", quotePath, {
+    ...buyer, body:{quote_id:quote.quote_id, fingerprint:quote.fingerprint},
+  })
+  const complete = (backend, quote) => request(backend, "POST", completePath(cart), {
+    key:true, token, body:{}, headers: quote ? {
+      "x-shqipshop-quote-id":quote.quote_id, "x-shqipshop-quote-fingerprint":quote.fingerprint,
+    } : {},
+  })
+  const old = await review()
+  assert.equal((await complete(merchant, old)).status, 412, "Displayed quote needs explicit acceptance")
+  assert.equal((await accept(old)).status, 200)
+  const cartPath = "/store/carts/" + encodeURIComponent(cart)
+  const current = await request(merchant, "GET", cartPath, {key:true, token})
+  const line = current.data.cart?.items?.[0]
+  assert(line?.id)
+  const changed = await request(merchant, "POST", cartPath + "/line-items/" + encodeURIComponent(line.id), {
+    key:true, token, body:{quantity:2},
+  })
+  assert.equal(changed.status, 200)
+  await prepareManualPayment(merchant, cart, token)
+
+  assert.equal((await complete(merchant, old)).status, 412)
+  assert.equal((await complete(merchant)).status, 412)
+  assertPhase(merchant, cart, "prepared")
+  assert.equal(persistedGuestOrders(merchant, cart), "")
+  const fresh = await review()
+  assert.notEqual(fresh.fingerprint, old.fingerprint)
+  assert(Number(fresh.total) > Number(old.total))
+  assert.equal((await complete(merchant, fresh)).status, 412)
+  assert.equal((await accept(fresh)).status, 200)
+
+  await reserveClientAttempt("registered-repriced", cart)
+  // Discard the winning response as a client would after losing communication.
+  const results = await Promise.all([complete(merchant, fresh), complete(clone, fresh)])
+  assert.deepEqual(results.map(response => response.status).sort(), [200, 409])
+  const winner = results.find(response => response.status === 200)
+  assert.equal(winner.data.type, "order")
+  const order = onlyPersistedOrder(merchant, cart)
+  assert.equal(winner.data.order?.id, order)
+  const receipt = await request(clone, "GET", receiptPath(order), {key:true, token})
+  assert.equal(receipt.status, 200)
+  assert.equal(receipt.data.order.currency_code, "all")
+  assert.equal(String(receipt.data.order.total), fresh.total)
+  await verifyClientRecovery(merchant, "registered-repriced", cart, {key:true, token},
+    {state:"confirmed", orderId:order})
+  assert.equal(onlyPersistedOrder(merchant, cart), order)
+  console.log("SHQIPSHOP_F07G_N03_REPRICED_QUOTE_AND_ONE_ORDER_VERIFIED")
 }
 
 async function verifyBeforeRestart() {
@@ -537,6 +608,7 @@ async function verifyBeforeRestart() {
   assert.deepEqual(unconfirmed.data, {state:"unknown"})
 
   const sealed = await verifyCancellation(a, clone)
+  await verifyRepricedRegisteredCheckout(a, clone)
   const registeredAttempt = await verifyRegisteredCancellation(a, clone)
 
   const interrupted = await mintPendingCart(a)

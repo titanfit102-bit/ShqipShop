@@ -167,6 +167,17 @@ jobs:
           );"
           PGPASSWORD=merchantA_disposable psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U shqipshop_ci_a -d shqipshop_ci_a -c "$ddl"
           PGPASSWORD=merchantB_disposable psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U shqipshop_ci_b -d shqipshop_ci_b -c "$ddl"
+      - name: Initialize the existing F07g quote table for the disposable N03 checkouts
+        env:
+          SHQIPSHOP_F07G_N03_CI: "true"
+          SHQIPSHOP_N03_RECOVERY_CI: "true"
+          DATABASE_URL: postgres://shqipshop_ci_a:merchantA_disposable@127.0.0.1:5432/shqipshop_ci_a
+          REDIS_URL: redis://127.0.0.1:6379
+        run: |
+          set -euo pipefail
+          export JWT_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$JWT_SECRET"
+          pnpm --filter @dtc/backend exec medusa exec ./src/scripts/f07g-live-cart-snapshot-ci.ts init-n03
       - name: Both Medusa servers run simultaneously while orders and boundaries are tested
         env:
           SHQIPSHOP_A_KEY_FILE: ${{ runner.temp }}/merchant-a-key.txt
@@ -194,7 +205,7 @@ jobs:
           done
           test "$secret_a" != "$secret_b" && test "$cookie_a" != "$cookie_b"
           start_merchant_a() {
-            SHQIPSHOP_N03_GUEST_RECOVERY_CI=true SHQIPSHOP_N03_RECOVERY_CI=true DATABASE_URL='postgres://shqipshop_ci_a:merchantA_disposable@127.0.0.1:5432/shqipshop_ci_a' REDIS_URL='redis://127.0.0.1:6379' JWT_SECRET="$secret_a" COOKIE_SECRET="$cookie_a" setsid pnpm --filter @dtc/backend exec medusa develop --port "$1" > "$2" 2>&1 &
+            SHQIPSHOP_F07G_N03_CI=true SHQIPSHOP_N03_GUEST_RECOVERY_CI=true SHQIPSHOP_N03_RECOVERY_CI=true DATABASE_URL='postgres://shqipshop_ci_a:merchantA_disposable@127.0.0.1:5432/shqipshop_ci_a' REDIS_URL='redis://127.0.0.1:6379' JWT_SECRET="$secret_a" COOKIE_SECRET="$cookie_a" setsid pnpm --filter @dtc/backend exec medusa develop --port "$1" > "$2" 2>&1 &
           }
           start_merchant_a 9000 "$RUNNER_TEMP/merchant-a.log"
           pid_a=$!

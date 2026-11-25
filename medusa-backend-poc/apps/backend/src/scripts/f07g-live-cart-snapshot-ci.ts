@@ -14,6 +14,7 @@ import { resolve } from "node:path"
 import type { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, MathBN } from "@medusajs/framework/utils"
 import { bindVerifiedQuotePrincipal } from "../lib/checkout/quote-principal"
+import { createDisposableQuoteTable, isF07gN03Ci } from "../lib/checkout/quote-cart-ci"
 import { claimAcceptedQuoteInDisposableCi } from "../lib/checkout/quote-claim-ci"
 import {
   acceptCheckoutQuote, assertAcceptedCheckoutQuote, fingerprintQuoteSnapshot,
@@ -43,6 +44,10 @@ const identifier = (value: unknown, prefix: string) => {
 }
 
 export default async function liveCart({ container, args }: ExecArgs) {
+  if (args?.[0] === "init-n03" && isF07gN03Ci()) {
+    await createDisposableQuoteTable(container.resolve(ContainerRegistrationKeys.PG_CONNECTION))
+    return
+  }
   const required: Record<string, string> = {
     CI: "true", NODE_ENV: "development",
     SHQIPSHOP_REQUIRE_REDIS: "true", SHQIPSHOP_F07E_REPRICE_PROBE: "true",
@@ -213,30 +218,7 @@ export default async function liveCart({ container, args }: ExecArgs) {
     const expectedTotal = MathBN.sub(MathBN.add(lineTotal, taxTotal), discountTotal)
     assert(MathBN.convert(cartTotal).eq(expectedTotal),
       "CI total must come from coherent Medusa data")
-    assert.equal(await db.schema.hasTable(table), false,
-      "Never alter a pre-existing table, including other test fixtures")
-    await db.schema.createTable(table, (t: any) => {
-      t.string("quote_id", 80).primary()
-      t.string("tenant_id", 100).notNullable()
-      t.string("cart_id", 100).notNullable()
-      t.string("buyer_binding", 160).notNullable()
-      t.string("fingerprint", 80).notNullable()
-      t.jsonb("snapshot").notNullable()
-      t.bigInteger("issued_at_ms").notNullable()
-      t.bigInteger("expires_at_ms").notNullable()
-      t.bigInteger("accepted_at_ms").nullable()
-      t.string("acceptance_nonce", 80).nullable()
-      t.bigInteger("claimed_at_ms").nullable()
-      t.string("claim_nonce", 80).nullable()
-      t.string("status", 12).notNullable()
-      t.index(["tenant_id", "cart_id", "status"], "f07g_live_ci_tenant_cart_state")
-    })
-    // Stronger than uniqueness per quote_id: prohibit two independent
-    // accepted quote IDs being claimed for the SAME checkout cart.
-    // Disposable PostgreSQL-only proof; this is NOT a Medusa order lock.
-    await db.raw(`CREATE UNIQUE INDEX f07g_ci_one_claimed_per_cart
-      ON "${table}" ("tenant_id", "cart_id")
-      WHERE "status" = 'claimed'`)
+    await createDisposableQuoteTable(db)
     const now = Date.now()
     const quote = issueCheckoutQuote(snapshot, now, 300000)
     const pending = issueCheckoutQuote(snapshot, now, 300000)

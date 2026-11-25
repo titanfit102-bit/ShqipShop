@@ -10,6 +10,7 @@
  * a PSP, or guarantee an exactly-once payment. Those workflows need their
  * own shared transaction/compensation/idempotency design and authorization.
  */
+import { isF07gN03Ci } from "./quote-cart-ci"
 import { randomUUID } from "node:crypto"
 import {
   assertAcceptedCheckoutQuote,
@@ -43,12 +44,12 @@ export async function claimAcceptedQuoteInDisposableCi(
   freshFromMedusa: QuoteSnapshot,
   nowMs: number,
 ): Promise<boolean> {
-  if (process.env.CI !== "true" ||
+  if (!isF07gN03Ci() && (process.env.CI !== "true" ||
     process.env.NODE_ENV !== "development" ||
     process.env.SHQIPSHOP_F07G_REAL_CART_CI !== "true" ||
     process.env.DATABASE_URL !==
       "postgres://medusa_ci:disposable_ci_password@127.0.0.1:5432/medusa_ci" ||
-    process.env.REDIS_URL !== "redis://127.0.0.1:6379") {
+    process.env.REDIS_URL !== "redis://127.0.0.1:6379")) {
     throw new Error("F07g claim forbidden outside disposable CI")
   }
   if (!scope || !quoteId || !reviewedFingerprint) return false

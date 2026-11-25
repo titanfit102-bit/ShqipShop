@@ -1,7 +1,12 @@
-import type { AuthenticatedMedusaRequest } from "@medusajs/framework/http"
+import type { AuthenticatedMedusaRequest, MedusaStoreRequest } from "@medusajs/framework/http"
+import { claimAcceptedQuoteInDisposableCi } from "../../lib/checkout/quote-claim-ci"
+import {
+  freshQuoteSnapshot, f07gN03Scope, isF07gN03Ci, QUOTE_TABLE,
+  quoteCartFields, quoteFingerprintPattern, quoteIdPattern,
+} from "../../lib/checkout/quote-cart-ci"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import {
-  DISPATCH_CLAIMED, hasN03CartChannel, isN03DisposableCi, SEALED_BEFORE_DISPATCH, updateN03Attempt,
+  ATTEMPT_TABLE, DISPATCH_CLAIMED, hasN03CartChannel, isN03DisposableCi, SEALED_BEFORE_DISPATCH, updateN03Attempt,
 } from "./n03-guest-ci"
 
 export const isN03RegisteredCi = () => isN03DisposableCi("SHQIPSHOP_N03_RECOVERY_CI")
@@ -27,7 +32,7 @@ export async function isN03RegisteredCustomer(req: AuthenticatedMedusaRequest, a
 }
 
 export async function transitionN03RegisteredAttempt(
-  req: AuthenticatedMedusaRequest,
+  req: AuthenticatedMedusaRequest & MedusaStoreRequest,
   cartId: string,
   phase: typeof DISPATCH_CLAIMED | typeof SEALED_BEFORE_DISPATCH,
 ) {
@@ -42,6 +47,33 @@ export async function transitionN03RegisteredAttempt(
       .whereNull("deleted_at").forUpdate().first("sales_channel_id", "completed_at")
     if (!cart || !hasN03CartChannel(req, cart.sales_channel_id)) return 404
     if (cart.completed_at != null) return 409
+    if (phase === DISPATCH_CLAIMED && isF07gN03Ci()) {
+      const attempt = await trx(ATTEMPT_TABLE).where({cart_id:cartId}).first("phase", "quote_required")
+      if (attempt?.quote_required) {
+        if (attempt.phase !== "prepared") return 409
+        const quoteId = req.headers["x-shqipshop-quote-id"]
+        const fingerprint = req.headers["x-shqipshop-quote-fingerprint"]
+        if (typeof quoteId !== "string" || !quoteIdPattern.test(quoteId) ||
+            typeof fingerprint !== "string" || !quoteFingerprintPattern.test(fingerprint)) return 412
+        const scope = f07gN03Scope(cartId, actor)
+        const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
+        const { data } = await query.graph({
+          entity:"cart", fields:[...quoteCartFields,"shipping_methods.id","shipping_methods.amount"],
+          filters:{id:cartId},
+        })
+        if (data.length !== 1) return 412
+        let snapshot
+        try { snapshot = await freshQuoteSnapshot(query, data[0], scope, true) }
+        catch { return 412 }
+        const claimed = await claimAcceptedQuoteInDisposableCi(trx, QUOTE_TABLE, scope,
+          quoteId, fingerprint, snapshot, Date.now())
+        if (!claimed) return 412
+        // Roll back the quote claim if the paired attempt transition fails.
+        const status = await updateN03Attempt(trx, cartId, actor, phase)
+        if (status !== 200) throw new Error("Quote and checkout attempt must be claimed together")
+        return status
+      }
+    }
     return updateN03Attempt(trx, cartId, actor, phase)
   })
 }
