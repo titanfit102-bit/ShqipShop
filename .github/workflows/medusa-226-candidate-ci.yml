@@ -4,6 +4,12 @@ on:
   pull_request:
     paths:
       - .github/workflows/medusa-226-candidate-ci.yml
+      - medusa-backend-poc/package.json
+      - medusa-backend-poc/pnpm-lock.yaml
+      - medusa-backend-poc/apps/*/package.json
+      - scripts/security/medusa_request_dependencies.test.cjs
+      - Dockerfile
+      - .dockerignore
       - scripts/security/medusa_226_ci_candidate.py
       - medusa-backend-poc/apps/backend/scripts/*r01*
       - medusa-backend-poc/apps/backend/src/scripts/r01-refund-reconciliation-ci.ts
@@ -136,6 +142,8 @@ jobs:
           pnpm install --frozen-lockfile
       - name: Verify the locked Express proxy dependency and one-hop IP attribution
         run: node --test scripts/security/medusa_proxy_ip_probe.cjs
+      - name: Verify request parsing, webhook bytes and schema compatibility
+        run: node --test scripts/security/medusa_request_dependencies.test.cjs
       - name: Stage 12AA AST unit tests and installed Medusa built-in route export inventory
         run: |
           set -euo pipefail
@@ -256,3 +264,62 @@ jobs:
         run: |
           cd "$SHQIPSHOP_MEDUSA_CANDIDATE_DIR"
           pnpm --filter @dtc/storefront exec tsc --noEmit --incremental false
+
+  dependency-and-artifact-audit:
+    name: Report Medusa advisories and verify pilot artifact scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout without retained credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+      - name: Report advisories for the locked workspace
+        working-directory: medusa-backend-poc
+        run: |
+          set -euo pipefail
+          npm install --global "$(node -p "require('./package.json').packageManager")"
+          pnpm audit --prod --json > "$RUNNER_TEMP/medusa-audit.json" || test "$?" -eq 1
+          python3 - <<'AUDIT'
+          import json
+          import os
+          from pathlib import Path
+
+          data = json.loads(Path(os.environ["RUNNER_TEMP"], "medusa-audit.json").read_text())
+          counts = data.get("metadata", {}).get("vulnerabilities")
+          levels = ("critical", "high", "moderate", "low", "info")
+          if "error" in data or not isinstance(counts, dict) or any(
+              type(counts.get(level)) is not int for level in levels
+          ):
+              raise SystemExit("Registry audit returned no valid advisory report")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("## Medusa workspace production dependency advisories\n\n")
+              for level in levels:
+                  summary.write(f"- {level}: {counts[level]}\n")
+          AUDIT
+      - name: Preserve dependency report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ShqipShop-medusa-dependency-audit
+          path: ${{ runner.temp }}/medusa-audit.json
+          retention-days: 14
+          if-no-files-found: error
+      - name: Verify the pilot image and native dependency graph exclude the reference storefront
+        run: |
+          set -euo pipefail
+          docker build --tag shqipshop-pilot-scope .
+          docker run --rm --network none --entrypoint sh shqipshop-pilot-scope -ec '
+            test -f /app/app/main.py
+            test ! -e /app/medusa-backend-poc
+            test -z "$(find /app -iname .next -o -iname next.config.js -o -iname node_modules)"
+          '
+          node <<'NATIVE'
+          const assert = require("node:assert/strict");
+          const { packages } = require("./native-medusa/package-lock.json");
+          assert.ok(packages && packages[""]);
+          assert.ok(!Object.keys(packages).some((name) => /(?:^|\/)node_modules\/next$/.test(name)));
+          NATIVE

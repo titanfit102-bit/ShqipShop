@@ -20,7 +20,8 @@
       "@types/react": "19.0.5",
       "@types/react-dom": "19.0.5",
       "tsconfig-paths": "^4.2.0",
-      "express>proxy-addr": "2.0.8"
+      "express>proxy-addr": "2.0.8",
+      "express>body-parser": "1.20.9"
     }
   },
   "devDependencies": {
