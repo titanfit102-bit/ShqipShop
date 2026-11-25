@@ -71,8 +71,10 @@ def setup():
         return medusa(method, path, key, token, body, expected)
 
     region = next(r["id"] for r in api("GET", "/store/regions")["regions"] if r["name"] == "Shqipëri")
-    product = next(p for p in api("GET", f"/store/products?region_id={region}&fields=%2Bvariants.*")["products"]
-                   if p["title"] == "Medusa Shorts")
+    products = {p["title"]: p for p in api("GET", f"/store/products?region_id={region}&fields=%2Bvariants.*")["products"]}
+    product = products["Medusa Shorts"]
+    variant = product["variants"][0]["id"]
+    unchanged_variant = products["Medusa T-Shirt"]["variants"][0]["id"]
     cart = api("POST", RECOVERY, {"region_id": region}, expected=201)["cart_id"]
     sealed = api("POST", RECOVERY, {"region_id": region}, expected=201)["cart_id"]
     unknown = api("POST", RECOVERY, {"region_id": region}, expected=201)["cart_id"]
@@ -82,7 +84,8 @@ def setup():
         "first_name": "Synthetic", "last_name": "Buyer", "address_1": "CI street",
         "city": "Tirana", "postal_code": "1001", "country_code": "al", "phone": "0690000000",
     }
-    api("POST", f"/store/carts/{cart}/line-items", {"variant_id": product["variants"][0]["id"], "quantity": 1})
+    for item_variant in (variant, unchanged_variant):
+        api("POST", f"/store/carts/{cart}/line-items", {"variant_id": item_variant, "quantity": 1})
     api("POST", f"/store/carts/{cart}", {"email": email, "shipping_address": address, "billing_address": address})
     shipping = api("GET", f"/store/shipping-options?cart_id={cart}")["shipping_options"][0]["id"]
     api("POST", f"/store/carts/{cart}/shipping-methods", {"option_id": shipping})
@@ -100,7 +103,7 @@ def setup():
     with os.fdopen(os.open(STATE, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), "w") as stream:
         json.dump(dict(key=key, token=token, customer=customer, region=region,
                        confirm=cart, sealed=sealed, unknown=unknown,
-                       product=product["id"], variant=product["variants"][0]["id"]), stream)
+                       product=product["id"], variant=variant, unchanged_variant=unchanged_variant), stream)
     print("SHQIPSHOP_N03_ANDROID_TRACKED_CARTS_READY")
 
 
@@ -113,15 +116,23 @@ def medusa_script(name, *args, env=None):
     )
 
 
+def line_amounts(commerce):
+    amounts = {line["variant_id"]: {"quantity": line["quantity"], "unit_price": line["unit_price"]}
+               for line in commerce["items"]}
+    require(len(amounts) == len(commerce["items"]), "Fixture variants must be distinct")
+    return amounts
+
+
 def reprice():
     fixture = load()
     cart_id = fixture["confirm"]
     cart_path = "/store/carts/" + cart_id
     key, token = fixture["key"], fixture["token"]
     before = medusa("GET", cart_path, key, token)["cart"]
-    line, = before["items"]
-    require(before["currency_code"] == "all" and line["quantity"] == 1 and
-            line["variant_id"] == fixture["variant"], "Expected one ALL fixture line")
+    amounts = line_amounts(before)
+    require(before["currency_code"] == "all" and
+            set(amounts) == {fixture["variant"], fixture["unchanged_variant"]} and
+            all(line["quantity"] == 1 for line in amounts.values()), "Expected two distinct ALL fixture lines")
 
     # Pre-accept a separate copy of the old offer to exercise the direct
     # completion guard while Android still holds its own unaccepted offer.
@@ -134,16 +145,16 @@ def reprice():
     require(accepted == {"accepted": True, "quote_id": old["quote_id"]}, "Old baseline acceptance failed")
 
     proof = ROOT / "n03-android-catalogue-input.json"
-    original = int(line["unit_price"])
+    original = amounts[fixture["variant"]]["unit_price"]
+    require(type(original) is int and type(before["total"]) is int, "Fixture amounts must be whole ALL")
     proof.write_text(json.dumps({"productId": fixture["product"], "variantId": fixture["variant"],
                                 "originalAmount": original, "expectedAmount": original + 17}))
     medusa_script("f07e-store-reprice-ci.ts", env={
         "SHQIPSHOP_F07E_REPRICE_PROBE": "true", "SHQIPSHOP_F07E_REPRICE_PROOF_FILE": str(proof),
     })
     after = medusa("GET", cart_path, key, token)["cart"]
-    stale_line, = after["items"]
-    require(after["total"] == before["total"] and
-            all(stale_line[field] == line[field] for field in ("id", "quantity", "unit_price")),
+    require(after["total"] == before["total"] and after["shipping_total"] == before["shipping_total"] and
+            line_amounts(after) == amounts,
             "Catalogue change must leave the cart stale")
     print("SHQIPSHOP_F07G_N03_CATALOGUE_CHANGED_CART_REMAINED_STALE")
 
@@ -156,8 +167,30 @@ def reprice():
             "Old accepted quote must be refused before order creation")
     print("SHQIPSHOP_F07G_N03_CATALOGUE_STALE_ACCEPTED_QUOTE_BLOCKED")
 
-    (ROOT / "n03-android-repriced-total").write_text(str(int(before["total"]) + 17))
+    amounts[fixture["variant"]]["unit_price"] = original + 17
+    total = int(before["total"]) + 17
+    (ROOT / "n03-android-expected-lines.json").write_text(json.dumps({
+        "items": amounts, "shipping": before["shipping_total"], "total": total,
+    }))
+    (ROOT / "n03-android-repriced-total").write_text(str(total))
     require(not SUBMISSION.exists(), "Quote review dispatched checkout before acceptance")
+
+
+def verify_amounts(commerce):
+    expected = json.loads((ROOT / "n03-android-expected-lines.json").read_text())
+    require(commerce["currency_code"] == "all" and commerce["total"] == expected["total"] and
+            commerce["shipping_total"] == expected["shipping"] and line_amounts(commerce) == expected["items"],
+            "ALL total, both distinct line prices and unchanged shipping must match the accepted offer")
+
+
+def verify_refreshed_cart():
+    fixture = load()
+    key, token = fixture["key"], fixture["token"]
+    require(not SUBMISSION.exists() and medusa("GET", "/store/orders", key, token)["count"] == 0,
+            "Refreshed cart must still await explicit consent")
+    cart = medusa("GET", f'/store/carts/{fixture["confirm"]}', key, token)["cart"]
+    verify_amounts(cart)
+    print("SHQIPSHOP_F07G_N03_TWO_LINES_AND_UNCHANGED_SHIPPING_VERIFIED")
 
 
 def proxy():
@@ -286,8 +319,7 @@ def verify_order():
     dispatched = json.loads((ROOT / "n03-android-dispatched-order").read_text())
     require(dispatched["currency"] == "all" and str(dispatched["total"]) == expected_total,
             "Completed order must match the refreshed ALL quote")
-    require(receipt["currency_code"] == "all" and str(receipt["total"]) == expected_total,
-            "Recovered order must match the accepted ALL quote")
+    verify_amounts(receipt)
     print("SHQIPSHOP_N03_ANDROID_ONE_COMMITTED_ORDER_VERIFIED")
 
 
@@ -304,11 +336,13 @@ def main():
     require(os.environ.get("CI") == "true" and os.environ.get("SHQIPSHOP_N03_ANDROID_CI") == "true",
             "Only run against the disposable CI fixture")
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("setup", "proxy", "seed", "storage", "order", "wait-unknown", "reprice", "payment"))
+    parser.add_argument("action", choices=("setup", "proxy", "seed", "storage", "order", "wait-unknown", "reprice", "refreshed", "payment"))
     parser.add_argument("case", nargs="?", choices=("confirm", "confirmed", "sealed", "unknown", "lost"))
     args = parser.parse_args()
     if args.action == "setup":
         setup()
+    elif args.action == "refreshed":
+        verify_refreshed_cart()
     elif args.action == "payment":
         verify_payment()
     elif args.action == "proxy":

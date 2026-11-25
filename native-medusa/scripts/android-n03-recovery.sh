@@ -52,7 +52,7 @@ python3 "$ui" wait "Totali i shportës ka ndryshuar" --timeout 75
 # Fluent isolates interpolation with FSI/PDI in the accessibility tree.
 total=$(cat "$RUNNER_TEMP/n03-android-repriced-total")
 python3 "$ui" wait "Totali i ofertës: "$'\u2068'"${total}"$'\u2069'" ALL" --exact --timeout 75
-test ! -e "$RUNNER_TEMP/n03-android-submission"
+python3 "$fixture" refreshed
 capture repriced-quote
 python3 "$ui" tap "Pranoj ofertën dhe porosis" --exact --timeout 75
 python3 "$ui" wait "Statusi i porosisë ende nuk është konfirmuar" --timeout 75

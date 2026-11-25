@@ -40,50 +40,66 @@ type QuoteScope = Pick<QuoteSnapshot, "tenantId" | "cartId" | "buyerBinding">
 export async function freshQuoteSnapshot(
   query: any, cart: any, scope: QuoteScope, withShipping = false,
 ): Promise<QuoteSnapshot> {
-  if (cart.currency_code !== "all" || !Array.isArray(cart.items) || cart.items.length !== 1) denied(409)
+  if (cart.currency_code !== "all" || !Array.isArray(cart.items) || cart.items.length < 1 ||
+      cart.items.length > 100 || (!withShipping && cart.items.length !== 1)) denied(409)
   const shipping = withShipping && Array.isArray(cart.shipping_methods)
     ? cart.shipping_methods.map((method: any) => ({id: String(method.id), amount: money(method.amount)}))
     : []
   if (withShipping && shipping.length !== 1) denied(409)
-  const cartId = scope.cartId
-  const line = cart.items[0]
-  const variantId = String(line.variant_id)
-  const [{data: links},{data: prices}] = await Promise.all([
-    query.graph({entity:"product_variant_price_set",fields:["variant_id","price_set_id"],
-      filters:{variant_id:variantId}}),
-    query.graph({entity:"price",fields:["id","price_set_id","currency_code","amount","updated_at"]}),
-  ])
-  const sets = new Set(links.map(l=>String(l.price_set_id)))
-  const matching = prices.filter(p=>sets.has(String(p.price_set_id)) && p.currency_code==="all")
-  if (sets.size !== 1 || matching.length !== 1) denied(409)
-  const price = matching[0]
-  const id = String(line.id)
-  const unitPrice = money(line.unit_price)
-  const lineTotal = money(line.total)
+
+  const sortedLines = [...cart.items].sort((a, b) => String(a.id).localeCompare(String(b.id), "en"))
+  const variants = [...new Set(sortedLines.map(line => String(line.variant_id)))]
+  const {data: links} = await query.graph({
+    entity:"product_variant_price_set", fields:["variant_id","price_set_id"], filters:{variant_id:variants},
+  })
+  const priceSets = [...new Set(links.map(link => String(link.price_set_id)))]
+  if (priceSets.length === 0) denied(409)
+  const {data: prices} = await query.graph({
+    entity:"price", fields:["id","price_set_id","currency_code","amount","updated_at"],
+    filters:{price_set_id:priceSets, currency_code:"all"},
+  })
+
+  const lines = sortedLines.map(line => {
+    const variantId = String(line.variant_id)
+    const sets = new Set(links.filter(link => link.variant_id === variantId).map(link => String(link.price_set_id)))
+    const matches = prices.filter(price => sets.has(String(price.price_set_id)) && price.currency_code === "all")
+    if (sets.size !== 1 || matches.length !== 1) return denied(409)
+    const price = matches[0]
+    const priceAmount = money(price.amount)
+    const item = {
+      lineId:String(line.id), variantId, quantity:Number(line.quantity),
+      unitAmount:money(line.unit_price), lineTotal:money(line.total),
+    }
+    return {
+      item, priceAmount,
+      priceRevision:[String(price.id),String(price.price_set_id),priceAmount,price.updated_at],
+      cartRevision:[item.lineId,variantId,line.quantity,item.unitAmount,item.lineTotal],
+    }
+  })
+  const items = lines.map(line => line.item)
   const total = money(cart.total)
   const taxTotal = money(cart.tax_total ?? 0)
   const discountTotal = money(cart.discount_total ?? 0)
   const creditTotal = money(cart.credit_line_total ?? 0)
-  // Real Medusa catalog source overrides a stale cached line price.
-  const priceRevision = "price_" + digest([
-    String(price.id),String(price.price_set_id),money(price.amount),price.updated_at,
-  ])
-  const cartRevision = "cart_" + digest([
-    cartId,cart.region_id,cart.updated_at,
-    [id,variantId,line.quantity,unitPrice,lineTotal],
-    total,taxTotal,discountTotal,creditTotal, ...(withShipping ? [shipping] : []),
-  ])
-  const fresh: QuoteSnapshot = {
-    ...scope, currency:"all", shipping, adjustments:[], cartRevision, pricingRevision: priceRevision,
-    total,items:[{lineId:id,variantId,quantity:Number(line.quantity),
-      unitAmount:unitPrice,lineTotal}],
-    taxTotal,discountTotal,creditTotal,
-  }
-  // Never assume a stale Medusa cart unit was automatically repriced.
-  if (money(price.amount) !== unitPrice) throw new CataloguePriceChanged()
   if (withShipping && (taxTotal !== "0" || discountTotal !== "0" || creditTotal !== "0" ||
-      !MathBN.mult(unitPrice, Number(line.quantity)).eq(lineTotal) ||
-      !MathBN.add(lineTotal, shipping[0].amount).eq(total))) denied(409)
+      items.some(item => !Number.isSafeInteger(item.quantity) || item.quantity < 1 ||
+        !MathBN.mult(item.unitAmount, item.quantity).eq(item.lineTotal)) ||
+      !items.reduce((sum, item) => MathBN.add(sum, item.lineTotal),
+        MathBN.convert(shipping[0].amount)).eq(total))) denied(409)
+
+  // Keep the legacy single-line revision shape used by the existing CI quote fixtures.
+  const priceRevisions = lines.map(line => line.priceRevision)
+  const cartRevisions = lines.map(line => line.cartRevision)
+  const fresh: QuoteSnapshot = {
+    ...scope, currency:"all", shipping, adjustments:[], items, total, taxTotal, discountTotal, creditTotal,
+    pricingRevision: "price_" + digest(lines.length === 1 ? priceRevisions[0] : priceRevisions),
+    cartRevision: "cart_" + digest([
+      scope.cartId,cart.region_id,cart.updated_at,lines.length === 1 ? cartRevisions[0] : cartRevisions,
+      total,taxTotal,discountTotal,creditTotal, ...(withShipping ? [shipping] : []),
+    ]),
+  }
+  // A stale catalogue price on any line invalidates the entire quote.
+  if (lines.some(line => line.priceAmount !== line.item.unitAmount)) throw new CataloguePriceChanged()
   return fresh
 }
 
