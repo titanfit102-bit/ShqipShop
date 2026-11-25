@@ -1,5 +1,8 @@
 # ShqipShop — operational agent contract
 
+## Commerce architecture
+Use public Medusa APIs and supported extension points first. Any new dependency on private engine implementation requires documented analysis and specific owner approval. Assign each private correction a maintainer, regression coverage, documentation and retirement criteria. Keep ShqipShop policies and application contracts separate where a measurable benefit justifies the boundary. Keep one commerce writer per merchant for orders, inventory and finance. Preserve verifiable merchant data portability and platform control of security and infrastructure. Verify commercial rights before use or distribution. Avoid parallel commerce engines and speculative abstractions.
+
 **Project only:** `titanfit102-bit/ShqipShop`. Do not mix any other repository or product. Source of truth: actual GitHub HEAD/PR/checks, then [CURRENT_STATE](docs/CURRENT_STATE.md), [MASTER_HANDOFF](docs/MASTER_HANDOFF.md), [SECURITY_REGISTER](docs/security/SECURITY_REGISTER.md), [SECURITY_RELEASE_GATES](docs/security/SECURITY_RELEASE_GATES.md), [ROADMAP](docs/ROADMAP.md) and relevant ADRs. Verify live before modifying; old checkpoints are evidence at their own SHA, not current behavior.
 
 ## Authorized boundaries

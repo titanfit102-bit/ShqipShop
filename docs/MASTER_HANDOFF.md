@@ -1,5 +1,8 @@
 # SHQIPSHOP — MASTER HANDOFF (v22)
 
+## 2026-11-25 — Phase-one architecture checkpoint
+Owner approved the architectural rules and roadmap and authorized tracked 2.22.6 backend integration on draft PR #12. The starting revision is 87506a6 (tracked 2.22.0); its ten financial groups passed only with the isolated correction. R01 remains P0/open, RG-03 blocked. Verify the tracked runtime and clients before recording promotion. No external provider has been selected. See ROADMAP and SECURITY_TEST_MATRIX for remaining acceptance and historical scope.
+
 ## 2026-11-25 — R01 isolated 2.22.6 hosted evidence
 
 The authorized [2.22.6 candidate](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45596160099/job/139142653672) passed ten R01 PostgreSQL groups at `61c8869`, including denial before capture and recovery of an already-confirmed refund without an order entry. The repost used the original ID exactly once. The checked-in runtime remains 2.22.0. Keep RG-03 blocked and R01 open pending provider selection, sandbox credentials and exact release-runtime approval. [Current state](CURRENT_STATE.md).

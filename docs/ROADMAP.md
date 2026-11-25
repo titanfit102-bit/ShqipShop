@@ -1,5 +1,17 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-25 — Approved architectural evolution
+
+| Stage | Existing gate | Work and acceptance |
+|---|---|---|
+| Before real pilot | G3/G5, RG-03 | Integrate and verify the exact locked 2.22.6 backend on Draft PR #12. Preserve the unpatched comparator and isolated R01 candidate. Designate a release maintainer before adopting a private correction. Retire it when a clean upstream version or supported extension passes the full financial matrix on every writer. External settlement, signed callbacks, interrupted acknowledgement and historical disposition remain required. |
+| Before real pilot | N03/F07g/F09, RG-01/06/07 | Reuse quote and recovery contracts; isolate checkout completion and receipt lookup when changing those flows. Distinguish confirmed, definitively absent and unknown. Each active channel uses one authoritative backend per merchant. Restore A from backup, validate media, stock and finance, demonstrate B unchanged. |
+| Before commercial release | RG-02/03/05/07/08 | Extend only proven application boundaries for payment, order and receipt. Export versioned, consistent per-merchant data with stable relationships, currency totals and integrity checks; verify on a copy. Check exact dependency licenses, Enterprise features and notices. Require frozen install, migration, client, isolation, security, financial and rollback evidence at release SHA plus independent approval. |
+| Scaling | ADR-006/G4 | At 5 merchants measure unit cost, checkout latency and recovery; at 50 prove automated provisioning and staged upgrades; at 500 benchmark capacity, per-merchant margin and failure isolation before changing topology. |
+| Eventual migration | ADR-003/006 | Trigger a synthetic single-merchant rehearsal only on demonstrated cost, maintenance, licensing or correctness grounds. Reconcile an export and validate identities, balances and replay. At cutover fence the old writer; rollback after new writes requires reconciliation. |
+
+The phase-one authorization covers controlled backend integration on the draft branch. Provider choice, sandbox access and release remain separate decisions.
+
 ## 2026-11-25 — R01 portable candidate verified
 
 The [isolated 2.22.6 job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45596160099/job/139142653672) verified dependencies, security regressions and all ten R01 accounting groups. The draft candidate supports the next approved release-integration review. External provider sandbox and release criteria remain open. [Acceptance details](security/SECURITY_TEST_MATRIX.md).

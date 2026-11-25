@@ -1,5 +1,8 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-25 — Phase-one architecture checkpoint
+Owner approved the architectural rules and roadmap and authorized tracked 2.22.6 backend integration on draft PR #12. The starting revision is 87506a6 (tracked 2.22.0); its ten financial groups passed only with the isolated correction. R01 remains P0/open, RG-03 blocked. Verify the tracked runtime and clients before recording promotion. No external provider has been selected. See ROADMAP and SECURITY_TEST_MATRIX for remaining acceptance and historical scope.
+
 ## 2026-11-25 — R01 isolated Medusa 2.22.6 verified in GitHub Actions
 
 At code commit `61c8869`, the [2.22.6 job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45596160099/job/139142653672) passed dependency train and lock validation, frozen installation, PostgreSQL migrations, Query checks and the existing identity, Redis, browser and cookie regression checks. Upstream describes 2.22.6 as superseding the incompletely packaged security-hardening release 2.22.5. The installer validated the exact package files and applied the correction within the runner-temporary copy. [Upstream release](https://github.com/medusajs/medusa/releases/tag/v2.22.6).
