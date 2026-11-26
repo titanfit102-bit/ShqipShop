@@ -2,7 +2,9 @@
 
 **White-label ecommerce pilot for Albanian merchants** · **Status: prototype / local pilot only**
 
-ShqipShop is a multi-merchant, Albanian-language storefront and merchant admin platform. Each merchant has a separate catalog, branding, inventory and order data. The current implementation is a **FastAPI + SQLite PWA pilot**, not a Medusa production backend. No real online payments, merchant subscriptions, native Android/iOS apps or public production deployment exist yet.
+ShqipShop is a multi-merchant, Albanian-language storefront and merchant admin platform. Each merchant has a separate catalog, branding, inventory and order data. The root FastAPI/SQLite PWA is the original pilot. The active Medusa and Android proof runs in isolated CI on Draft PR #12 with simulated payments. Publication remains blocked.
+
+**Start here for development continuity.** Read [AGENTS.md](AGENTS.md), [MASTER_HANDOFF.md](docs/MASTER_HANDOFF.md), [CURRENT_STATE.md](docs/CURRENT_STATE.md) and the [roadmap](docs/ROADMAP.md).
 
 ## What's implemented
 
@@ -68,4 +70,4 @@ The PR CI runs the same checks. These are **unit/API checks**, not real merchant
 
 **Do not expose this pilot publicly or collect real customer data yet.** SQLite, in-memory throttling, placeholder privacy text and undeployed HTTPS/TLS do not satisfy a production launch. Next: browser/device testing; tenant auth hardening; durable PostgreSQL migrations and backups; validated local payments/courier workflows; onboarding/billing; privacy and operational readiness; native app build tests where needed. Do not merge a draft PR as a production release.
 
-The original MIT-licensed `bloomsynth/medusa-mobile-react-native` source is now imported into `native-medusa/` **on the separate `feat/native-medusa-poc` branch (PR #2)**, with original LICENSE and Albanian locale. This does not replace the FastAPI pilot, and no native APK/iOS build or live Medusa connection has been verified. See [native POC](docs/NATIVE_MEDUSA_POC.md) and [optional APK catalog idea](docs/ADR-004_APK_CATALOG_IDEA.md).
+The MIT-licensed native source was introduced in Draft PR #2. The active draft stack includes Android checkout against disposable Medusa and persisted-order verification. Commercial native release and production checkout remain open. See [native provenance](docs/NATIVE_MEDUSA_POC.md) and [exact-SHA evidence](docs/CURRENT_STATE.md).

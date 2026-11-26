@@ -1,6 +1,8 @@
 # Architecture decision record — ShqipShop
 
-**Further design decision:** [ADR-003 — original Medusa Mobile vs custom PWA pilot](ADR-003_MEDUSA_NATIVE_VS_CUSTOM_PILOT.md) defines a reversible proof-of-concept for native apps, keeping the PWA for business validation. The production source-of-truth is NOT selected yet.
+**Current decision.** Medusa is the selected commerce authority per merchant. The draft pins backend/reference storefront Medusa to 2.22.6. The PWA/native convergence, release-runtime approval, production deployment and financial gates remain open. See [approved evolution](ROADMAP.md#2026-11-25--approved-architectural-evolution), [tenant ADR](ADR-006_TENANT_BACKEND_ISOLATION.md) and [current evidence](CURRENT_STATE.md).
+
+The following ADR-001 and ADR-002 entries explain the original PWA pilot. Pilot data, endpoints and acceptance checks below describe the FastAPI/SQLite implementation. [ADR-003](ADR-003_MEDUSA_NATIVE_VS_CUSTOM_PILOT.md) records the reversible native proof of concept.
 
 ## ADR-001: Pilot delivery is PWA first, native apps later
 **Decision:** Use a branded web storefront per merchant, with an installable PWA and a single shared admin codebase.
@@ -14,7 +16,7 @@
 
 **Why:** Medusa Mobile is only the mobile client. Medusa multi-store is not tenant isolation out of the box. Installing a shared Medusa and weakening isolation to rush launch would be unsafe. This pilot isolates product/orders in its own backend while native Medusa integration remains an independent workstream.
 
-**Next production decision:** (A) tenant-specific Medusa servers with an independent provisioning control plane (more cost, stronger isolation); or (B) vetted shared multi-tenant commerce service with merchant tenant ID enforcement (more platform work, lower overhead). Benchmark both under real business volume.
+**Original options and later selection.** Dedicated Medusa per tenant increases per-merchant operating cost and simplifies the isolation boundary. A shared tenant-aware service would require wider policy enforcement and stronger evidence. ADR-006 selects the dedicated model for the initial pilot. The roadmap calls for measured capacity and unit cost before revisiting topology.
 
 ## Core data design
 - `merchants`: public profile, branding, currency and shipping base cost.

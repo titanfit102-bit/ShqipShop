@@ -1,5 +1,11 @@
 # ShqipShop — CURRENT_STATE (checkpoint aktiv)
 
+## 2026-11-26 — Transfer baseline and post-checkpoint Android result
+
+[MASTER_HANDOFF](MASTER_HANDOFF.md) is the entry point for Codex Cloud. Transfer audit confirmed Draft PR #12 on `feat/merchant-auth-boundary-ci`, stacked on PR #11. The pre-transfer tip [8dd6182](https://github.com/titanfit102-bit/ShqipShop/commit/8dd618245be7790dd0cd583d0887017867868e48) changes documentation only. On that SHA 9/11 PR workflows passed. The [N03 Android job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45714967103) and the corrected R01 jobs passed. The [clean R01 job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45714967830/job/139558572889) retained the known refund failures. The [ordinary Android job](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45714967130/job/139558573038) timed out locating the `Medusa Shorts` UI target before product selection. Root cause is unknown. This failed step differs from the earlier missing active cart ID. The results on code SHA `8b270f42` below remain 10/11.
+
+First Cloud task is read-only baseline verification and ordinary Android failure triage. Next functional work, after owner authorization, is one Medusa-calculated discount through registered ALL F07g/N03. R01 stays open and release stays blocked. No provider, sandbox account or credentials are confirmed. Use simulated payments only. No external account creation or credential use is authorized. GitHub proves the recorded isolated tests. Any assertion about a live environment's transaction history requires separate evidence.
+
 ## 2026-11-25 — F07g/N03 catalogue repricing with multiple ALL items
 
 [Draft code 8b270f42](https://github.com/titanfit102-bit/ShqipShop/commit/8b270f425ee26cd996a919c49b27f1baa7b8d80c) validates each cart line against its linked Medusa catalogue price and checks the line and cart arithmetic using Medusa exact-money helpers. The existing review endpoint refreshes the stale cart and the existing acceptance and dispatch paths protect the new quote.
