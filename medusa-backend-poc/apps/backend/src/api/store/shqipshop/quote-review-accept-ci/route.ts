@@ -6,7 +6,7 @@ import {
   type CheckoutQuote, type QuoteSnapshot,
 } from "../../../../lib/checkout/quote-contract"
 import { CataloguePriceChanged, freshQuoteSnapshot, f07gN03Scope, isF07gN03Ci, QUOTE_TABLE as TABLE,
-  quoteCartFields, quoteFingerprintPattern as fpPattern, quoteIdPattern } from "../../../../lib/checkout/quote-cart-ci"
+  quoteCartFields, quoteShippingFields, quoteFingerprintPattern as fpPattern, quoteIdPattern } from "../../../../lib/checkout/quote-cart-ci"
 import { ATTEMPT_TABLE, hasN03CartChannel } from "../../../middlewares/n03-guest-ci"
 import { registeredActor, isN03RegisteredCustomer } from "../../../middlewares/n03-registered-ci"
 import { bindVerifiedQuotePrincipal } from "../../../../lib/checkout/quote-principal"
@@ -48,7 +48,7 @@ type Context = {
 }
 
 const jointCartFields = [
-  ...quoteCartFields, "shipping_methods.id", "shipping_methods.amount",
+  ...quoteCartFields, ...quoteShippingFields,
   "payment_collection.id", "payment_collection.payment_sessions.id",
   "payment_collection.payment_sessions.status", "payment_collection.payment_sessions.provider_id",
   "payment_collection.payment_sessions.amount", "payment_collection.payment_sessions.currency_code",

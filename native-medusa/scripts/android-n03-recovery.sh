@@ -63,6 +63,10 @@ open_cart
 check_order
 python3 "$ui" wait "Detajet e porosisë" --exact --timeout 90
 python3 "$ui" wait "Produktet e porosisë" --exact --timeout 45
+if [[ ${SHQIPSHOP_N03_ANDROID_SCENARIO:-catalogue} == discount ]]; then
+  python3 "$ui" wait "-100 lekë" --exact --timeout 60 --scroll 4
+  python3 "$ui" wait "1.410 lekë" --exact --timeout 60 --scroll 4
+fi
 capture confirmed
 python3 "$fixture" storage confirmed
 

@@ -15,16 +15,16 @@ import {isF07gN03Ci} from "../lib/checkout/quote-cart-ci"
 type OrderProof = {customerId:string;cartId:string;orderId:string}
 
 export default async function verifyPaymentLedger({container,args}:ExecArgs) {
- if(args[0]==="n03-catalogue"){
+ if(args[0]==="n03-catalogue" || args[0]==="n03-discount"){
   assert(isF07gN03Ci() && process.env.SHQIPSHOP_N03_ANDROID_CI==="true",
-   "Only the isolated Android catalogue proof may read these records")
+   "Only the isolated Android quote proof may read these records")
   const root=process.env.RUNNER_TEMP
   assert(root)
   const proof=JSON.parse(readFileSync(resolve(root,"n03-android-ledger-input.json"),"utf8")) as
    OrderProof & {total:number}
   const snapshot=await readPaymentChain(container,proof)
   assert.equal(snapshot.amount,proof.total,"Quote, order and simulated payment must match in ALL")
-  console.log("SHQIPSHOP_F07G_N03_CATALOGUE_SIMULATED_PAYMENT_MATCHED")
+  console.log(`SHQIPSHOP_F07G_N03_${args[0] === "n03-discount" ? "DISCOUNT" : "CATALOGUE"}_SIMULATED_PAYMENT_MATCHED`)
   return
  }
  for(const [key,value] of Object.entries({

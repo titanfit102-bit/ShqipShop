@@ -31,6 +31,12 @@ export const quoteCartFields = [
   "items.id", "items.variant_id", "items.quantity", "items.unit_price", "items.total",
 ] as const
 
+export const quoteShippingFields = [
+  "original_tax_total", "shipping_methods.id", "shipping_methods.amount",
+  "shipping_methods.adjustments.id",
+  "items.adjustments.id", "items.adjustments.promotion_id", "items.adjustments.amount",
+] as const
+
 export const f07gN03Scope = (cartId: string, actor: string) => ({
   tenantId: "merchant_a_ci", cartId, buyerBinding: "customer:" + actor,
 })
@@ -46,6 +52,7 @@ export async function freshQuoteSnapshot(
     ? cart.shipping_methods.map((method: any) => ({id: String(method.id), amount: money(method.amount)}))
     : []
   if (withShipping && shipping.length !== 1) denied(409)
+  if (withShipping && cart.shipping_methods[0].adjustments?.length) denied(409)
 
   const sortedLines = [...cart.items].sort((a, b) => String(a.id).localeCompare(String(b.id), "en"))
   const variants = [...new Set(sortedLines.map(line => String(line.variant_id)))]
@@ -70,10 +77,19 @@ export async function freshQuoteSnapshot(
       lineId:String(line.id), variantId, quantity:Number(line.quantity),
       unitAmount:money(line.unit_price), lineTotal:money(line.total),
     }
+    const adjustments = withShipping ? (line.adjustments ?? []).map((adjustment: any) => {
+      const {id, promotion_id: promotionId} = adjustment
+      const amount = money(adjustment.amount)
+      if (typeof id !== "string" || !/^caliadj_[A-Za-z0-9_-]+$/.test(id) ||
+          typeof promotionId !== "string" || !/^promo_[A-Za-z0-9_-]+$/.test(promotionId) ||
+          amount === "0") return denied(409)
+      return {id, amount, promotionId}
+    }) : []
     return {
-      item, priceAmount,
+      item, priceAmount, adjustments,
       priceRevision:[String(price.id),String(price.price_set_id),priceAmount,price.updated_at],
-      cartRevision:[item.lineId,variantId,line.quantity,item.unitAmount,item.lineTotal],
+      cartRevision:[item.lineId,variantId,line.quantity,item.unitAmount,item.lineTotal,
+        ...(adjustments.length ? [adjustments] : [])],
     }
   })
   const items = lines.map(line => line.item)
@@ -81,9 +97,13 @@ export async function freshQuoteSnapshot(
   const taxTotal = money(cart.tax_total ?? 0)
   const discountTotal = money(cart.discount_total ?? 0)
   const creditTotal = money(cart.credit_line_total ?? 0)
-  if (withShipping && (taxTotal !== "0" || discountTotal !== "0" || creditTotal !== "0" ||
-      items.some(item => !Number.isSafeInteger(item.quantity) || item.quantity < 1 ||
-        !MathBN.mult(item.unitAmount, item.quantity).eq(item.lineTotal)) ||
+  const adjustments = lines.flatMap(line => line.adjustments)
+  if (withShipping && (taxTotal !== "0" || money(cart.original_tax_total ?? 0) !== "0" ||
+      creditTotal !== "0" || adjustments.length > 1 ||
+      (adjustments[0]?.amount ?? "0") !== discountTotal ||
+      lines.some(({item, adjustments}) => !Number.isSafeInteger(item.quantity) || item.quantity < 1 ||
+        !MathBN.sub(MathBN.mult(item.unitAmount, item.quantity), adjustments[0]?.amount ?? 0)
+          .eq(item.lineTotal)) ||
       !items.reduce((sum, item) => MathBN.add(sum, item.lineTotal),
         MathBN.convert(shipping[0].amount)).eq(total))) denied(409)
 
@@ -91,7 +111,7 @@ export async function freshQuoteSnapshot(
   const priceRevisions = lines.map(line => line.priceRevision)
   const cartRevisions = lines.map(line => line.cartRevision)
   const fresh: QuoteSnapshot = {
-    ...scope, currency:"all", shipping, adjustments:[], items, total, taxTotal, discountTotal, creditTotal,
+    ...scope, currency:"all", shipping, adjustments, items, total, taxTotal, discountTotal, creditTotal,
     pricingRevision: "price_" + digest(lines.length === 1 ? priceRevisions[0] : priceRevisions),
     cartRevision: "cart_" + digest([
       scope.cartId,cart.region_id,cart.updated_at,lines.length === 1 ? cartRevisions[0] : cartRevisions,

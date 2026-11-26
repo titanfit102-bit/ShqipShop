@@ -11,8 +11,15 @@ on:
       - medusa-backend-poc/apps/backend/src/api/store/shqipshop/quote-review-accept-ci/route.ts
       - medusa-backend-poc/apps/backend/src/lib/checkout/quote-cart-ci.ts
       - medusa-backend-poc/apps/backend/src/scripts/f07e-store-reprice-ci.ts
+      - medusa-backend-poc/apps/backend/src/scripts/f07g-all-discount-ci.ts
       - medusa-backend-poc/apps/backend/src/scripts/f08-payment-ledger-ci.ts
   workflow_dispatch:
+    inputs:
+      scenario:
+        description: Registered ALL offer change
+        type: choice
+        options: [discount, catalogue]
+        default: discount
 
 permissions:
   contents: read
@@ -33,6 +40,7 @@ jobs:
       SHQIPSHOP_REQUIRE_REDIS: "true"
       SHQIPSHOP_N03_RECOVERY_CI: "true"
       SHQIPSHOP_N03_ANDROID_CI: "true"
+      SHQIPSHOP_N03_ANDROID_SCENARIO: ${{ inputs.scenario || 'discount' }}
       SHQIPSHOP_F07G_N03_CI: "true"
       STORE_CORS: http://localhost:8000
       ADMIN_CORS: http://localhost:9000

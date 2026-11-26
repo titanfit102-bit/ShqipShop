@@ -2,7 +2,7 @@ import type { AuthenticatedMedusaRequest, MedusaStoreRequest } from "@medusajs/f
 import { claimAcceptedQuoteInDisposableCi } from "../../lib/checkout/quote-claim-ci"
 import {
   freshQuoteSnapshot, f07gN03Scope, isF07gN03Ci, QUOTE_TABLE,
-  quoteCartFields, quoteFingerprintPattern, quoteIdPattern,
+  quoteCartFields, quoteShippingFields, quoteFingerprintPattern, quoteIdPattern,
 } from "../../lib/checkout/quote-cart-ci"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import {
@@ -58,7 +58,7 @@ export async function transitionN03RegisteredAttempt(
         const scope = f07gN03Scope(cartId, actor)
         const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
         const { data } = await query.graph({
-          entity:"cart", fields:[...quoteCartFields,"shipping_methods.id","shipping_methods.amount"],
+          entity:"cart", fields:[...quoteCartFields,...quoteShippingFields],
           filters:{id:cartId},
         })
         if (data.length !== 1) return 412
