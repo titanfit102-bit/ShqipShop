@@ -35,8 +35,11 @@ const AnimatedCartButton = ({
   hasSelectedAllOptions = false,
 }: AnimatedCartButtonProps) => {
   const { l10n } = useLocalization();
-  const { addToCart } = useCart();
+  const { cart, cartLoading, cartError, addToCart } = useCart();
+  const navigation = useNavigation();
   const [adding, setAdding] = React.useState(false);
+  const awaitingCart = !cart?.id && cartLoading;
+  const needsCartRecovery = !cart?.id && !cartLoading && Boolean(cartError);
   const productQuantityInCart = useProductQuantity(productId);
   const visible = productQuantityInCart > 0;
   const reveal = useSharedValue(visible ? 1 : 0);
@@ -51,7 +54,7 @@ const AnimatedCartButton = ({
     opacity: reveal.value,
   }));
   const addToCartHandler = async () => {
-    if (!selectedVariantId || disabled || !inStock) {
+    if (!cart?.id || !selectedVariantId || disabled || !inStock) {
       return;
     }
     setAdding(true);
@@ -75,16 +78,23 @@ const AnimatedCartButton = ({
         </View>
       </Animated.View>
       <View className="flex-1">
-        <Button
-          title={
-            hasSelectedAllOptions && !inStock
-              ? l10n.getString('out-of-stock')
-              : l10n.getString('add-to-cart')
-          }
-          onPress={addToCartHandler}
-          disabled={disabled}
-          loading={adding}
-        />
+        {needsCartRecovery ? (
+          <Button
+            title={l10n.getString('view-cart')}
+            onPress={() => navigation.navigate('Cart')}
+          />
+        ) : (
+          <Button
+            title={
+              hasSelectedAllOptions && !inStock
+                ? l10n.getString('out-of-stock')
+                : l10n.getString('add-to-cart')
+            }
+            onPress={addToCartHandler}
+            disabled={disabled || !cart?.id}
+            loading={adding || awaitingCart}
+          />
+        )}
       </View>
     </View>
   );
