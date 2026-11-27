@@ -299,6 +299,11 @@ jobs:
           fi
           node scripts/n03-guest-recovery-ci.mjs after-restart
           echo 'SHQIPSHOP_PARALLEL_MERCHANT_ORDER_ISOLATION_PASSED'
+      - name: Restore merchant A PostgreSQL into a fresh isolated database
+        timeout-minutes: 5
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: bash scripts/verify-merchant-postgres-restore.sh "$POSTGRES_CONTAINER"
       - name: Statement of limits
         if: always()
         run: |
