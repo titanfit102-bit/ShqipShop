@@ -12,6 +12,8 @@ on:
       - medusa-backend-poc/apps/backend/src/**
   pull_request:
     paths:
+      - native-medusa/scripts/android-native-checkout-e2e.sh
+      - native-medusa/scripts/shqipshop-ui-automation.py
       - medusa-backend-poc/apps/backend/package.json
       - medusa-backend-poc/pnpm-lock.yaml
       - .github/workflows/android-native-checkout-e2e.yml
