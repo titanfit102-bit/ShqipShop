@@ -42,6 +42,12 @@ ShqipShop owns the customer experience, application contracts, tenant provisioni
 3. Report the verified baseline and bounded next task before edits. After owner authorization for development, use small commits on the draft branch, preserve links to evidence per commit, and record what remains unknown. Finish work with the exact status of each relevant check and the next action.
 4. Resume from the last reviewable Git checkpoint and persisted Actions evidence after any interruption. Work-only sessions, temporary fixtures, scratch directories and conversation memory are optional context. The repository documents and hosted evidence must be sufficient to recover each approved change. Confirm dependencies and test tooling in a new Cloud environment before treating a result as equivalent.
 
+## 2026-11-27 — Codex Cloud registered ALL discount checkpoint
+
+Resume at code `a0b6d06`. Local Medusa/PostgreSQL/Redis and hosted Android verified one 100 ALL discount, stale and unaccepted offer refusal, explicit acceptance of 1,410 ALL, agreement between simulated payment and receipt, and N03 recovery of the same single order. The Android app displayed the discounted receipt after restart. See the current state for exact scope and results. [Commit a0b6d06](https://github.com/titanfit102-bit/ShqipShop/commit/a0b6d0685e85781514a8c9e5192abc97466ca291) · [Android N03 discount](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114227/job/140203114937) · [Sanitized Android proof](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114227/artifacts/15158388090) · [Current state](CURRENT_STATE.md)
+
+Ordinary Android failed in the UI step before the PostgreSQL assertion. The exact UI failure is unknown. Inspect the retained evidence before a targeted reproduction and keep the missing catalog target and missing active cart ID incidents open. PR #12 remains Draft, R01 remains open and publication is blocked. Medusa remains the single commerce authority per merchant. [Ordinary Android](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114171/job/140203114641)
+
 ## Historical checkpoints
 
 ## 2026-11-25 — F07g/N03 catalogue repricing with multiple ALL items

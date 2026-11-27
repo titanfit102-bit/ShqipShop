@@ -1,5 +1,9 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-27 — Registered ALL discount verified
+
+The isolated registered checkout verified a single Medusa-calculated 100 ALL promotion, explicit acceptance of the new 1,410 ALL offer, simulated financial agreement and same-order N03 recovery. Continue with evidence-led triage of the ordinary Android failures. Broader rollout and R01 acceptance remain open. [Commit a0b6d06](https://github.com/titanfit102-bit/ShqipShop/commit/a0b6d0685e85781514a8c9e5192abc97466ca291) · [Android N03 discount](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114227/job/140203114937) · [Current state](CURRENT_STATE.md)
+
 ## 2026-11-25 — F07g/N03 catalogue repricing with multiple ALL items
 
 [Draft code 8b270f42](https://github.com/titanfit102-bit/ShqipShop/commit/8b270f425ee26cd996a919c49b27f1baa7b8d80c) extends the registered ALL quote path to multiple lines. [Android catalogue recovery](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779257/job/139551283074) passed. The app displayed 3,027 ALL, required new consent and reopened the same receipt after restart. The simulated payment ledger and the no-replay check passed. [Sanitized proof](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779257/artifacts/15069247178).

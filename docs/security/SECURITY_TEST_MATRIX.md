@@ -1,5 +1,9 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-27 — F07g/N03 registered ALL discount proof
+
+Three quote adapter tests passed for the exact discount, adjustment fingerprint, inconsistent amounts and excess adjustments. One isolated Medusa promotion changed the cart from 1,510 to 1,410 ALL. Stale and unaccepted offers returned 412. Explicit acceptance completed one simulated order. The financial records, Android receipt and N03 order ID matched after the response was dropped and the Android app restarted. Ordinary Android failed separately and skipped its persisted-order assertion. R01 and the release veto remain active. [Commit a0b6d06](https://github.com/titanfit102-bit/ShqipShop/commit/a0b6d0685e85781514a8c9e5192abc97466ca291) · [Android N03 discount](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114227/job/140203114937) · [Ordinary Android](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114171/job/140203114641)
+
 ## 2026-11-25 — F07g/N03 catalogue repricing with multiple ALL items
 
 [Draft code 8b270f42](https://github.com/titanfit102-bit/ShqipShop/commit/8b270f425ee26cd996a919c49b27f1baa7b8d80c). [Android catalogue recovery](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779257/job/139551283074) passed. The app displayed 3,027 ALL, required new consent and reopened the same receipt after restart. The simulated payment ledger and the no-replay check passed. [Sanitized proof](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45712779257/artifacts/15069247178).

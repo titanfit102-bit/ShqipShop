@@ -1,5 +1,9 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-27 — F07g/N03 registered ALL discount
+
+Commit `a0b6d06` binds one Medusa line promotion adjustment to the disposable quote and verifies net line and cart amounts. Local PostgreSQL/Redis and hosted Android passed stale and unaccepted refusal, explicit acceptance, one simulated order and N03 recovery with matching payment and receipt. Production quote durability, F08, F09, R01 and the release gates remain open. [Commit a0b6d06](https://github.com/titanfit102-bit/ShqipShop/commit/a0b6d0685e85781514a8c9e5192abc97466ca291) · [Android N03 discount](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114227/job/140203114937) · [Uncorrected R01](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114168/job/140203115522) · [Corrected R01](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114168/job/140203115925)
+
 ## 2026-11-25 — F07g/N03 catalogue repricing with multiple ALL items
 
 [Draft code 8b270f42](https://github.com/titanfit102-bit/ShqipShop/commit/8b270f425ee26cd996a919c49b27f1baa7b8d80c) extends the disposable registered F07g/N03 gate to a stale catalogue price on any cart line. The old offer fails closed before dispatch and a fresh owner-bound review uses public Medusa workflows.
