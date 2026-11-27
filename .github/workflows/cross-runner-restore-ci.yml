@@ -1,0 +1,55 @@
+name: Synthetic restore across standard Linux runners
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/cross-runner-restore-ci.yml
+      - medusa-backend-poc/scripts/cross-runner-restore-ci.sh
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      archive: ${{ steps.probe.outputs.archive }}
+      sha256: ${{ steps.probe.outputs.sha256 }}
+      source_boot: ${{ steps.probe.outputs.source_boot }}
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - id: probe
+        env:
+          CONTAINER: ${{ job.services.postgres.id }}
+        run: bash medusa-backend-poc/scripts/cross-runner-restore-ci.sh source "$CONTAINER"
+
+  restore:
+    needs: backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - env:
+          CONTAINER: ${{ job.services.postgres.id }}
+          SOURCE_BOOT: ${{ needs.backup.outputs.source_boot }}
+          ARCHIVE_SHA: ${{ needs.backup.outputs.sha256 }}
+          ARCHIVE_BASE64: ${{ needs.backup.outputs.archive }}
+        run: bash medusa-backend-poc/scripts/cross-runner-restore-ci.sh restore "$CONTAINER"
