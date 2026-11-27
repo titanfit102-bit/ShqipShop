@@ -1,0 +1,90 @@
+name: Full synthetic Medusa recovery across standard runners
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/cross-runner-medusa-runtime-ci.yml
+      - medusa-backend-poc/scripts/cross-runner-medusa-runtime-ci.sh
+      - medusa-backend-poc/scripts/read-restored-medusa-fixture.mjs
+      - medusa-backend-poc/apps/backend/src/scripts/cross-runner-runtime-fixture-ci.ts
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    outputs:
+      archive: ${{ steps.proof.outputs.archive }}
+      sha256: ${{ steps.proof.outputs.sha256 }}
+      boot: ${{ steps.proof.outputs.boot }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: medusa_ci
+          POSTGRES_PASSWORD: disposable_ci_password
+          POSTGRES_DB: medusa_restore_fixture
+        ports: [5432:5432]
+        options: --health-cmd "pg_isready -U medusa_ci -d medusa_restore_fixture" --health-interval 5s --health-timeout 3s --health-retries 15
+      redis:
+        image: redis:7-alpine
+        ports: [6379:6379]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: "24"
+      - name: Install frozen backend dependencies
+        working-directory: medusa-backend-poc
+        run: |
+          npm install --global pnpm@10.11.1
+          pnpm install --frozen-lockfile --filter '@dtc/backend...'
+      - name: Back up the synthetic guest order and media
+        id: proof
+        env:
+          CONTAINER: ${{ job.services.postgres.id }}
+        run: bash medusa-backend-poc/scripts/cross-runner-medusa-runtime-ci.sh source "$CONTAINER"
+
+  restore:
+    needs: backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: medusa_ci
+          POSTGRES_PASSWORD: disposable_ci_password
+          POSTGRES_DB: medusa_restore_fixture
+        ports: [5432:5432]
+        options: --health-cmd "pg_isready -U medusa_ci -d medusa_restore_fixture" --health-interval 5s --health-timeout 3s --health-retries 15
+      redis:
+        image: redis:7-alpine
+        ports: [6379:6379]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: "24"
+      - name: Install frozen backend dependencies
+        working-directory: medusa-backend-poc
+        run: |
+          npm install --global pnpm@10.11.1
+          pnpm install --frozen-lockfile --filter '@dtc/backend...'
+      - name: Restore and read the original order and media over HTTP
+        id: proof
+        env:
+          CONTAINER: ${{ job.services.postgres.id }}
+          SOURCE_BOOT: ${{ needs.backup.outputs.boot }}
+          ARCHIVE_SHA: ${{ needs.backup.outputs.sha256 }}
+          ARCHIVE_BASE64: ${{ needs.backup.outputs.archive }}
+        run: bash medusa-backend-poc/scripts/cross-runner-medusa-runtime-ci.sh restore "$CONTAINER"
