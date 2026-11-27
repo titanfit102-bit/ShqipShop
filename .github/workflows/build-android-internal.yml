@@ -7,6 +7,7 @@ on:
     paths:
       - native-medusa/**
       - .github/workflows/build-android-internal.yml
+      - scripts/security/check_android_sdk_license.py
   workflow_dispatch:
 
 permissions:
@@ -86,6 +87,11 @@ jobs:
           test -s "$apk"
           sha256sum "$apk"
           du -h "$apk"
+
+      - name: Check Medusa SDK license scope before APK upload
+        run: >-
+          python3 scripts/security/check_android_sdk_license.py
+          native-medusa/android/app/build/intermediates/sourcemaps/react/release/index.android.bundle.packager.map
 
       - name: Upload APK for private testing (public repo artifact; no secrets)
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

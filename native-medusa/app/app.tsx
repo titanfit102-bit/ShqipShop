@@ -46,15 +46,15 @@ export default function App() {
       <LocaleProvider>
         <RegionProvider>
           <CartProvider>
-            <CustomerProvider>
-              <QueryClientProvider client={queryClient}>
+            <QueryClientProvider client={queryClient}>
+              <CustomerProvider>
                 <GestureHandlerRootView>
                   <SafeAreaProvider>
                     <Navigation />
                   </SafeAreaProvider>
                 </GestureHandlerRootView>
-              </QueryClientProvider>
-            </CustomerProvider>
+              </CustomerProvider>
+            </QueryClientProvider>
           </CartProvider>
         </RegionProvider>
       </LocaleProvider>

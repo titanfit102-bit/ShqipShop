@@ -77,6 +77,10 @@ export interface FluentTemplate {
   'please-select-a-payment-method': string;
   'no-cart-found': string;
   'payment-provider-not-supported': string;
+  'review-current-quote': string;
+  'accept-quote-and-order': string;
+  'checkout-quote-changed': string;
+  'checkout-quote-total': string;
   'failed-to-complete-order': string;
   error: string;
   'an-error-occurred': string;
@@ -154,4 +158,7 @@ export interface FluentTemplate {
   'creating-account': string;
   'already-have-an-account': string;
   'registration-failed': string;
+  'order-confirmation-pending': string;
+  'check-order-status': string;
+  'order-not-created': string;
 }

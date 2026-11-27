@@ -10,6 +10,13 @@ on:
       - native-medusa/app/**
       - native-medusa/android/**
       - medusa-backend-poc/apps/backend/src/**
+  pull_request:
+    paths:
+      - native-medusa/scripts/android-native-checkout-e2e.sh
+      - native-medusa/scripts/shqipshop-ui-automation.py
+      - medusa-backend-poc/apps/backend/package.json
+      - medusa-backend-poc/pnpm-lock.yaml
+      - .github/workflows/android-native-checkout-e2e.yml
   workflow_dispatch:
 
 permissions:
@@ -105,8 +112,12 @@ jobs:
           for i in $(seq 1 90); do
             if curl -fsS --max-time 3 http://127.0.0.1:9000/health > /dev/null; then
               key="$(cat "$SHQIPSHOP_CI_PUBLISHABLE_KEY_FILE")"
-              curl -fsS --max-time 15 -H "x-publishable-api-key: $key" "http://127.0.0.1:9000/store/products" > "$RUNNER_TEMP/catalog.json"
-              node -e "const v = require(process.env.RUNNER_TEMP + '/catalog.json'); if (!v.products?.some(p=>p.title==='Medusa T-Shirt')) process.exit(1); console.log('SHQIPSHOP_CI_MEDUSA_CATALOG_READY',v.products.length)"
+              curl -fsS --max-time 15 -H "x-publishable-api-key: $key" "http://127.0.0.1:9000/store/regions" > "$RUNNER_TEMP/checkout-regions.json"
+              region="$(node -e "const {regions} = require(process.env.RUNNER_TEMP + '/checkout-regions.json'); const match = regions?.find(r => r.currency_code === 'all' && r.countries?.some(c => c.iso_2 === 'al')); if (!match) throw new Error('Missing Albanian ALL fixture region'); process.stdout.write(match.id)")"
+              curl -fsS --max-time 15 -H "x-publishable-api-key: $key" --get \
+                --data-urlencode "region_id=$region" --data-urlencode 'fields=*variants.calculated_price' \
+                "http://127.0.0.1:9000/store/products" > "$RUNNER_TEMP/catalog.json"
+              node -e "const {products} = require(process.env.RUNNER_TEMP + '/catalog.json'); if (!products?.some(p => p.title === 'Medusa Shorts' && p.variants?.some(v => v.calculated_price?.currency_code === 'all'))) throw new Error('Medusa Shorts missing from the ALL catalog'); console.log('SHQIPSHOP_CI_MEDUSA_CATALOG_READY', products.length)"
               exit 0
             fi
             sleep 3

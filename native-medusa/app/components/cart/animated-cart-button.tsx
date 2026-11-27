@@ -2,7 +2,7 @@ import Button from '@components/common/button';
 import Text from '@components/common/text';
 import React, { useEffect, useRef } from 'react';
 import Icon from '@react-native-vector-icons/ant-design';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -35,8 +35,11 @@ const AnimatedCartButton = ({
   hasSelectedAllOptions = false,
 }: AnimatedCartButtonProps) => {
   const { l10n } = useLocalization();
-  const { addToCart } = useCart();
+  const { cart, cartLoading, cartError, addToCart } = useCart();
+  const navigation = useNavigation();
   const [adding, setAdding] = React.useState(false);
+  const awaitingCart = !cart?.id && cartLoading;
+  const needsCartRecovery = !cart?.id && !cartLoading && Boolean(cartError);
   const productQuantityInCart = useProductQuantity(productId);
   const visible = productQuantityInCart > 0;
   const reveal = useSharedValue(visible ? 1 : 0);
@@ -51,12 +54,20 @@ const AnimatedCartButton = ({
     opacity: reveal.value,
   }));
   const addToCartHandler = async () => {
-    if (!selectedVariantId || disabled || !inStock) {
+    if (!cart?.id || !selectedVariantId || disabled || !inStock) {
       return;
     }
     setAdding(true);
-    await addToCart(selectedVariantId, 1);
-    setAdding(false);
+    try {
+      await addToCart(selectedVariantId, 1);
+    } catch (error) {
+      Alert.alert(
+        l10n.getString('error'),
+        error instanceof Error ? error.message : l10n.getString('an-error-occurred'),
+      );
+    } finally {
+      setAdding(false);
+    }
   };
 
   return (
@@ -67,16 +78,23 @@ const AnimatedCartButton = ({
         </View>
       </Animated.View>
       <View className="flex-1">
-        <Button
-          title={
-            hasSelectedAllOptions && !inStock
-              ? l10n.getString('out-of-stock')
-              : l10n.getString('add-to-cart')
-          }
-          onPress={addToCartHandler}
-          disabled={disabled}
-          loading={adding}
-        />
+        {needsCartRecovery ? (
+          <Button
+            title={l10n.getString('view-cart')}
+            onPress={() => navigation.navigate('Cart')}
+          />
+        ) : (
+          <Button
+            title={
+              hasSelectedAllOptions && !inStock
+                ? l10n.getString('out-of-stock')
+                : l10n.getString('add-to-cart')
+            }
+            onPress={addToCartHandler}
+            disabled={disabled || !cart?.id}
+            loading={adding || awaitingCart}
+          />
+        )}
       </View>
     </View>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StatusBar, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, View, StatusBar, TouchableOpacity } from 'react-native';
 import Icon from '@react-native-vector-icons/ant-design';
 import { useTheme } from '@styles/hooks';
 import Header from '@components/home/header';
@@ -7,6 +7,9 @@ import ProductsList from '@components/product/product-list';
 import HeroCarousel from '@components/home/hero-carousel';
 import FeaturedCollection from '@components/home/featured-collection';
 import { themeNames } from '@styles/themes';
+import { useRegion } from '@data/region-context';
+import Button from '@components/common/button';
+import Text from '@components/common/text';
 
 const Home = () => {
   const { name, setThemeName } = useTheme();
@@ -16,6 +19,25 @@ const Home = () => {
     setThemeName(nextTheme);
   };
   const { isDarkMode } = useTheme();
+  const { region, regionLoading, regionError, retryRegion } = useRegion();
+
+  if (!region) {
+    return (
+      <View className="flex-1 bg-background p-safe items-center justify-center px-6">
+        {regionLoading ? (
+          <ActivityIndicator accessibilityLabel="Loading store region" />
+        ) : (
+          <>
+            <Text className="text-center mb-4">
+              {regionError ? 'Unable to load your store region. Check your connection.' : 'No store region available.'}
+            </Text>
+            <Button title="Retry" onPress={retryRegion} />
+          </>
+        )}
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-background p-safe">
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
