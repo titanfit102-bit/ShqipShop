@@ -1,10 +1,10 @@
 /**
  * @jest-environment node
  *
- * N02 transport boundary: the REAL locked @medusajs/js-sdk 2.21.2 issues
+ * N02 transport boundary: the native Store HTTP client issues
  * requests through a controlled fetch stub. No live server or secrets.
  */
-import Medusa from '@medusajs/js-sdk';
+import {createStoreHttpClient} from '../app/api/store-http-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   AUTH_TOKEN_KEY,
@@ -32,16 +32,9 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 
 type SeenRequest = { path: string; method: string; bearer: string | null };
 const observed: SeenRequest[] = [];
-const createSdk = () => new Medusa({
-  baseUrl: 'https://medusa-transport.invalid',
-  publishableKey: 'pk_synthetic_transport',
-  auth: {
-    type: 'jwt',
-    jwtTokenStorageMethod: 'custom',
-    jwtTokenStorageKey: AUTH_TOKEN_KEY,
-    storage: authTokenStorage,
-  },
-});
+const createSdk = () => createStoreHttpClient(
+  'https://medusa-transport.invalid', 'pk_synthetic_transport',
+);
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -58,7 +51,7 @@ beforeEach(() => {
 });
 afterEach(() => { globalThis.fetch = originalFetch; });
 
-test('N02 real SDK sends ONLY new registration bearer on customer.create and login bearer afterward', async () => {
+test('N02 Store transport sends ONLY new registration bearer on customer.create and login bearer afterward', async () => {
   const sdk = createSdk();
   let version = blockAuthForLogin();
   // A bearer is physically persisted but must stay inaccessible after logout.
@@ -82,15 +75,14 @@ test('N02 real SDK sends ONLY new registration bearer on customer.create and log
     }
     if (path === '/auth/customer/emailpass') return json({ token: 'JWT_B_LOGIN' });
     if (path === '/store/customers/me') return json({ customer: { id: 'cust_B' } });
-    throw new Error('Unexpected real SDK route: ' + path);
+    throw new Error('Unexpected Store transport route: ' + path);
   }) as typeof fetch;
 
   const registrationJwt = await sdk.auth.register('customer', 'emailpass', {
     email: 'b@example.invalid', password: 'synthetic',
   });
   expect(registrationJwt).toBe('JWT_B_REGISTER');
-  // The locked SDK's auth.register calls setToken without awaiting it:
-  // explicit awaited setToken and confirmNewLoginToken close that race.
+  // The provisional registration JWT is stored by the owner flow.
   await sdk.client.setToken(registrationJwt);
   await verifyPendingRegistrationToken(registrationJwt, version);
   expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
@@ -128,7 +120,7 @@ test('N02 real SDK sends ONLY new registration bearer on customer.create and log
   expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBe('JWT_B_LOGIN');
 });
 
-test('N02 real SDK cannot attach old A JWT after logout while disk removal is delayed', async () => {
+test('N02 Store transport cannot attach old A JWT after logout while disk removal is delayed', async () => {
   const sdk = createSdk();
   let version = blockAuthForLogin();
   await sdk.client.setToken('JWT_A_PRIVATE');
@@ -163,4 +155,34 @@ test('N02 real SDK cannot attach old A JWT after logout while disk removal is de
   finishRemoval?.();
   await logout;
   expect(await authTokenStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
+});
+
+test('preserves Medusa query selectors, quote headers and exact refusal status', async () => {
+  const api = createSdk();
+  const stub = jest.fn(async () => json({message: 'F07G_QUOTE_REVIEW_REQUIRED'}, 412));
+  globalThis.fetch = stub as typeof fetch;
+  await expect(api.store.cart.complete('cart_fixture', {fields: '+id,items.*'}, {
+    'x-shqipshop-quote-id': 'quote_fixture',
+  })).rejects.toMatchObject({status: 412, message: 'F07G_QUOTE_REVIEW_REQUIRED'});
+  const [url, options] = (stub.mock.calls as unknown as [string, RequestInit][])[0];
+  expect(new URL(url).searchParams.get('fields')).toBe('+id,items.*');
+  expect(new Headers(options.headers).get('x-shqipshop-quote-id')).toBe('quote_fixture');
+  expect(new Headers(options.headers).get('x-publishable-api-key')).toBe('pk_synthetic_transport');
+  expect(options.credentials).toBe('omit');
+  await expect(api.client.fetch('/store/../admin/users')).rejects.toThrow('Unsupported');
+  expect(stub).toHaveBeenCalledTimes(1);
+});
+
+test('does not start a payment session after the customer changes', async () => {
+  const api = createSdk();
+  const network = jest.fn(async () => {
+    blockAuthForLogin();
+    return json({payment_collection: {id: 'collection_fixture'}});
+  });
+  globalThis.fetch = network as typeof fetch;
+  await expect(api.store.payment.initiatePaymentSession(
+    {id: 'cart_fixture'} as Parameters<typeof api.store.payment.initiatePaymentSession>[0],
+    {provider_id: 'pp_system_default'},
+  )).rejects.toThrow('Customer session changed');
+  expect(network).toHaveBeenCalledTimes(1);
 });

@@ -82,7 +82,7 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
   };
 
   // Reused by login and the final sign-in following a successful customer
-  // creation. It runs INSIDE one serialized SDK operation; no nested queue.
+  // creation. It runs INSIDE one serialized authentication operation; no nested queue.
   const finishOwnedLogin = async (
     email: string, password: string, epoch: number, authVersion: number,
   ) => {
@@ -90,7 +90,7 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
     const response = await apiClient.auth.login('customer', 'emailpass', {
       email, password,
     });
-    // Medusa SDK may persist a JWT before returning its login response.
+    // The transport may persist a JWT before returning its login response.
     ensureOwnedAuth(epoch, authVersion);
     if (typeof response === 'string') {
       await confirmNewLoginToken(response, authVersion);
@@ -101,9 +101,8 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
       ]);
       ensureOwnedAuth(epoch, authVersion);
     } else {
-      // SDK can persist an authentication JWT for MFA or verification-required
-      // responses. None is a completed customer session in this app yet.
-      // Reject without logging potentially sensitive SDK challenge payloads.
+      // Verification and MFA challenges are incomplete sessions.
+      // Reject without logging challenge details.
       if ('verification_required' in response && response.verification_required) {
         throw new Error('Customer login verification required before session activation');
       }
@@ -129,7 +128,7 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
         ensureOwnedAuth(epoch, authVersion);
         await finishOwnedLogin(email, password, epoch, authVersion);
       } catch (error) {
-        // A failed/incomplete SDK login may already have written a JWT.
+        // A failed/incomplete login may already have written a JWT.
         // Its physical removal must finish before the next queued identity.
         if (epoch === identityEpoch.current && isCurrentAuthAttempt(authVersion)) {
           blockAuthForLogin();
@@ -158,7 +157,7 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
   const logout = async () => {
     const epoch = ++identityEpoch.current;
     // Block JWT access and wipe cart memory at logout INTENT, independently
-    // of an older SDK login that may still be awaiting a remote response.
+    // of an older login that may still be awaiting a remote response.
     blockAuthForLogin();
     setCustomer(undefined);
     currentPrincipalId.current = undefined;
@@ -198,7 +197,7 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
     setCustomer(undefined);
     currentPrincipalId.current = undefined;
 
-    // auth.register and client.setToken can both write to SDK custom storage.
+    // client.setToken persists the provisional registration token.
     // Reserve the same operation queue as login/logout before the first await.
     return serializeNativeAuthOperation(async () => {
       ensureOwnedAuth(epoch, authVersion);
@@ -221,7 +220,7 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
         await verifyPendingRegistrationToken(token, authVersion);
         ensureOwnedAuth(epoch, authVersion);
 
-        // Use Medusa's documented per-request registration bearer. The SDK
+        // Use Medusa's documented per-request registration bearer. The
         // generic token accessor stays blocked by the durable marker.
         await apiClient.store.customer.create(
           { first_name: firstName, last_name: lastName, email },
@@ -237,7 +236,7 @@ export const CustomerProvider = ({ children }: CustomerProviderProps) => {
         ensureOwnedAuth(epoch, authVersion);
         await finishOwnedLogin(email, password, epoch, authVersion);
       } catch (error) {
-        // Cleanup runs before the next queued B login/logout: an SDK-written
+        // Cleanup runs before the next queued B login/logout: a provisional
         // registration JWT must never be re-used after failed/stale creation.
         if (epoch === identityEpoch.current && isCurrentAuthAttempt(authVersion)) {
           blockAuthForLogin();

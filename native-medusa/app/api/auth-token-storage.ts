@@ -7,7 +7,7 @@ const SIGNED_OUT_MARKER_KEY = 'shqipshop:jwt-signed-out';
 // reused while AsyncStorage removal is delayed or has failed.
 let tokenAccessBlocked = false;
 let pendingWrites: Promise<void> = Promise.resolve();
-// The login API performs SDK-owned JWT writes. Serialize session transitions
+// The login API performs transport-owned JWT writes. Serialize session transitions
 // so an old login cannot physically overwrite the next user's stored token.
 let authTransitionVersion = 0;
 let authOperationTail: Promise<void> = Promise.resolve();
@@ -32,7 +32,7 @@ const queueWrite = (work: () => Promise<void>): Promise<void> => {
 };
 
 /**
- * The Medusa SDK reads the JWT through its custom storage for EACH request.
+ * The Store transport reads the JWT through this storage for each request.
  * Never return a token when a logout transition or persisted logout marker
  * is present, including if an asynchronous read finishes after logout starts.
  */
@@ -65,7 +65,7 @@ export const blockAuthForLogin = (): number => {
 };
 
 /**
- * Persist a fail-closed barrier BEFORE the SDK starts writing a new JWT.
+ * Persist a fail-closed barrier before the transport writes a new JWT.
  * A process restart while auth.login/auth.register is still in flight must
  * never reinterpret a provisional or previous token as a signed-in session.
  */
@@ -82,7 +82,7 @@ export const persistPendingAuthBarrier = async (attemptVersion: number) => {
 /**
  * A registration JWT is an actor-creation capability, NOT a customer session.
  * Verify its physical storage without clearing the durable signed-out marker
- * or allowing it through the SDK's generic Authorization header.
+ * or allowing it through the transport's generic Authorization header.
  */
 export const verifyPendingRegistrationToken = async (
   expectedToken: string,
@@ -134,8 +134,7 @@ export const confirmNewLoginToken = async (
 };
 
 /**
- * SDK auth.logout() doesn't await Client.clearToken() with custom storage.
- * Calling the awaited client method directly avoids this SDK race for JWT auth.
+ * Await the transport's token cleanup before permitting a later login.
  * A persisted marker prevents a stale token being sent after app restart if
  * its physical removal fails. Failure stays visible to the caller.
  */
