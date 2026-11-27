@@ -1,5 +1,9 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-27 — Sanitized Medusa runtime recovery across runners
+
+The isolated full Medusa recovery now exercises a guest order, persisted stock and simulated financial relationships, a restored Store API receipt and media bytes on PostgreSQL with empty Redis. The existing standard runners use bounded job outputs and the separate hosted target passed on b9b03e7. Production recovery still needs its approved storage, operating policies and recovery objectives. The frozen production dependency tree confirms the backend Enterprise license decision remains open. [Code b9b03e7](https://github.com/titanfit102-bit/ShqipShop/commit/b9b03e7de85a196b04c76fd766d746e17246bb69) · [Restore runner](https://github.com/titanfit102-bit/ShqipShop/actions/runs/46003694038/job/140521878441) · [Current state](CURRENT_STATE.md)
+
 ## 2026-11-27 — Store HTTP licensing, separate runners and clean R01
 
 The free two-runner rehearsal passed for its credential-free synthetic PostgreSQL and media fixture. The production-mode Android Metro map cleared the known Medusa SDK bundle finding after switching to public Store HTTP without a new runtime dependency. Both hosted Android workflows passed. Continue with the backend commercial-license decision. The clean Medusa 2.23.1 experiment failed the R01 suite. Keep 2.22.6 active and continue simulated financial verification only. Full-runtime separate-host recovery and approved PSP evidence remain before a real pilot. [Two-runner proof](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45995029049) · [Native candidate bd3ea1a](https://github.com/titanfit102-bit/ShqipShop/commit/bd3ea1a2d9d9ff8b5fb3a562feb4ab81d9f1df97) · [Current state](CURRENT_STATE.md)

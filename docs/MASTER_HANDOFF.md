@@ -66,6 +66,12 @@ Resume at the native Store HTTP candidate `bd3ea1a`. The public runner transfer 
 
 Both hosted Android flows passed. Next extend separate-host recovery to the full sanitized Medusa runtime and resolve the backend license scope with a supported community distribution or confirmed commercial rights. Preserve the clean R01 comparator and existing isolated corrected proof.
 
+## 2026-11-27 — Sanitized Medusa runtime recovery across runners
+
+Resume at `b9b03e7`. The new workflow transfers the credential-excluded synthetic Medusa 2.22.6 archive with one guest checkout and media via bounded job outputs. Local verification matched the restored Store receipt, stock, simulated payment and PNG. The hosted backup and separate Medusa restore both passed on the same source commit. Keep production and provider data outside the public repository. [Code b9b03e7](https://github.com/titanfit102-bit/ShqipShop/commit/b9b03e7de85a196b04c76fd766d746e17246bb69) · [Backup runner](https://github.com/titanfit102-bit/ShqipShop/actions/runs/46003694038/job/140521436737) · [Restore runner](https://github.com/titanfit102-bit/ShqipShop/actions/runs/46003694038/job/140521878441) · [Current state](CURRENT_STATE.md)
+
+Frozen production-only dependencies contain the Enterprise framework authorization and Dashboard SSO files. Backend artifact rights and R01 remain release blockers. PR #12 stays Draft.
+
 ## Historical checkpoints
 
 ## 2026-11-25 — F07g/N03 catalogue repricing with multiple ALL items
