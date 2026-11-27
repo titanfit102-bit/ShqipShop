@@ -1,5 +1,9 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-27 — Store HTTP licensing, separate runners and clean R01
+
+The known v2.21.2 Enterprise SDK modules are absent from the measured Store-HTTP Android Metro map for `bd3ea1a`. Backend Enterprise materials, final artifact notices and commercial rights remain release blockers. The synthetic separate-runner restore passed with no artifact storage. The clean 2.23.1 R01 matrix passed one of ten groups and leaves RG-03 blocked. [Native candidate bd3ea1a](https://github.com/titanfit102-bit/ShqipShop/commit/bd3ea1a2d9d9ff8b5fb3a562feb4ab81d9f1df97) · [Two-runner proof](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45995029049) · [Current state](../CURRENT_STATE.md)
+
 ## 2026-11-27 — Portability and release license evidence
 
 Commercial distribution is blocked at RG-05. The local Android Metro source map contains two v2.21.2 SDK modules explicitly listed as Enterprise in the linked terms. Representative Enterprise files also exist in the installed v2.22.6 backend train. Package-level MIT metadata and disabled features do not establish artifact rights. The active-branch internal APK job verifies the map before upload. Confirm scope, notices and rights on exact release artifacts. [Upload check 4be416f](https://github.com/titanfit102-bit/ShqipShop/commit/4be416fb47e5b93b28d7214712a56016c6b825a3) · [Medusa v2.21.2 terms](https://github.com/medusajs/medusa/blob/v2.21.2/ENTERPRISE-LICENSE.md) · [Medusa v2.22.6 terms](https://github.com/medusajs/medusa/blob/v2.22.6/ENTERPRISE-LICENSE.md)

@@ -1,5 +1,24 @@
 # ShqipShop — Security Test Matrix
 
+## 2026-11-27 — Store HTTP licensing, separate runners and clean R01
+
+Clean upstream 2.23.1 was tested in a temporary copy of `1839e20`, with pnpm 10.11.1 and a regenerated disposable lock. Existing R01 assertions were collected by group with separate synthetic orders and two local API processes. No patch was applied. The unchanged matrix returned nonzero at the first group. The collector also returned nonzero after all ten groups.
+
+| R01 group | Clean 2.23.1 outcome |
+| --- | --- |
+| Late writer refusal | FAIL, the expected rejection was missing |
+| Plural distinct amounts and exhausted replay | FAIL, transaction references used the payment ID where distinct refund IDs were required |
+| Mixed replay and partial approval | FAIL, the workflow raised a value without a classified error message in the collector |
+| Plural concurrent writers | FAIL, the persisted posting references did not match distinct refund IDs |
+| Legacy posting without mutation | FAIL, the expected reconciliation refusal was missing |
+| Uncaptured Admin refund | FAIL, HTTP 200 instead of refusal |
+| Confirmed refund with no posting | FAIL, retry returned HTTP 400 |
+| Full balance across two APIs and replay | FAIL, replay returned HTTP 400 |
+| Two distinct keys for one remaining ALL | FAIL, both requests returned HTTP 200 |
+| Two APIs with the same key | PASS, one refund remained after replay |
+
+Real PSP callbacks and settlement remain untested. The exact installed 2.22.6 data and lock in the tracked checkout are untouched. [Medusa v2.23.1 release](https://github.com/medusajs/medusa/releases/tag/v2.23.1) · [Current state](../CURRENT_STATE.md)
+
 ## 2026-11-27 — F07g/N03 registered ALL discount proof
 
 Three quote adapter tests passed for the exact discount, adjustment fingerprint, inconsistent amounts and excess adjustments. One isolated Medusa promotion changed the cart from 1,510 to 1,410 ALL. Stale and unaccepted offers returned 412. Explicit acceptance completed one simulated order. The financial records, Android receipt and N03 order ID matched after the response was dropped and the Android app restarted. Ordinary Android failed separately and skipped its persisted-order assertion. R01 and the release veto remain active. [Commit a0b6d06](https://github.com/titanfit102-bit/ShqipShop/commit/a0b6d0685e85781514a8c9e5192abc97466ca291) · [Android N03 discount](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114227/job/140203114937) · [Ordinary Android](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114171/job/140203114641)

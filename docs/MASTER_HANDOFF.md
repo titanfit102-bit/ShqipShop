@@ -60,6 +60,12 @@ Continue from the versioned checkout export verified at `233da7e`. A hosted synt
 
 The latest earlier documentation-only Android failure was at Gradle compilation on `a7d9e80`. Leave it separate from the catalog and active cart incidents. Keep PR #12 Draft and preserve the R01 baseline. [Android build failure at a7d9e80](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45922375364/job/140255835994) · [Current state](CURRENT_STATE.md)
 
+## 2026-11-27 — Store HTTP licensing, separate runners and clean R01
+
+Resume at the native Store HTTP candidate `bd3ea1a`. The public runner transfer proof passed at `1b00983` with no artifact uploads. The Store HTTP adapter removed all Medusa JS SDK modules from the measured Android Metro map. Continue to keep the backend and distribution license gate open. The clean isolated Medusa 2.23.1 run passed one of ten R01 groups. The tracked backend remains on 2.22.6. Keep PR #12 Draft, simulated payments only and publication blocked. [Native candidate bd3ea1a](https://github.com/titanfit102-bit/ShqipShop/commit/bd3ea1a2d9d9ff8b5fb3a562feb4ab81d9f1df97) · [Two-runner proof](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45995029049) · [Current state](CURRENT_STATE.md)
+
+Both hosted Android flows passed. Next extend separate-host recovery to the full sanitized Medusa runtime and resolve the backend license scope with a supported community distribution or confirmed commercial rights. Preserve the clean R01 comparator and existing isolated corrected proof.
+
 ## Historical checkpoints
 
 ## 2026-11-25 — F07g/N03 catalogue repricing with multiple ALL items
