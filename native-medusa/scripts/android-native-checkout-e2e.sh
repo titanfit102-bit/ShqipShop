@@ -37,9 +37,8 @@ adb install -r "$apk"
 stage=launch-storefront
 adb shell am start -W -n com.rnstartermedusa/.MainActivity
 
-# Add one product by pressing the React Native controls, not calling HTTP.
-ui_step catalog-product-visible wait "Medusa Shorts" --timeout 100
-ui_step open-product tap "Medusa Shorts" --timeout 40 --scroll 2
+# Search the scrollable catalog and open the exact fixture product in the UI.
+ui_step open-catalog-product tap "Medusa Shorts" --timeout 100 --scroll 6
 ui_step size-options-visible wait "Select Size" --timeout 60 --scroll 3
 ui_step select-size tap "S" --exact --timeout 50 --scroll 2
 ui_step add-to-cart tap "Shto në shportë" --timeout 60 --scroll 3
