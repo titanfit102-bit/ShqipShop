@@ -1,5 +1,9 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-27 — Android catalog triage, cart readiness and tenant restore
+
+Local evidence at `ea6b43a` and hosted CI at `6911022` verify one merchant PostgreSQL restore with unchanged source data for both merchants and denied B access to A's restored database. Scope includes order and simulated financial rows, stock and image references. A local file-provider rehearsal also verified exact media bytes after restore. The RG-06 gate remains open for separate-host infrastructure, deployed media storage and production operations. R01 and the release veto remain active. [Merchant A/B restore](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45920530050)
+
 ## 2026-11-27 — F07g/N03 registered ALL discount
 
 Commit `a0b6d06` binds one Medusa line promotion adjustment to the disposable quote and verifies net line and cart amounts. Local PostgreSQL/Redis and hosted Android passed stale and unaccepted refusal, explicit acceptance, one simulated order and N03 recovery with matching payment and receipt. Production quote durability, F08, F09, R01 and the release gates remain open. [Commit a0b6d06](https://github.com/titanfit102-bit/ShqipShop/commit/a0b6d0685e85781514a8c9e5192abc97466ca291) · [Android N03 discount](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114227/job/140203114937) · [Uncorrected R01](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114168/job/140203115522) · [Corrected R01](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114168/job/140203115925)

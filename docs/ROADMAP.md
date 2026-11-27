@@ -1,5 +1,9 @@
 # ShqipShop — ROADMAP me prova për çdo fazë
 
+## 2026-11-27 — Android catalog triage, cart readiness and tenant restore
+
+The ordinary Android failure was isolated to the catalog before product selection. The scroll-aware check and cart-readiness mitigation are in `6911022`. The hosted PostgreSQL rehearsal verifies restore and no change to merchant B. The local restored runtime also served the same receipt and identical synthetic media bytes. Hosted ordinary Android and N03 passed on the candidate. Separate-infrastructure recovery and R01 acceptance remain before real pilot. [Android checkout](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45920530108/job/140249911620) · [Merchant A/B restore](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45920530050) · [Current state](CURRENT_STATE.md)
+
 ## 2026-11-27 — Registered ALL discount verified
 
 The isolated registered checkout verified a single Medusa-calculated 100 ALL promotion, explicit acceptance of the new 1,410 ALL offer, simulated financial agreement and same-order N03 recovery. Continue with evidence-led triage of the ordinary Android failures. Broader rollout and R01 acceptance remain open. [Commit a0b6d06](https://github.com/titanfit102-bit/ShqipShop/commit/a0b6d0685e85781514a8c9e5192abc97466ca291) · [Android N03 discount](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114227/job/140203114937) · [Current state](CURRENT_STATE.md)

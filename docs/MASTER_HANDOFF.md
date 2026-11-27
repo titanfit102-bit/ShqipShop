@@ -48,6 +48,12 @@ Resume at code `a0b6d06`. Local Medusa/PostgreSQL/Redis and hosted Android verif
 
 Ordinary Android failed in the UI step before the PostgreSQL assertion. The exact UI failure is unknown. Inspect the retained evidence before a targeted reproduction and keep the missing catalog target and missing active cart ID incidents open. PR #12 remains Draft, R01 remains open and publication is blocked. Medusa remains the single commerce authority per merchant. [Ordinary Android](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45906114171/job/140203114641)
 
+## 2026-11-27 — Android catalog triage, cart readiness and tenant restore
+
+Continue from `6911022`, with the diagnostic at `199b0eb`, the native cart readiness fix at `de3df94` and the PostgreSQL restore proof at `ea6b43a`. The observed ordinary Android failure happened before product selection. The scroll-aware selection and equivalent regional Medusa preflight address a test gap. The missing cart ID incident has a separately tested client mitigation. Hosted PostgreSQL restore and local restored Store API receipt and image-byte checks passed. Hosted ordinary Android completed checkout and passed the PostgreSQL assertion. Android N03 passed. Both historical triggers remain unconfirmed. [Catalog failure annotation](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45919088011/job/140245352422) · [Android checkout](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45920530108/job/140249911620) · [Merchant A/B restore](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45920530050) · [Current state](CURRENT_STATE.md)
+
+Keep the established release boundaries. The local restored Store API and file proof support the next separate-host recovery rehearsal. Provider access and full release remain separate decisions.
+
 ## Historical checkpoints
 
 ## 2026-11-25 — F07g/N03 catalogue repricing with multiple ALL items
