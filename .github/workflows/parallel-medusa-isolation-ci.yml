@@ -88,6 +88,7 @@ jobs:
           node --check scripts/verify-redis-session-handoff.mjs
           node --check scripts/parallel-mutation-boundary.mjs
           node --test scripts/boundary-http.test.mjs
+          node --test scripts/verify-merchant-order-fixture.test.mjs
       - name: Create isolated tenant databases and database users
         run: |
           set -euo pipefail
@@ -303,6 +304,7 @@ jobs:
         timeout-minutes: 5
         env:
           POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+          SHQIPSHOP_A_ORDER_FILE: ${{ runner.temp }}/merchant-a-order.txt
         run: bash scripts/verify-merchant-postgres-restore.sh "$POSTGRES_CONTAINER"
       - name: Statement of limits
         if: always()

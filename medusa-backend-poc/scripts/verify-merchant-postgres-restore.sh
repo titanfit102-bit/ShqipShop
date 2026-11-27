@@ -9,6 +9,10 @@ container=${1:?Pass the disposable PostgreSQL 16 service container}
 a=shqipshop_ci_a
 b=shqipshop_ci_b
 target=shqipshop_ci_a_restore
+scripts=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+order_file=${SHQIPSHOP_A_ORDER_FILE:?Missing synthetic merchant A order file}
+order_id=$(< "$order_file")
+[[ "$order_id" =~ ^order_[a-zA-Z0-9]+$ ]]
 
 pg() {
   local role=$1 database=$2 password=$3
@@ -49,8 +53,14 @@ COMMIT;
 SQL
 }
 
+export_digest() {
+  pg "$a" "$1" merchantA_disposable --set "order_id=$order_id" < "$scripts/export-merchant-order-fixture.sql" |
+    node "$scripts/verify-merchant-order-fixture.mjs" "$order_id"
+}
+
 assert_fixture "$a" merchantA_disposable
 assert_fixture "$b" merchantB_disposable
+portable_before=$(export_digest "$a")
 before_a=$(fingerprint "$a" "$a" merchantA_disposable)
 before_b=$(fingerprint "$b" "$b" merchantB_disposable)
 [[ "$before_a" != "$before_b" ]]
@@ -73,6 +83,7 @@ docker exec -e PGPASSWORD=merchantA_disposable "$container" \
     pg_restore --no-password --host 127.0.0.1 --username "$a" --dbname "$target" \
       --no-owner --no-privileges --single-transaction --exit-on-error
 
+[[ $(export_digest "$target") == "$portable_before" ]]
 [[ $(fingerprint "$a" "$target" merchantA_disposable) == "$before_a" ]]
 [[ $(fingerprint "$a" "$a" merchantA_disposable) == "$before_a" ]]
 [[ $(fingerprint "$b" "$b" merchantB_disposable) == "$before_b" ]]
@@ -81,4 +92,5 @@ if pg "$b" "$target" merchantB_disposable --command 'SELECT 1' >/dev/null 2>&1; 
   exit 1
 fi
 
+echo 'SHQIPSHOP_VERSIONED_SYNTHETIC_ORDER_EXPORT_MATCHES_RESTORE'
 echo 'SHQIPSHOP_MERCHANT_A_PG_RESTORE_FINANCE_STOCK_IMAGE_REFERENCES_AND_B_ISOLATION_PASSED'
