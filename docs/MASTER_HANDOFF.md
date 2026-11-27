@@ -54,6 +54,12 @@ Continue from `6911022`, with the diagnostic at `199b0eb`, the native cart readi
 
 Keep the established release boundaries. The local restored Store API and file proof support the next separate-host recovery rehearsal. Provider access and full release remain separate decisions.
 
+## 2026-11-27 — Portability and release license evidence
+
+Continue from the versioned checkout export verified at `233da7e`. A hosted synthetic merchant A export matched its restored copy and preserved B isolation. The roadmap compares the free separate-runner option, existing machines and the conditional payment sandboxes. Before commercial APK distribution, resolve the Enterprise modules confirmed in the native Metro map. The internal APK upload check fails on those paths. Decide an authorized commercial license or a reviewed public Store API packaging route before adopting a release configuration. [Code 233da7e](https://github.com/titanfit102-bit/ShqipShop/commit/233da7e388c06f5a452424cb87dad12ff619aec6) · [Hosted export and restore](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45923312337/job/140258838609) · [Upload check 4be416f](https://github.com/titanfit102-bit/ShqipShop/commit/4be416fb47e5b93b28d7214712a56016c6b825a3) · [Roadmap](ROADMAP.md)
+
+The latest earlier documentation-only Android failure was at Gradle compilation on `a7d9e80`. Leave it separate from the catalog and active cart incidents. Keep PR #12 Draft and preserve the R01 baseline. [Android build failure at a7d9e80](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45922375364/job/140255835994) · [Current state](CURRENT_STATE.md)
+
 ## Historical checkpoints
 
 ## 2026-11-25 — F07g/N03 catalogue repricing with multiple ALL items

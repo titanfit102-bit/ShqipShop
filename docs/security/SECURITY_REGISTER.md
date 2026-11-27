@@ -1,5 +1,11 @@
 # ShqipShop — Security Register (active; 2026-10-25)
 
+## 2026-11-27 — Portability and release license evidence
+
+Commercial distribution is blocked at RG-05. The local Android Metro source map contains two v2.21.2 SDK modules explicitly listed as Enterprise in the linked terms. Representative Enterprise files also exist in the installed v2.22.6 backend train. Package-level MIT metadata and disabled features do not establish artifact rights. The active-branch internal APK job verifies the map before upload. Confirm scope, notices and rights on exact release artifacts. [Upload check 4be416f](https://github.com/titanfit102-bit/ShqipShop/commit/4be416fb47e5b93b28d7214712a56016c6b825a3) · [Medusa v2.21.2 terms](https://github.com/medusajs/medusa/blob/v2.21.2/ENTERPRISE-LICENSE.md) · [Medusa v2.22.6 terms](https://github.com/medusajs/medusa/blob/v2.22.6/ENTERPRISE-LICENSE.md)
+
+The versioned checkout export adds a verified read-only synthetic portability check to the hosted restore. The database and hosted/local recovery evidence remains scoped to disposable fixtures. Separate-host production recovery and R01 stay open. [Hosted export and restore](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45923312337/job/140258838609)
+
 ## 2026-11-27 — Android catalog triage, cart readiness and tenant restore
 
 Local evidence at `ea6b43a` and hosted CI at `6911022` verify one merchant PostgreSQL restore with unchanged source data for both merchants and denied B access to A's restored database. Scope includes order and simulated financial rows, stock and image references. A local file-provider rehearsal also verified exact media bytes after restore. The RG-06 gate remains open for separate-host infrastructure, deployed media storage and production operations. R01 and the release veto remain active. [Merchant A/B restore](https://github.com/titanfit102-bit/ShqipShop/actions/runs/45920530050)
